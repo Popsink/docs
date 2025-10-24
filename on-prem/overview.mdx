@@ -1,0 +1,115 @@
+---
+title: 'On-Premises Deployment'
+description: 'Deploy Popsink in your data center or private cloud'
+icon: 'server'
+---
+
+Popsink can run within your data center or private cloud environment, giving you complete control over your data infrastructure while maintaining all the powerful capabilities of the Popsink platform.
+
+## Overview
+
+The On-Premises deployment model is ideal for organizations with:
+- Strict data residency requirements
+- Existing data center infrastructure
+- Compliance mandates requiring on-prem solutions
+- Air-gapped or isolated network environments
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Full Control" icon="sliders">
+    Complete control over infrastructure, data, and deployment configuration.
+  </Card>
+  
+  <Card title="Kubernetes Support" icon="dharmachakra">
+    Deploy on Kubernetes for orchestration, scaling, and high availability.
+  </Card>
+  
+  <Card title="Enterprise SSO" icon="key">
+    Integrate with your existing identity provider (SAML, OAuth, LDAP).
+  </Card>
+  
+  <Card title="Minimal Dependencies" icon="link-slash">
+    Runs with minimal external dependencies for maximum isolation.
+  </Card>
+</CardGroup>
+
+## System Requirements
+
+### Hardware
+
+<AccordionGroup>
+  <Accordion title="Minimum Requirements" icon="server">
+    - **CPU:** 8 cores
+    - **RAM:** 32 GB
+    - **Storage:** 500 GB SSD
+    - **Network:** 1 Gbps
+  </Accordion>
+  
+  <Accordion title="Recommended (Production)" icon="building">
+    - **CPU:** 16+ cores
+    - **RAM:** 64+ GB
+    - **Storage:** 1+ TB NVMe SSD
+    - **Network:** 10 Gbps
+  </Accordion>
+</AccordionGroup>
+
+### Software
+
+- **Container Runtime:** Docker 20.10+ or containerd 1.6+
+- **Orchestration:** Kubernetes 1.24+ (recommended) or Docker Compose
+- **Operating System:** Ubuntu 20.04+, RHEL 8+, or equivalent
+- **Database:** PostgreSQL 14+ (for Popsink metadata)
+
+## Deployment Architecture
+
+<Note>
+Detailed deployment instructions and architecture diagrams are available in our [API guide](/on-prem/api-guide).
+</Note>
+
+## Responsibilities
+
+### Customer
+- Provide physical/virtual infrastructure
+- Manage storage and networking
+- Configure identity and access management
+- Monitor system health
+- Perform backups and disaster recovery
+
+### Popsink
+- Provide software and configuration
+- Deliver deployment instructions
+- Support integration with observability systems
+- Provide guidance on upgrades and troubleshooting
+
+## Getting Started
+
+<Steps>
+  <Step title="Contact Sales">
+    Reach out to Popsink sales team to obtain on-premises deployment package.
+  </Step>
+  
+  <Step title="Prepare Infrastructure">
+    Set up your Kubernetes cluster or VM infrastructure according to requirements.
+  </Step>
+  
+  <Step title="Deploy Popsink">
+    Follow the deployment guide to install Popsink in your environment.
+  </Step>
+  
+  <Step title="Configure Connectors">
+    Set up source and target connectors for your data pipelines.
+  </Step>
+</Steps>
+
+## Support & Documentation
+
+<CardGroup cols={2}>
+  <Card title="API Guide" icon="code" href="/on-prem/api-guide">
+    Comprehensive API documentation for on-prem deployment
+  </Card>
+  
+  <Card title="Deployment Options" icon="rocket-launch" href="/features/deployment">
+    Compare all deployment models
+  </Card>
+</CardGroup>

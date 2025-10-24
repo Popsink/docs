@@ -1,0 +1,179 @@
+---
+title: 'Deployment Options'
+description: 'Choose the deployment model that fits your organization'
+icon: 'rocket-launch'
+---
+
+Popsink supports multiple deployment models so that you can run the same core engine, with the same features and performance, in the mode that fits your organization's requirements.
+
+## Overview
+
+Popsink's deployment architecture is designed to adapt to different security postures, regulatory constraints, and operational preferences. Regardless of the model chosen, you benefit from the same core capabilities (e.g. data ingestion, replication, pipeline processing, observability).
+
+### Quick Comparison
+
+| Deployment Mode       | Infrastructure Ownership                      | Connectivity Requirements                              | Upgrade / Patching Responsibility | Typical Use Cases                                   |
+| --------------------- | --------------------------------------------- | ------------------------------------------------------ | --------------------------------- | --------------------------------------------------- |
+| **SaaS**              | Popsink-managed cloud                         | Outbound connectivity required                         | Popsink handles                   | Fast startup, low ops, non-restrictive environments |
+| **BYOC**              | Customer's cloud account                      | Outbound/inbound as required                           | Shared (Popsink + Customer)       | Organizations wanting control over data, keys, cost |
+| **On-Premises**       | Customer-managed data center or private cloud | Standard internal networking, limited external contact | Customer (with Popsink guidance)  | Enterprises with strict internal hosting needs      |
+| **Air-Gapped**        | Customer-managed, isolated network            | No outbound connectivity allowed                       | Offline, signed update bundles    | Regulated environments, high-security zones         |
+
+---
+
+## Deployment Models
+
+<AccordionGroup>
+  <Accordion title="1. SaaS (Fully Managed)" icon="cloud" defaultOpen>
+    ### Description
+    
+    In this model, Popsink hosts and manages the full stack (compute, storage, networking, orchestration) in a cloud environment. The user interacts via APIs, consoles, or UI but does not need to provision or manage infrastructure.
+    
+    ### Key Features & Benefits
+    
+    - **Zero ops:** Setup can be done in hours
+    - **Automatic upgrades and patches**
+    - **Elastic scaling** under predictable SLAs
+    - **Data boundary controls:** region selection, private networking options
+    
+    ### Responsibilities
+    
+    **Popsink:**
+    - Manage infrastructure, scaling, updates, high availability
+    
+    **Customer:**
+    - Data modeling, configuration, access controls, inbound/outbound integration
+    
+    <Tip>
+    Perfect for teams that want to focus on data pipelines without worrying about infrastructure.
+    </Tip>
+  </Accordion>
+  
+  <Accordion title="2. Bring Your Own Cloud (BYOC)" icon="server">
+    ### Description
+    
+    This model installs Popsink within the customer's own cloud account (e.g. AWS, GCP, Azure). All data, keys, and spend remain under the customer's control. The deployed components run within the customer's VPC and use existing identity and key management systems.
+    
+    ### Key Features & Benefits
+    
+    - Data stays inside your VPC
+    - VPC-only traffic (internal networking)
+    - Single-tenant cost visibility
+    - More control over infrastructure and governance
+    
+    ### Responsibilities
+    
+    **Customer:**
+    - Provide the target cloud account, networking setup, VPC connectivity
+    
+    **Popsink:**
+    - Deliver the deployment artifacts, containers, orchestration, guidance for upgrades, monitoring
+    
+    <Tip>
+    Ideal for organizations with strict data residency requirements or those wanting full cost transparency.
+    </Tip>
+  </Accordion>
+  
+  <Accordion title="3. On-Premises (On-Prem)" icon="building">
+    ### Description
+    
+    Popsink can run within a customer's data center or private cloud environment, in a Kubernetes cluster.
+    
+    ### Key Features & Benefits
+    
+    - Supports Kubernetes or VM installations
+    - Integrates with enterprise SSO
+    - Minimal external dependencies
+    
+    ### Responsibilities
+    
+    **Customer:**
+    - Provide the physical/virtual infrastructure, storage, networking, identity, monitoring
+    
+    **Popsink:**
+    - Provide the software, configuration, deployment instructions, integration with identity and observability systems
+    
+    <Note>
+    Learn more about On-Premises deployment in our [detailed guide](/on-prem/overview).
+    </Note>
+  </Accordion>
+  
+  <Accordion title="4. Air-Gapped / Isolated" icon="shield">
+    ### Description
+    
+    In environments that prohibit outbound connectivity (e.g. high-security, classified, regulatory environments), Popsink supports an air-gapped deployment. All operations, updates, and communications happen without external network connectivity. Updates are delivered via signed offline bundles, and the environment supports strict change control and auditing.
+    
+    ### Key Features & Benefits
+    
+    - No outbound connectivity required
+    - Offline, signed update bundles (auditable)
+    - Controlled, auditable deployments
+    - End-to-end policy enforcement
+    
+    ### Responsibilities
+    
+    **Customer:**
+    - Maintain the isolated network, provide mechanisms for secure update transfer, ensure auditability
+    
+    **Popsink:**
+    - Provide offline deployment artifacts, signature verification, rollback and upgrade procedures
+    
+    <Warning>
+    Air-gapped deployments require additional planning and coordination. Contact our team for detailed implementation guidance.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Choosing the Right Deployment
+
+<CardGroup cols={2}>
+  <Card title="Start with SaaS" icon="rocket">
+    If you're getting started and don't have strict data residency requirements, SaaS is the fastest way to deploy.
+  </Card>
+  
+  <Card title="BYOC for Control" icon="key">
+    Need to keep data in your cloud account or have regulatory requirements? BYOC provides the perfect balance.
+  </Card>
+  
+  <Card title="On-Prem for Legacy" icon="server">
+    Already have on-premises infrastructure? Deploy Popsink in your existing environment.
+  </Card>
+  
+  <Card title="Air-Gapped for Security" icon="shield-halved">
+    Working in highly regulated or classified environments? Air-gapped deployment ensures complete isolation.
+  </Card>
+</CardGroup>
+
+## Migration Between Deployment Models
+
+Popsink supports migration between deployment models as your needs evolve:
+
+- **SaaS → BYOC:** Transition to your own cloud for greater control
+- **BYOC → On-Prem:** Move to your data center if requirements change
+- **Any → Air-Gapped:** Upgrade to air-gapped for enhanced security
+
+<Note>
+Contact our solutions team to discuss migration paths and best practices for your specific scenario.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Get Started with SaaS" icon="rocket" href="https://popsink.com/signup">
+    Sign up and deploy your first pipeline in minutes
+  </Card>
+  
+  <Card title="Request BYOC Demo" icon="presentation" href="https://popsink.com/contact">
+    Schedule a demo to see BYOC in action
+  </Card>
+  
+  <Card title="On-Prem Documentation" icon="book" href="/on-prem/overview">
+    Explore detailed on-premises setup guides
+  </Card>
+  
+  <Card title="Contact Sales" icon="phone" href="https://popsink.com/contact">
+    Discuss your specific deployment needs
+  </Card>
+</CardGroup>

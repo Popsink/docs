@@ -1,0 +1,174 @@
+---
+title: 'PostgreSQL Source'
+description: 'Real-time Change Data Capture for PostgreSQL databases'
+icon: 'database'
+---
+
+The Postgres Source Connector is a powerful and efficient solution designed to facilitate seamless data integration between your PostgreSQL databases and Popsink. This connector helps you synchronize with PostgreSQL in real-time, ensuring that your target systems remain updated with the latest information in real-time, driving business intelligence, analytics, and operational efficiency.
+
+## Prerequisites
+
+<Steps>
+  <Step title="Enable Logical Replication">
+    Your Postgres should be in `logical` mode. Check with:
+    ```sql
+    SHOW wal_level;
+    ```
+    [Learn more about enabling logical replication](https://debezium.io/documentation/reference/stable/connectors/postgresql.html#postgresql-server-configuration)
+  </Step>
+  
+  <Step title="Create Replication User">
+    A user with `REPLICATION` rights on the target source(s):
+    ```sql
+    CREATE ROLE replication_role REPLICATION;
+    GRANT replication_role TO <your_user>;
+    ```
+    
+    If connecting via SSH tunnel:
+    ```sql
+    CREATE USER 'user'@'%' IDENTIFIED BY 'password';
+    ```
+    
+    [More configuration options](https://debezium.io/documentation/reference/stable/connectors/postgresql.html#postgresql-permissions)
+  </Step>
+  
+  <Step title="Set Replica Identity">
+    Each table should have its `REPLICA IDENTITY` set to `FULL`:
+    ```sql
+    ALTER TABLE mytable REPLICA IDENTITY FULL;
+    ```
+  </Step>
+  
+  <Step title="Create Publications">
+    You must create publications for your tables:
+    ```sql
+    CREATE PUBLICATION popsink FOR TABLE <your table list here>;
+    ```
+  </Step>
+  
+  <Step title="Grant Table Permissions">
+    The user should have rights to list tables and read data.
+  </Step>
+</Steps>
+
+<Warning>
+**Using PostgreSQL on Heroku?** Check out this guide on [migrating from Heroku Postgres to Amazon RDS](https://towardsdatascience.com/migrating-from-heroku-postgres-to-amazon-rds-2e738e7730e5).
+</Warning>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Real-time CDC" icon="clock">
+    Employs Change Data Capture using PostgreSQL's native logical decoding feature, capturing and streaming inserts, updates, and deletes as they occur.
+  </Card>
+  
+  <Card title="Schema Evolution" icon="rotate">
+    Supports schema evolution, automatically detecting changes in the PostgreSQL database schema and adapting the data stream accordingly.
+  </Card>
+  
+  <Card title="Fault-tolerant & Scalable" icon="shield">
+    Built with fault tolerance and scalability in mind. Capable of resuming data replication from the last known offset in case of failures, ensuring data consistency and minimal downtime.
+  </Card>
+  
+  <Card title="Initial Load" icon="download">
+    Automatically performs an initial full table load before starting change data capture.
+  </Card>
+  
+  <Card title="Advanced Filtering" icon="filter">
+    Provides table and schema filters, allowing you to selectively replicate specific tables and schemas based on your needs.
+  </Card>
+  
+  <Card title="SSL/TLS Security" icon="lock">
+    Supports SSL/TLS encryption for secure communication between the connector and your PostgreSQL database.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+### Connection Settings
+
+<ParamField path="Host" type="string" required>
+  The hostname or IP address of your PostgreSQL server
+</ParamField>
+
+<ParamField path="Port" type="number" default="5432">
+  The port number of your PostgreSQL server
+</ParamField>
+
+<ParamField path="Database" type="string" required>
+  The name of the PostgreSQL database to connect to
+</ParamField>
+
+<ParamField path="Username" type="string" required>
+  The user with replication privileges
+</ParamField>
+
+<ParamField path="Password" type="string" required>
+  The password for the replication user
+</ParamField>
+
+<ParamField path="Publication Name" type="string" required>
+  The name of the publication you created (e.g., `popsink`)
+</ParamField>
+
+### Optional Settings
+
+<ParamField path="SSL Mode" type="string" default="prefer">
+  SSL connection mode: `disable`, `prefer`, `require`, `verify-ca`, or `verify-full`
+</ParamField>
+
+<ParamField path="Schema Filter" type="string">
+  Comma-separated list of schemas to include (e.g., `public,sales`)
+</ParamField>
+
+<ParamField path="Table Filter" type="string">
+  Comma-separated list of tables to include (e.g., `users,orders`)
+</ParamField>
+
+## Best Practices
+
+<Tip>
+**Replication Slot Management:** Monitor your replication slots to ensure they don't accumulate too much WAL data. Remove unused slots to prevent disk space issues.
+</Tip>
+
+<Tip>
+**Connection Pooling:** Avoid using connection poolers (like PgBouncer) for CDC connections as they can interfere with replication.
+</Tip>
+
+<Tip>
+**Monitoring:** Regularly check replication lag to ensure data is being captured in near real-time.
+</Tip>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Replication slot doesn't advance" icon="circle-exclamation">
+    Check if the connector is running and processing changes. Verify that the publication includes all necessary tables.
+  </Accordion>
+  
+  <Accordion title="Permission denied errors" icon="lock">
+    Ensure the replication user has the correct privileges:
+    - `REPLICATION` role
+    - `SELECT` on all tables in the publication
+    - `USAGE` on schemas
+  </Accordion>
+  
+  <Accordion title="Initial snapshot taking too long" icon="hourglass">
+    For large tables, consider:
+    - Increasing connector resources
+    - Using parallel snapshot mode
+    - Pre-loading data through alternative means
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="PostgreSQL Target" icon="upload" href="/connectors/targets/postgres">
+    Stream data back to PostgreSQL
+  </Card>
+  
+  <Card title="Alerting" icon="bell" href="/features/alerting">
+    Set up alerts for connector failures
+  </Card>
+</CardGroup>

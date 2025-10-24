@@ -1,0 +1,227 @@
+---
+title: 'ClickHouse Target'
+description: 'High-performance OLAP database for analytics and large-scale data storage'
+icon: 'database'
+---
+
+Welcome to the ClickHouse Target Connector documentation. This guide is designed to help you effectively integrate and utilize ClickHouse as a data sink for your CDC (Change Data Capture) data pipelines. The ClickHouse Target Connector allows you to seamlessly transfer data from your tools, applications and services to a ClickHouse database, leveraging its high performance for analytics and large-scale data storage.
+
+## Overview
+
+ClickHouse is an open-source columnar database management system that is optimized for OLAP (Online Analytical Processing) scenarios. It is designed to process billions of rows and gigabytes of data per second with low latency. Using the ClickHouse Target Connector, you can push data from various sources into your ClickHouse instance, making it available for analysis and reporting.
+
+## Features
+
+<CardGroup cols={2}>
+  <Card title="High Performance" icon="gauge-high">
+    Utilizes ClickHouse's capabilities for handling large volumes of data with high insertion speeds.
+  </Card>
+  
+  <Card title="Real-time Ingestion" icon="clock">
+    Popsink sinks data in real-time to your ClickHouse tables, enabling fresh analytics.
+  </Card>
+  
+  <Card title="Data Consistency" icon="shield-check">
+    Includes features for handling duplicates and ensuring data consistency across your pipeline.
+  </Card>
+  
+  <Card title="Incremental Writes" icon="arrows-rotate">
+    Popsink leverages Change Data Capture and ClickHouse's ReplacingMergeTree to write incremental updates and deletes to your tables.
+  </Card>
+</CardGroup>
+
+<Note>
+You can read more about forcing deduplication in the [FINAL modifier documentation](https://clickhouse.com/docs/en/sql-reference/statements/select/from#final-modifier).
+</Note>
+
+## Prerequisites
+
+Before setting up the ClickHouse Target Connector, ensure you have the following:
+
+<Steps>
+  <Step title="Running ClickHouse Server">
+    A running ClickHouse server accessible from the Popsink service.
+  </Step>
+  
+  <Step title="User with Permissions">
+    A user with appropriate credentials and permissions to access and write to the ClickHouse database.
+    
+    To create a new user:
+    ```sql
+    CREATE ROLE POPSINK_ROLE;
+    GRANT SELECT, CREATE, SHOW, INSERT ON <my_database>.* TO POPSINK_ROLE;
+
+    CREATE USER <popsink_user> IDENTIFIED WITH sha256_password BY '<my_password>';
+    GRANT POPSINK_ROLE TO <popsink_user>;
+    ```
+  </Step>
+</Steps>
+
+## Configuration
+
+<ParamField path="Username" type="string" required>
+  If you followed the Prerequisites, this will be `<popsink_user>`. Otherwise use the username you wish to use.
+</ParamField>
+
+<ParamField path="Password" type="string" required>
+  If you followed the Prerequisites, this will be `<my_password>`. Otherwise use the corresponding password for the username.
+</ParamField>
+
+<ParamField path="Host" type="string" required>
+  You can find the Host in the "Connect" option of your ClickHouse Console. For ClickHouse Cloud, it should look like: `6dw0f8sj4.us-east-1.aws.clickhouse.cloud`
+</ParamField>
+
+<ParamField path="Port" type="number" default="8443">
+  For ClickHouse Cloud this is generally `8443`. For self-hosted instances, the default is `9000` (native protocol) or `8123` (HTTP).
+</ParamField>
+
+<ParamField path="Database Name" type="string" required>
+  If you followed the Prerequisites, this will be `<my_database>`. Otherwise specify the name of the database you wish to write in.
+</ParamField>
+
+<ParamField path="Use SSL" type="boolean" default="true">
+  Enable SSL/TLS for secure connections (required for ClickHouse Cloud)
+</ParamField>
+
+## Table Engines
+
+ClickHouse supports various table engines. For CDC use cases with Popsink, we recommend:
+
+<AccordionGroup>
+  <Accordion title="ReplacingMergeTree (Recommended)" icon="arrow-rotate-right">
+    Best for CDC scenarios with updates and deletes. Automatically deduplicates rows based on a version column.
+    
+    ```sql
+    CREATE TABLE my_table (
+      id UInt64,
+      name String,
+      updated_at DateTime,
+      __deleted UInt8
+    ) ENGINE = ReplacingMergeTree(updated_at)
+    ORDER BY id;
+    ```
+  </Accordion>
+  
+  <Accordion title="MergeTree" icon="table">
+    Standard engine for append-only scenarios without updates or deletes.
+    
+    ```sql
+    CREATE TABLE my_table (
+      id UInt64,
+      name String,
+      created_at DateTime
+    ) ENGINE = MergeTree()
+    ORDER BY (created_at, id);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Tip>
+**Use ReplacingMergeTree:** For CDC pipelines with updates and deletes, always use ReplacingMergeTree with a version column (timestamp).
+</Tip>
+
+<Tip>
+**Optimize ORDER BY:** Choose ORDER BY columns carefully. They should match your most common query patterns.
+</Tip>
+
+<Tip>
+**Partition Large Tables:** Use partitioning for tables with time-series data to improve query performance:
+```sql
+PARTITION BY toYYYYMM(created_at)
+```
+</Tip>
+
+<Tip>
+**Use FINAL Carefully:** The FINAL modifier forces deduplication but impacts performance. Use it only when necessary:
+```sql
+SELECT * FROM my_table FINAL WHERE id = 123;
+```
+</Tip>
+
+## Data Type Mapping
+
+| Source Type | ClickHouse Type | Notes |
+|-------------|-----------------|-------|
+| `INTEGER` | `Int32` / `Int64` | Choose based on range |
+| `BIGINT` | `Int64` | |
+| `FLOAT` | `Float32` / `Float64` | |
+| `STRING` | `String` | Variable length |
+| `BOOLEAN` | `UInt8` | 0 or 1 |
+| `TIMESTAMP` | `DateTime` / `DateTime64` | Use DateTime64 for microsecond precision |
+| `DATE` | `Date` | |
+| `JSON` | `String` | Parse with JSONExtract functions |
+| `ARRAY` | `Array(T)` | |
+
+## Performance Optimization
+
+<CardGroup cols={2}>
+  <Card title="Batch Inserts" icon="layer-group">
+    ClickHouse performs best with batch inserts. Configure Popsink to batch records before writing.
+  </Card>
+  
+  <Card title="Async Inserts" icon="bolt">
+    Enable async_insert for better write throughput (ClickHouse 21.11+):
+    ```sql
+    SET async_insert = 1;
+    ```
+  </Card>
+  
+  <Card title="Compression" icon="file-zipper">
+    Use LZ4 or ZSTD compression to reduce storage and I/O:
+    ```sql
+    CODEC(LZ4)
+    ```
+  </Card>
+  
+  <Card title="Distributed Tables" icon="network-wired">
+    For large-scale deployments, use distributed tables across multiple shards.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection refused" icon="circle-exclamation">
+    - Verify the host and port are correct
+    - Check firewall rules allow connections
+    - For ClickHouse Cloud, ensure SSL is enabled
+  </Accordion>
+  
+  <Accordion title="Authentication failed" icon="lock">
+    - Verify username and password
+    - Check user has permissions on the target database
+    - Ensure user is allowed to connect from Popsink's IP
+  </Accordion>
+  
+  <Accordion title="Slow insert performance" icon="gauge">
+    - Increase batch size in Popsink configuration
+    - Enable async_insert in ClickHouse
+    - Check disk I/O performance
+    - Consider using distributed tables for horizontal scaling
+  </Accordion>
+  
+  <Accordion title="Duplicates in query results" icon="copy">
+    If using ReplacingMergeTree, use the FINAL modifier:
+    ```sql
+    SELECT * FROM my_table FINAL;
+    ```
+    Or force a merge:
+    ```sql
+    OPTIMIZE TABLE my_table FINAL;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="BigQuery Target" icon="cloud" href="/connectors/targets/bigquery">
+    Alternative cloud data warehouse
+  </Card>
+  
+  <Card title="PostgreSQL Source" icon="database" href="/connectors/sources/postgres">
+    Stream from PostgreSQL to ClickHouse
+  </Card>
+</CardGroup>

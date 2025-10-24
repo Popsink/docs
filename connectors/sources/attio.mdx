@@ -1,0 +1,210 @@
+---
+title: 'Attio Source'
+description: 'Modern CRM data synchronization with Attio'
+icon: 'building'
+---
+
+The Attio Source Connector integrates with Attio, a modern Customer Relationship Management (CRM) platform designed for data-driven teams. Attio offers a flexible and customizable approach to manage customer data, interactions, and relationships. It allows users to create custom objects, fields, and workflows to match their specific business processes.
+
+The connector enables real-time synchronization of data from Attio to your data pipeline, facilitating analytics, reporting, and integration with other business systems. This connector is particularly useful for companies looking to leverage their CRM data for advanced analytics, customer insights, and cross-functional collaboration.
+
+## Prerequisites
+
+<ParamField path="Attio Account" type="requirement" required>
+  An active Attio account with connection privileges to access and replicate data
+</ParamField>
+
+## Connecting Attio
+
+<Steps>
+  <Step title="Select Attio Connector">
+    In the source selection menu, select the Attio connector and click the **Connect** button.
+    
+    ![Attio Connector Selection](/images/attio-select.png)
+  </Step>
+  
+  <Step title="Authenticate">
+    A new window will open, prompting you to log in to your Attio account. After logging in, grant the necessary permissions to allow Popsink to access your Attio data.
+    
+    ![Attio OAuth Authorization](/images/attio-oauth.png)
+  </Step>
+  
+  <Step title="Select Objects">
+    Once authenticated, you can:
+    - Give your connector a name
+    - Select the Attio objects you wish to track
+    
+    In the "Table selection", you'll see a list of available objects in your Attio CRM. Select the objects you wish to replicate to Popsink.
+    
+    ![Attio Object Selection](/images/attio-objects.png)
+  </Step>
+  
+  <Step title="Create and Sync">
+    Once selected, click **Create connector**. Your connector is ready! You can now use the "Subscribe to all" button to sync all objects from the connector with the destination of your choice.
+    
+    ![Attio Connector Ready](/images/attio-ready.png)
+  </Step>
+</Steps>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Real-time Sync" icon="clock">
+    Real-time data synchronization that captures changes as they happen in your Attio CRM and reflects them in your target systems.
+  </Card>
+  
+  <Card title="Customizable Objects" icon="cube">
+    Choose specific objects from Attio to replicate, allowing you to tailor the data integration to your business needs.
+  </Card>
+  
+  <Card title="Schema Evolution" icon="rotate">
+    Automatically detects changes in the Attio objects schema and adjusts the data replication process accordingly, ensuring seamless data integration even as your CRM data structure evolves.
+  </Card>
+  
+  <Card title="Fault-tolerant" icon="shield">
+    Built with fault tolerance and scalability in mind. Can resume data replication from the last known state in case of disruptions, ensuring data consistency and minimal downtime.
+  </Card>
+  
+  <Card title="Initial Data Load" icon="download">
+    Performs an initial full data load of the selected objects from Attio, setting up a comprehensive foundation for ongoing synchronization.
+  </Card>
+  
+  <Card title="OAuth 2.0 Security" icon="lock">
+    Uses OAuth 2.0 for secure and reliable authentication, ensuring your Attio credentials are protected.
+  </Card>
+</CardGroup>
+
+## Available Objects
+
+Attio's flexible data model allows you to replicate various object types:
+
+<CardGroup cols={3}>
+  <Card title="Companies" icon="building">
+    Organization records
+  </Card>
+  <Card title="People" icon="user">
+    Contact records
+  </Card>
+  <Card title="Deals" icon="handshake">
+    Sales opportunities
+  </Card>
+  <Card title="Custom Objects" icon="cube">
+    Your organization's custom data models
+  </Card>
+  <Card title="Lists" icon="list">
+    Organized collections
+  </Card>
+  <Card title="Notes" icon="note-sticky">
+    Comments and interactions
+  </Card>
+</CardGroup>
+
+## Configuration
+
+### OAuth Authentication
+
+<Note>
+Attio uses OAuth 2.0 for authentication. No manual credential entry is required - simply authorize Popsink through the OAuth flow.
+</Note>
+
+### Object Selection
+
+<ParamField path="Objects" type="array" required>
+  Select which Attio objects to replicate. Available objects include:
+  - Standard objects (Companies, People, Deals)
+  - Custom objects created in your Attio workspace
+  - List objects
+</ParamField>
+
+<ParamField path="Sync Mode" type="select" default="incremental">
+  - `full`: Complete data refresh
+  - `incremental`: Only sync changes (recommended)
+</ParamField>
+
+## Best Practices
+
+<Tip>
+**Start Small:** Begin by replicating a few key objects, then expand as you validate the integration works for your use case.
+</Tip>
+
+<Tip>
+**Monitor Custom Objects:** Attio's flexibility means your data model can evolve. Regularly review which custom objects are being replicated.
+</Tip>
+
+<Tip>
+**Use Incremental Sync:** For most use cases, incremental sync provides the best balance of data freshness and API efficiency.
+</Tip>
+
+<Tip>
+**Parent Records:** Attio supports parent-child relationships. Ensure you're replicating parent objects if you need child records.
+</Tip>
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Customer Analytics" icon="chart-line">
+    Stream CRM data to your data warehouse for comprehensive customer analytics and reporting.
+  </Card>
+  
+  <Card title="Customer 360" icon="users">
+    Combine Attio CRM data with other sources to build a complete view of your customers.
+  </Card>
+  
+  <Card title="Sales Operations" icon="chart-mixed">
+    Sync deal and pipeline data for real-time sales dashboards and forecasting.
+  </Card>
+  
+  <Card title="Marketing Attribution" icon="bullhorn">
+    Connect CRM engagement data with marketing platforms for attribution analysis.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="OAuth authorization failed" icon="circle-exclamation">
+    - Ensure you're logging in with an Attio account that has the necessary permissions
+    - Check that you've granted all required OAuth scopes
+    - Try clearing browser cookies and authorizing again
+  </Accordion>
+  
+  <Accordion title="Object not appearing in list" icon="question">
+    - Verify the object exists in your Attio workspace
+    - Check that you have permission to view the object
+    - Refresh the object list in Popsink
+  </Accordion>
+  
+  <Accordion title="Schema changes not detected" icon="rotate">
+    The connector automatically handles schema evolution, but you may need to:
+    - Wait for the next sync cycle
+    - Manually trigger a schema refresh if available
+    - Check connector logs for any schema detection errors
+  </Accordion>
+  
+  <Accordion title="Slow initial load" icon="hourglass">
+    For workspaces with large datasets:
+    - Consider loading fewer objects initially
+    - Monitor API rate limits
+    - Contact support if issues persist
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="Salesforce Source" icon="building" href="/connectors/sources/salesforce">
+    Integrate with Salesforce CRM
+  </Card>
+  
+  <Card title="HubSpot Source" icon="building" href="/connectors/sources/hubspot">
+    Connect to HubSpot marketing platform
+  </Card>
+  
+  <Card title="BigQuery Target" icon="cloud" href="/connectors/targets/bigquery">
+    Stream Attio data to BigQuery
+  </Card>
+</CardGroup>
+
+## Conclusion
+
+The Attio CRM Connector is a robust solution for integrating your Attio data with Popsink, offering real-time synchronization, scalability, and security. With customizable object selection and advanced filtering options, it adapts to your specific data integration needs, driving enhanced business intelligence and operational efficiency.

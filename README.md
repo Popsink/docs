@@ -1,43 +1,193 @@
-# Mintlify Starter Kit
+# Popsink Mintlify Migration 🚀
 
-Use the starter kit to get your docs deployed and ready to customize.
+Ce package contient la documentation Popsink migrée de MkDocs vers Mintlify.
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+## 📦 Contenu
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
+- ✅ **20+ fichiers .mdx** migrés avec le design Mintlify
+- ✅ **docs.json** complet avec navigation structurée
+- ✅ **Structure de dossiers** organisée
+- ✅ **Composants Mintlify** (Cards, Accordions, Steps, etc.)
 
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
+## 📂 Structure
 
 ```
-npm i -g mint
+mintlify-docs/
+├── docs.json                    # Configuration Mintlify
+├── introduction.mdx             # Page d'accueil
+├── quickstart.mdx               # Guide de démarrage
+├── connectors/
+│   ├── sources/
+│   │   ├── overview.mdx
+│   │   ├── postgres.mdx
+│   │   ├── mysql.mdx
+│   │   ├── bigquery.mdx
+│   │   ├── salesforce.mdx
+│   │   └── attio.mdx
+│   └── targets/
+│       ├── overview.mdx
+│       ├── bigquery.mdx
+│       ├── clickhouse.mdx
+│       ├── mongodb.mdx
+│       └── slack.mdx
+├── features/
+│   ├── alerting.mdx
+│   └── deployment.mdx
+├── snowflake-ibmi/
+│   └── quickstart.mdx
+├── on-prem/
+│   └── overview.mdx
+└── images/                      # Dossier pour vos images
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+## 🚀 Installation
 
+### 1. Copier dans votre repo local
+
+```bash
+# Sur votre Mac
+cd ~/Documents/mintmig/docs/
+
+# Extraire le ZIP (téléchargé depuis Claude)
+unzip popsink-mintlify-docs.zip
+
+# Copier le contenu
+cp -r mintlify-docs/* .
 ```
+
+### 2. Tester localement
+
+```bash
+# Installer Mintlify CLI si ce n'est pas déjà fait
+npm i -g mintlify
+
+# Démarrer le serveur de dev
 mint dev
 ```
 
-View your local preview at `http://localhost:3000`.
+Ouvrez http://localhost:3000 dans votre navigateur.
 
-## Publishing changes
+### 3. Pousser vers GitHub
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+```bash
+cd ~/Documents/mintmig/docs/
 
-## Need help?
+# Vérifier les changements
+git status
 
-### Troubleshooting
+# Ajouter tous les fichiers
+git add .
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+# Commit
+git commit -m "feat: migrate documentation from MkDocs to Mintlify
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+- Converted 20+ .md files to .mdx format
+- Added Mintlify components (Cards, Accordions, Steps)
+- Structured navigation with docs.json
+- Improved documentation design and UX"
+
+# Pousser vers votre repo de migration
+git push origin main
+```
+
+### 4. Créer une Pull Request vers le repo client
+
+```bash
+# Ajouter le repo client comme remote (si pas déjà fait)
+git remote add upstream git@github.com:Popsink/docs.git
+
+# Pousser vers une nouvelle branche
+git checkout -b feature/mintlify-migration
+git push origin feature/mintlify-migration
+
+# Créer une PR sur GitHub vers Popsink/docs
+```
+
+## ✅ Ce qui est migré
+
+### Pages Principales
+- ✅ Introduction (ex-index.md)
+- ✅ Quickstart
+- ✅ Sources Overview (ex-source.md)
+- ✅ Targets Overview (ex-target.md)
+- ✅ Alerting
+- ✅ Deployment Options
+
+### Source Connectors
+- ✅ PostgreSQL
+- ✅ MySQL
+- ✅ BigQuery
+- ✅ Salesforce
+- ✅ Attio
+
+### Target Connectors
+- ✅ BigQuery
+- ✅ ClickHouse
+- ✅ MongoDB
+- ✅ Slack
+
+### Sections Spéciales
+- ✅ Snowflake IBMi Quickstart
+- ✅ On-Prem Overview
+
+## 📝 À compléter
+
+Les fichiers suivants n'ont pas encore été migrés (vous pouvez les ajouter plus tard) :
+
+- [ ] Autres source connectors (Oracle, HubSpot, Kafka, etc.)
+- [ ] Autres target connectors (Snowflake, Postgres, Oracle, Airtable, etc.)
+- [ ] Pages Snowflake IBMi (db2_setup.mdx, journaling.mdx)
+- [ ] On-Prem API guide complète
+- [ ] Changelog pages
+- [ ] API Reference complète
+
+## 🎨 Personnalisation
+
+### Logo
+Placez vos logos dans `/logo/`:
+- `dark.svg` - Logo pour le thème sombre
+- `light.svg` - Logo pour le thème clair
+
+### Couleurs
+Modifiez les couleurs dans `docs.json` :
+```json
+"colors": {
+  "primary": "#000000",
+  "light": "#FFFFFF",
+  "dark": "#000000"
+}
+```
+
+### Navigation
+Ajoutez de nouvelles pages dans `docs.json` section `navigation`.
+
+## 🐛 Troubleshooting
+
+### `mint dev` ne fonctionne pas
+```bash
+# Réinstaller Mintlify CLI
+npm uninstall -g mintlify
+npm i -g mintlify
+
+# Vérifier la version
+mint --version
+```
+
+### Les images ne s'affichent pas
+- Placez toutes les images dans `/images/`
+- Référencez-les avec `/images/votre-image.png`
+
+### Erreur de parsing dans docs.json
+- Validez le JSON sur https://jsonlint.com
+- Vérifiez les virgules et accolades
+
+## 📞 Support
+
+- **Documentation Mintlify** : https://mintlify.com/docs
+- **Popsink** : support@popsink.com
+
+## 🎉 Migration complétée !
+
+Vous êtes maintenant prêt à utiliser votre nouvelle documentation Mintlify !
+
+**Bon travail ! 🚀**

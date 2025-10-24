@@ -1,0 +1,199 @@
+---
+title: 'MySQL Source'
+description: 'Real-time Change Data Capture for MySQL databases'
+icon: 'database'
+---
+
+The MySQL Source Connector is a powerful and efficient solution designed to facilitate seamless data integration between your MySQL databases and Popsink. This connector helps you synchronize with MySQL in real-time, ensuring that your target systems remain updated with the latest information in real-time, driving business intelligence, analytics, and operational efficiency.
+
+## Prerequisites
+
+<Steps>
+  <Step title="Enable Binlogs">
+    Binlogs must be enabled in **FULL** mode. Check with:
+    ```sql
+    SHOW VARIABLES LIKE 'log_bin';
+    SHOW VARIABLES LIKE 'binlog_format';
+    SHOW VARIABLES LIKE 'binlog_row_image';
+    ```
+    
+    The values should be:
+    - `log_bin`: `ON`
+    - `binlog_format`: `ROW`
+    - `binlog_row_image`: `FULL`
+    
+    [Learn more about enabling MySQL binlogs](https://debezium.io/documentation/reference/stable/connectors/mysql.html#enable-mysql-binlog)
+  </Step>
+  
+  <Step title="Create Replication User">
+    A user with the following privileges on the target source(s):
+    ```sql
+    CREATE USER 'popsink_user'@'%' IDENTIFIED BY 'your_password';
+    GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'popsink_user'@'%';
+    FLUSH PRIVILEGES;
+    ```
+    
+    For SSH tunnel connections, ensure the user can connect from any host (`'%'`).
+  </Step>
+  
+  <Step title="Set Server ID">
+    Each MySQL server must have a unique server ID:
+    ```sql
+    SHOW VARIABLES LIKE 'server_id';
+    ```
+    If not set, add to your `my.cnf`:
+    ```ini
+    [mysqld]
+    server-id=1
+    ```
+  </Step>
+</Steps>
+
+<Note>
+**Using MySQL on Heroku?** Consider migrating to a managed MySQL service like AWS RDS or Google Cloud SQL for better CDC support.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Real-time CDC" icon="clock">
+    Employs Change Data Capture using MySQL Server's native binlog, capturing and streaming changes (inserts, updates, and deletes) as they occur.
+  </Card>
+  
+  <Card title="Fault-tolerant & Scalable" icon="shield">
+    Built with fault tolerance and scalability in mind. Capable of resuming data replication from the last known offset in case of failures, ensuring data consistency and minimal downtime.
+  </Card>
+  
+  <Card title="Initial Load" icon="download">
+    Automatically performs an initial full table load before starting binlog-based change data capture.
+  </Card>
+  
+  <Card title="Advanced Filtering" icon="filter">
+    Provides table and schema filters, allowing you to selectively replicate specific tables and schemas based on your needs.
+  </Card>
+  
+  <Card title="Schema Evolution" icon="rotate">
+    Supports schema evolution, automatically detecting changes in the MySQL database schema and adapting the data stream accordingly.
+  </Card>
+  
+  <Card title="SSL/TLS Security" icon="lock">
+    Supports SSL/TLS encryption for secure communication between the connector and your MySQL database.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+### Connection Settings
+
+<ParamField path="Host" type="string" required>
+  The hostname or IP address of your MySQL server
+</ParamField>
+
+<ParamField path="Port" type="number" default="3306">
+  The port number of your MySQL server
+</ParamField>
+
+<ParamField path="Database" type="string" required>
+  The name of the MySQL database to connect to
+</ParamField>
+
+<ParamField path="Username" type="string" required>
+  The user with replication privileges (e.g., `popsink_user`)
+</ParamField>
+
+<ParamField path="Password" type="string" required>
+  The password for the replication user
+</ParamField>
+
+<ParamField path="Server ID" type="number" required>
+  Unique identifier for this connector (must be different from the MySQL server ID)
+</ParamField>
+
+### Optional Settings
+
+<ParamField path="SSL Mode" type="string" default="disabled">
+  SSL connection mode: `disabled`, `preferred`, or `required`
+</ParamField>
+
+<ParamField path="Schema Filter" type="string">
+  Comma-separated list of databases to include
+</ParamField>
+
+<ParamField path="Table Filter" type="string">
+  Comma-separated list of tables to include (format: `database.table`)
+</ParamField>
+
+<ParamField path="SSH Tunnel" type="boolean" default="false">
+  Enable SSH tunneling for secure connections through a bastion host
+</ParamField>
+
+## Best Practices
+
+<Tip>
+**Binlog Retention:** Ensure your binlog retention period is long enough to handle connector downtime. Monitor binlog disk usage to prevent storage issues.
+</Tip>
+
+<Tip>
+**Server ID:** Use a unique server ID for each connector instance. Document server IDs to avoid conflicts.
+</Tip>
+
+<Tip>
+**GTIDs:** If available, enable GTID mode for more reliable replication and easier failover handling.
+</Tip>
+
+<Tip>
+**Monitoring:** Monitor binlog position and lag to ensure the connector is keeping up with changes.
+</Tip>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Binlog position not found" icon="circle-exclamation">
+    This occurs when binlogs have been purged. You may need to perform a new initial snapshot. Increase binlog retention to prevent this issue.
+  </Accordion>
+  
+  <Accordion title="Permission denied for SHOW MASTER STATUS" icon="lock">
+    Ensure the replication user has `REPLICATION CLIENT` and `REPLICATION SLAVE` privileges.
+  </Accordion>
+  
+  <Accordion title="Table not found in binlog" icon="table">
+    Verify that:
+    - The table exists in the specified database
+    - The table is included in your table filter
+    - Binlog format is set to `ROW` (not `STATEMENT` or `MIXED`)
+  </Accordion>
+  
+  <Accordion title="High replication lag" icon="hourglass">
+    Consider:
+    - Increasing connector resources
+    - Optimizing target write performance
+    - Reducing the number of tables being replicated
+    - Checking network latency between source and Popsink
+  </Accordion>
+</AccordionGroup>
+
+## Version Compatibility
+
+The MySQL Source Connector supports:
+- MySQL 5.7+
+- MySQL 8.0+
+- MariaDB 10.2+
+- Amazon RDS for MySQL
+- Google Cloud SQL for MySQL
+- Azure Database for MySQL
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="PostgreSQL Source" icon="database" href="/connectors/sources/postgres">
+    CDC for PostgreSQL databases
+  </Card>
+  
+  <Card title="BigQuery Target" icon="cloud" href="/connectors/targets/bigquery">
+    Stream MySQL data to BigQuery
+  </Card>
+  
+  <Card title="Alerting" icon="bell" href="/features/alerting">
+    Set up alerts for connector failures
+  </Card>
+</CardGroup>

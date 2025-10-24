@@ -1,0 +1,139 @@
+---
+title: 'Quickstart Guide'
+description: 'Get started with Popsink IBMi to Snowflake connector'
+icon: 'rocket'
+---
+
+You've just downloaded Popsink's connector to IBMi DB2 from Snowflake's Marketplace, and you're now eager to run your first replication. Then, you've come to the right place!
+
+On first launch, the application will welcome you with a step-by-step configuration wizard that you can pause and resume any time, your progress will be saved.
+
+<Note>
+If you're entirely new to IBMi/AS400 and currently have no system to connect to, please head to the [DB2 setup page](/snowflake-ibmi/db2-setup), follow the instructions and start experimenting with your new DB2 system.
+</Note>
+
+If you already have a DB2 system in place and want to replicate it, continue reading!
+
+## 1. Prerequisites
+
+In this important step, you go through a checklist of actions that need to be taken before moving on to the next steps. Not everything can be setup through the user interface, often for security reasons.
+
+### 1.1 Enable Journaling
+
+It's a vital step to capture changes from the source databases with no additional overhead. Please head to [journaling](/snowflake-ibmi/journaling), if you need help setting it up on your DB2 environment.
+
+<Tip>
+Take notes of the journaled tables you'd like to replicate.
+</Tip>
+
+### 1.2 Review network access
+
+In a later step, the app will generate SQL commands that only a user with `ACCOUNTADMIN` privileges can run. This will open network access to the source database. Please make sure your administrator is informed that the app needs access to all the ports of the source database.
+
+### 1.3 Find an available name for the target database
+
+Snowflake's security prevents an app from listing all existing databases and schemas. That's why your administrator needs to run `SHOW DATABASES` to confirm that your choice of target database name is valid.
+
+When you're ready, you can mark the prerequisites as **'Completed'** and move to the next step.
+
+## 2. Connector's Configuration
+
+On this page, you will configure a few simple but essential settings:
+
+<Steps>
+  <Step title="Grant Privileges">
+    Grant privileges to create the target database and run synchronization tasks.
+  </Step>
+  
+  <Step title="Define Warehouse">
+    Define what warehouse to connect to. The running costs of the app will be billed to this warehouse.
+  </Step>
+  
+  <Step title="Target Database Name">
+    Define the target database name. You **must** choose an available name.
+  </Step>
+  
+  <Step title="Schema Name">
+    Define the schema name storing the replicated tables.
+  </Step>
+</Steps>
+
+When you're finished, click on **'Configure'**.
+
+## 3. Firewall & Credentials Configuration
+
+Next step is to set up your connection to your source IBMi system. You will need 2 things:
+
+- A network access to your hostname
+- A username & password to an account with rights to read the DB2 journal
+
+Snowflake has an embedded system of [external access integration (EAI)](https://docs.snowflake.com/en/developer-guide/external-network-access/creating-using-external-network-access) that securely declares the port your connection requires, as well as credential data (here a simple username/password pair, the only means to connect to IBMi).
+
+When you've entered all the fields, clicking on **'Generate firewall rules'** will show a SQL Script to pass on to your account admin. They will be able to run and add the required objects to move on to the next step.
+
+<Warning>
+The password is transferred in clear to your admin but is stored securely in Snowflake. Only the app can access it.
+</Warning>
+
+When you're ready to test the connection and move to the next step, click on **'Next'**.
+
+## 4. DB2 Connection's Configuration
+
+Now your connection to DB2 is valid, it's time to define the source data you want to replicate in this simple step:
+
+1. Choose a source schema
+2. Enter a comma-separated list of journaled tables belonging to this schema
+
+<Note>
+These tables have to be assigned to the same DB2 journal.
+</Note>
+
+Click on **'Connect'** to move to the last step.
+
+## 5. Finalize
+
+To finish with, a few settings can be modified before starting the replication:
+
+<AccordionGroup>
+  <Accordion title="Skip Initial Snapshot" icon="forward">
+    In case a source table is really large, or you only want to capture changes, it's possible to skip the initial snapshot with this checkbox.
+  </Accordion>
+  
+  <Accordion title="Synchronization Period" icon="clock">
+    By default, synchronization period is 20 seconds, meaning the changes will be read from DB2 every 20 seconds by a Snowflake scheduled task. It's possible to change this setting according to your latency and power requirements. A larger period means higher latencies but less compute usage.
+  </Accordion>
+</AccordionGroup>
+
+Click on **'Finalize Configuration'** to start the replication.
+
+## Monitor the Replication
+
+Snowflake will now run 3 different tasks (or 2 if you've decided to skip the initial snapshot):
+
+<CardGroup cols={3}>
+  <Card title="CREATE_TARGET" icon="table">
+    Creates the target tables in the target schema. Replicated tables will be prefixed by `POPSINK_`.
+  </Card>
+  
+  <Card title="SNAPSHOT" icon="camera">
+    Selects all the source data at startup time and fills the target tables.
+  </Card>
+  
+  <Card title="SYNC" icon="arrows-rotate">
+    Polls the DB2 journal to load all the changes since last synchronization and update target tables accordingly.
+  </Card>
+</CardGroup>
+
+They can be viewed under the **Task** menu of Snowflake.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="DB2 Setup" icon="database" href="/snowflake-ibmi/db2-setup">
+    Learn how to set up a test IBMi environment
+  </Card>
+  
+  <Card title="Journaling" icon="book" href="/snowflake-ibmi/journaling">
+    Configure journaling on your DB2 tables
+  </Card>
+</CardGroup>

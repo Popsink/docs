@@ -1,0 +1,228 @@
+---
+title: 'Salesforce Source'
+description: 'Real-time synchronization of Salesforce CRM data'
+icon: 'building'
+---
+
+The Salesforce Source Connector integrates with Salesforce, a leading cloud-based Customer Relationship Management (CRM) platform. Salesforce offers a comprehensive suite of applications for sales, customer service, marketing automation, analytics, and application development.
+
+This connector enables real-time extraction and streaming of data from various Salesforce objects, including accounts, contacts, leads, opportunities, custom objects, and more. It supports both bulk and incremental data synchronization, allowing for efficient data transfer and up-to-date information flows.
+
+## Prerequisites
+
+### Salesforce Permissions
+
+The connector requires the following permissions in Salesforce:
+
+<AccordionGroup>
+  <Accordion title="Object Permissions" icon="table">
+    - **View** all objects you want to replicate
+    - **Read** access to all fields within those objects
+  </Accordion>
+  
+  <Accordion title="API Permissions" icon="plug">
+    - API Enabled permission
+    - Access to Salesforce REST API
+  </Accordion>
+  
+  <Accordion title="PushTopic Permissions (for real-time CDC)" icon="bell">
+    - Create and manage PushTopics
+    - Access to Streaming API
+  </Accordion>
+</AccordionGroup>
+
+### API Limits
+
+<Note>
+Salesforce API limits vary by edition. Ensure your org has sufficient API calls available:
+- **Developer Edition:** 15,000 calls/day
+- **Professional Edition:** 15,000 calls/day  
+- **Enterprise Edition:** 100,000 calls/day
+- **Unlimited Edition:** 200,000 calls/day
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Real-time Sync" icon="clock">
+    Leverages Salesforce Streaming API and PushTopics for real-time change data capture on standard and custom objects.
+  </Card>
+  
+  <Card title="Bulk Data Loading" icon="database">
+    Supports Salesforce Bulk API for efficient initial loads of large datasets.
+  </Card>
+  
+  <Card title="Custom Objects" icon="cube">
+    Replicate both standard Salesforce objects and your organization's custom objects.
+  </Card>
+  
+  <Card title="Field Selection" icon="list-check">
+    Choose specific fields to replicate, optimizing for performance and relevance.
+  </Card>
+  
+  <Card title="OAuth Authentication" icon="key">
+    Secure OAuth 2.0 authentication flow for safe credential management.
+  </Card>
+  
+  <Card title="Incremental Updates" icon="arrow-up">
+    Efficiently sync only changed records after initial load, minimizing API usage.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+### OAuth Setup
+
+<Steps>
+  <Step title="Create a Connected App">
+    In Salesforce Setup:
+    1. Navigate to **App Manager**
+    2. Click **New Connected App**
+    3. Enable OAuth settings
+    4. Set callback URL to Popsink's OAuth endpoint
+    5. Add required OAuth scopes:
+       - `api` - Access and manage data
+       - `refresh_token` - Maintain access
+       - `offline_access` - Perform requests on behalf of the user at any time
+  </Step>
+  
+  <Step title="Note Credentials">
+    After creating the app, save:
+    - **Consumer Key** (Client ID)
+    - **Consumer Secret** (Client Secret)
+  </Step>
+  
+  <Step title="Authorize in Popsink">
+    Use the OAuth flow in Popsink to authorize access to your Salesforce org.
+  </Step>
+</Steps>
+
+### Connector Settings
+
+<ParamField path="Instance URL" type="string" required>
+  Your Salesforce instance URL (e.g., `https://yourcompany.salesforce.com`)
+</ParamField>
+
+<ParamField path="API Version" type="string" default="v57.0">
+  Salesforce API version to use
+</ParamField>
+
+<ParamField path="Objects" type="array" required>
+  List of Salesforce objects to replicate (e.g., `Account`, `Contact`, `Opportunity`)
+</ParamField>
+
+<ParamField path="Fields" type="array">
+  Specific fields to include for each object. If empty, all fields are replicated.
+</ParamField>
+
+<ParamField path="Sync Mode" type="select" default="incremental">
+  - `full`: Complete data refresh on every sync
+  - `incremental`: Only sync changed records
+  - `realtime`: Use PushTopics for real-time streaming
+</ParamField>
+
+## Connecting Salesforce
+
+<Steps>
+  <Step title="Select Salesforce Connector">
+    In Popsink, navigate to source connectors and select **Salesforce**.
+  </Step>
+  
+  <Step title="Authenticate">
+    Click **Connect** to initiate the OAuth flow. You'll be redirected to Salesforce to authorize Popsink.
+  </Step>
+  
+  <Step title="Select Objects">
+    Choose which Salesforce objects you want to replicate:
+    - Standard objects (Account, Contact, Lead, Opportunity, etc.)
+    - Custom objects from your org
+  </Step>
+  
+  <Step title="Configure Sync Settings">
+    - Choose sync frequency
+    - Select fields to include/exclude
+    - Enable real-time sync if needed
+  </Step>
+  
+  <Step title="Test and Deploy">
+    Test the connection and start replicating your Salesforce data.
+  </Step>
+</Steps>
+
+## Best Practices
+
+<Tip>
+**API Usage Monitoring:** Regularly monitor your Salesforce API usage to avoid hitting limits. Use the incremental sync mode to minimize API calls.
+</Tip>
+
+<Tip>
+**Field Selection:** Only replicate fields you actually need. This reduces API payload size and improves sync performance.
+</Tip>
+
+<Tip>
+**PushTopic Optimization:** For real-time sync, create focused PushTopic queries to reduce unnecessary events.
+</Tip>
+
+<Tip>
+**Bulk API for Initial Loads:** Use Bulk API for large initial data loads (>10,000 records), then switch to incremental sync.
+</Tip>
+
+## Common Objects
+
+<CardGroup cols={3}>
+  <Card title="Account" icon="building">
+    Companies and organizations
+  </Card>
+  <Card title="Contact" icon="user">
+    Individual people
+  </Card>
+  <Card title="Lead" icon="person-circle-plus">
+    Potential customers
+  </Card>
+  <Card title="Opportunity" icon="hand-holding-dollar">
+    Sales deals
+  </Card>
+  <Card title="Case" icon="ticket">
+    Customer support cases
+  </Card>
+  <Card title="Task" icon="list-check">
+    Activities and to-dos
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="OAuth authorization failed" icon="circle-exclamation">
+    - Verify your Connected App is configured correctly
+    - Check that the callback URL matches Popsink's OAuth endpoint
+    - Ensure required OAuth scopes are enabled
+    - Verify the user has necessary permissions
+  </Accordion>
+  
+  <Accordion title="API limit exceeded" icon="gauge-max">
+    - Reduce sync frequency
+    - Limit the number of objects being replicated
+    - Use field filters to reduce payload size
+    - Consider upgrading your Salesforce edition for higher API limits
+  </Accordion>
+  
+  <Accordion title="Object or field not found" icon="question">
+    - Verify the object/field exists in your Salesforce org
+    - Check API name (may differ from display name)
+    - Ensure the authenticated user has access to the object/field
+    - Verify the API version supports the object
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="HubSpot Source" icon="building" href="/connectors/sources/hubspot">
+    Integrate with HubSpot CRM
+  </Card>
+  
+  <Card title="BigQuery Target" icon="cloud" href="/connectors/targets/bigquery">
+    Load Salesforce data into BigQuery
+  </Card>
+</CardGroup>

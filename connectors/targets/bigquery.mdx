@@ -1,0 +1,275 @@
+---
+title: 'BigQuery Target'
+description: 'Stream data to Google BigQuery data warehouse'
+icon: 'cloud'
+---
+
+The BigQuery Target Connector enables seamless integration with Google BigQuery, a fully-managed, serverless data warehouse that enables super-fast SQL queries using the processing power of Google's infrastructure. This connector allows you to stream data from Popsink directly into BigQuery tables, supporting both batch and real-time data ingestion.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Auto Schema Mapping" icon="arrows-split-up-and-left">
+    Automatically handles schema mapping and data type conversion from source to BigQuery format.
+  </Card>
+  
+  <Card title="Table Management" icon="table">
+    Can create or update tables as needed, with automatic schema evolution support.
+  </Card>
+  
+  <Card title="Streaming Insert" icon="bolt">
+    Supports high-throughput streaming inserts for real-time data ingestion.
+  </Card>
+  
+  <Card title="Batch Loading" icon="layer-group">
+    Efficient batch loading for large datasets using BigQuery's Storage Write API.
+  </Card>
+  
+  <Card title="Partitioned Tables" icon="table-cells">
+    Automatic support for time-partitioned and ingestion-time partitioned tables.
+  </Card>
+  
+  <Card title="Cost Optimization" icon="dollar-sign">
+    Intelligent batching and compression to minimize BigQuery storage and query costs.
+  </Card>
+</CardGroup>
+
+## Permissions
+
+The service account requires the following BigQuery permissions:
+
+<AccordionGroup>
+  <Accordion title="Table Permissions" icon="table">
+    - `bigquery.tables.get` - Read table metadata
+    - `bigquery.tables.create` - Create new tables
+    - `bigquery.tables.update` - Update table schemas
+    - `bigquery.tables.updateData` - Insert data into tables
+  </Accordion>
+  
+  <Accordion title="Dataset Permissions" icon="database">
+    - `bigquery.datasets.get` - Read dataset information
+  </Accordion>
+  
+  <Accordion title="Job Permissions" icon="gears">
+    - `bigquery.jobs.create` - Create load jobs
+  </Accordion>
+</AccordionGroup>
+
+### Setting up permissions
+
+```sql
+-- Grant BigQuery Data Editor role
+GRANT `roles/bigquery.dataEditor` 
+ON TABLE `project.dataset.*` 
+TO "serviceAccount:your-service-account@project.iam.gserviceaccount.com";
+
+-- Or create a custom role with specific permissions
+CREATE ROLE popsink_bigquery_writer;
+GRANT bigquery.tables.get, 
+      bigquery.tables.create, 
+      bigquery.tables.update,
+      bigquery.tables.updateData,
+      bigquery.jobs.create
+ON TABLE `project.dataset.*`
+TO "serviceAccount:your-service-account@project.iam.gserviceaccount.com";
+```
+
+## Configuration
+
+### Connection Settings
+
+<ParamField path="Project ID" type="string" required>
+  Your Google Cloud project ID
+</ParamField>
+
+<ParamField path="Dataset" type="string" required>
+  The BigQuery dataset where tables will be created/updated
+</ParamField>
+
+<ParamField path="Service Account JSON" type="string" required>
+  JSON key file for your service account with appropriate permissions
+</ParamField>
+
+### Table Settings
+
+<ParamField path="Table Prefix" type="string">
+  Optional prefix to add to all table names (e.g., `popsink_`)
+</ParamField>
+
+<ParamField path="Create Disposition" type="select" default="CREATE_IF_NEEDED">
+  - `CREATE_IF_NEEDED`: Create table if it doesn't exist
+  - `CREATE_NEVER`: Fail if table doesn't exist
+</ParamField>
+
+<ParamField path="Write Disposition" type="select" default="WRITE_APPEND">
+  - `WRITE_APPEND`: Add data to existing table
+  - `WRITE_TRUNCATE`: Replace all table data
+  - `WRITE_EMPTY`: Only write if table is empty
+</ParamField>
+
+### Advanced Settings
+
+<ParamField path="Partitioning" type="object">
+  Configure time-based partitioning:
+  ```json
+  {
+    "type": "DAY",
+    "field": "created_at"
+  }
+  ```
+</ParamField>
+
+<ParamField path="Clustering" type="array">
+  Fields to use for clustering (e.g., `["customer_id", "region"]`)
+</ParamField>
+
+<ParamField path="Batch Size" type="number" default="1000">
+  Number of records per batch insert
+</ParamField>
+
+<ParamField path="Batch Timeout" type="duration" default="10s">
+  Maximum time to wait before flushing a batch
+</ParamField>
+
+## Setup Guide
+
+<Steps>
+  <Step title="Create Service Account">
+    In Google Cloud Console:
+    1. Navigate to **IAM & Admin > Service Accounts**
+    2. Click **Create Service Account**
+    3. Grant **BigQuery Data Editor** role
+    4. Create and download JSON key
+  </Step>
+  
+  <Step title="Create Dataset">
+    Create a BigQuery dataset if one doesn't exist:
+    ```sql
+    CREATE SCHEMA IF NOT EXISTS `your-project.your_dataset`
+    OPTIONS (
+      location = 'US',
+      description = 'Popsink data warehouse'
+    );
+    ```
+  </Step>
+  
+  <Step title="Configure Connector">
+    In Popsink, add a new BigQuery target connector with:
+    - Project ID
+    - Dataset name
+    - Service account JSON key
+    - Table and partitioning preferences
+  </Step>
+  
+  <Step title="Test Connection">
+    Test the connection and verify permissions before starting data flow.
+  </Step>
+</Steps>
+
+## Best Practices
+
+<Tip>
+**Use Partitioning:** Partition tables by date to improve query performance and reduce costs. Daily partitions work well for most time-series data.
+</Tip>
+
+<Tip>
+**Enable Clustering:** Cluster tables on frequently filtered columns to speed up queries and reduce bytes scanned.
+</Tip>
+
+<Tip>
+**Batch Strategically:** Balance between data freshness and cost. Larger batches reduce API calls but increase latency.
+</Tip>
+
+<Tip>
+**Monitor Costs:** Use BigQuery's cost monitoring features to track storage and query costs. Set up alerts for unusual spending.
+</Tip>
+
+<Tip>
+**Schema Evolution:** Design your schema with future changes in mind. BigQuery supports adding new columns but not removing them.
+</Tip>
+
+## Data Type Mapping
+
+| Source Type | BigQuery Type | Notes |
+|-------------|---------------|-------|
+| `INTEGER` | `INT64` | |
+| `FLOAT` | `FLOAT64` | |
+| `STRING` | `STRING` | |
+| `BOOLEAN` | `BOOL` | |
+| `TIMESTAMP` | `TIMESTAMP` | UTC timezone |
+| `DATE` | `DATE` | |
+| `TIME` | `TIME` | |
+| `JSON` | `JSON` | Available in recent versions |
+| `ARRAY` | `ARRAY<T>` | |
+| `STRUCT` | `STRUCT<...>` | Nested records |
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Data Warehouse" icon="warehouse">
+    Build a centralized data warehouse for analytics and reporting across your organization.
+  </Card>
+  
+  <Card title="Real-time Analytics" icon="chart-line">
+    Power real-time dashboards with fresh data from operational systems.
+  </Card>
+  
+  <Card title="Machine Learning" icon="brain">
+    Feed BigQuery ML or export to Vertex AI for training models on fresh data.
+  </Card>
+  
+  <Card title="Compliance Logging" icon="shield-check">
+    Store audit logs and compliance data with BigQuery's retention and security features.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Permission denied errors" icon="lock">
+    Verify service account has all required permissions:
+    ```bash
+    gcloud projects get-iam-policy YOUR_PROJECT \
+      --flatten="bindings[].members" \
+      --filter="bindings.members:serviceAccount:YOUR_SA@YOUR_PROJECT.iam.gserviceaccount.com"
+    ```
+  </Accordion>
+  
+  <Accordion title="Schema mismatch errors" icon="table">
+    BigQuery enforces schema. If source schema changes:
+    - Allow automatic schema updates in connector settings
+    - Manually update table schema to match source
+    - Use `WRITE_TRUNCATE` to recreate table (data loss!)
+  </Accordion>
+  
+  <Accordion title="Quota exceeded" icon="gauge-max">
+    You've hit BigQuery quotas:
+    - Reduce batch frequency
+    - Request quota increase from Google Cloud
+    - Spread data across multiple projects/datasets
+  </Accordion>
+  
+  <Accordion title="High costs" icon="dollar-sign">
+    Optimize BigQuery costs:
+    - Use partitioning and clustering
+    - Reduce query frequency
+    - Use table expiration for temporary data
+    - Consider using columnar storage compression
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="BigQuery Source" icon="download" href="/connectors/sources/bigquery">
+    Read data from BigQuery
+  </Card>
+  
+  <Card title="Snowflake Target" icon="snowflake" href="/connectors/targets/snowflake">
+    Alternative data warehouse option
+  </Card>
+  
+  <Card title="PostgreSQL Source" icon="database" href="/connectors/sources/postgres">
+    Stream from PostgreSQL to BigQuery
+  </Card>
+</CardGroup>
