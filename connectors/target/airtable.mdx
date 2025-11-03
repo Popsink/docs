@@ -1,0 +1,86 @@
+---
+title: Airtable Target
+description: Configure and operate the Airtable target connector to sync Popsink with your collaborative bases.
+---
+
+The Airtable target connector surfaces your Popsink data in Airtable bases while preserving business structure and the platform's real-time collaboration.
+
+## Prerequisites
+
+- **Airtable access:** an account with the "Creator" role on the target workspace plus an API key or PAT token with the `data.records:write` scope.
+- **Application parameters:** identify the `baseId`, `tableId`, and target fields, and enable the REST API for the workspace.
+- **Platform quotas:** monitor the 50,000-record-per-table limit, 5 requests per second, and the 100 MB maximum attachment size.
+- **Governance:** log connector usage in your processing register and validate GDPR compliance for personal data.
+
+## Configuration
+
+<Tabs>
+  <Tab title="Scheduled sync">
+    <Steps>
+      <Step title="Create the Airtable integration">
+        In Popsink, select Airtable as the target and link the PAT token stored in your secrets manager. Verify the token is scoped to the intended workspace.
+      </Step>
+      <Step title="Map the fields">
+        Map each Popsink field to the matching Airtable field. Use column types such as `singleLineText`, `number`, or `date` to stay compatible with the API.
+      </Step>
+      <Step title="Define the frequency">
+        Set the load cadence (cron or interval). Enable stale-record purge to keep bases lightweight.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Near real-time updates">
+    <Steps>
+      <Step title="Enable webhook mode">
+        Configure a Popsink trigger that sends mutations to the Airtable connector immediately after they are received.
+      </Step>
+      <Step title="Optimize batches">
+        Tune `max_records_per_call` and `retry_on_rate_limit` to absorb bursts while respecting API quotas.
+      </Step>
+      <Step title="Secure credentials">
+        Rotate the PAT token every 90 days and restrict its usage with Airtable access controls.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Monitoring
+
+- Analyze the Popsink dashboard to track API response times, the number of records created or updated, and retry attempts.
+- Enable alert webhooks when the Airtable API returns `429 Too Many Requests` or `422 Unprocessable Entity`.
+- Archive transformation logs to audit changes applied to critical fields.
+
+## Best practices
+
+- Simplify the Airtable views used by Popsink to reduce write latency.
+- Document field mappings in a dictionary shared with business teams.
+- Automate the removal of obsolete attachments to respect storage limits.
+
+<Callout type="warning">
+Do not exceed 10 "Lookup" or "Rollup" columns in automatically fed tables—the API can reject updates if dependencies become cyclical.
+</Callout>
+
+## FAQ
+
+<AccordionGroup>
+  <Accordion title="How do I manage record key conflicts?">
+    Use the external key column (`recordId`) provided by Popsink. If a conflict occurs, choose the `merge` option to preserve Airtable comments.
+  </Accordion>
+  <Accordion title="Can I write to multiple tables?">
+    Yes—create one target per table with dedicated filters and reuse the same PAT token when permissions allow.
+  </Accordion>
+  <Accordion title="How do I track validation errors?">
+    Review the Popsink log for details about the rejected request, then replay the call with the Airtable API tester to identify the invalid field.
+  </Accordion>
+</AccordionGroup>
+
+<CardGroup>
+  <Card title="Alerting Popsink" href="/alerting">
+    Trigger notifications whenever an Airtable limit is reached.
+  </Card>
+  <Card title="Target dashboard" href="/target">
+    Visualize global metrics for all destination connectors.
+  </Card>
+  <Card title="Pipeline templates" href="/quickstart">
+    Use reference examples to industrialize your Airtable synchronizations.
+  </Card>
+</CardGroup>

@@ -7,7 +7,7 @@
   },
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#000000",
+    "primary": "#a35fce",
     "light": "#FFFFFF",
     "dark": "#000000"
   },
@@ -34,50 +34,130 @@
         "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting Started",
-            "pages": [
-              "introduction",
-              "quickstart"
-            ]
+            "group": "Welcome",
+            "icon": "rocket",
+            "pages": ["introduction", "quickstart"]
+          },
+          {
+            "group": "Platform Overview",
+            "icon": "sparkles",
+            "pages": ["alerting", "deployment", "roadmap"]
           },
           {
             "group": "Source Connectors",
+            "icon": "plug",
             "pages": [
-              "connectors/sources/overview",
-              "connectors/sources/postgres",
-              "connectors/sources/mysql",
-              "connectors/sources/bigquery",
-              "connectors/sources/salesforce",
-              "connectors/sources/attio"
+              "connectors/source/overview",
+              {
+                "group": "Databases",
+                "pages": [
+                  "connectors/source/databases",
+                  "connectors/source/snowflake",
+                  "connectors/source/postgres",
+                  "connectors/source/mysql",
+                  "connectors/source/firestore",
+                  "connectors/source/oracle",
+                  "connectors/source/ibmi",
+                  "connectors/source/mssql",
+                  "connectors/source/bigquery",
+                  "connectors/source/mongodb"
+                ]
+              },
+              {
+                "group": "Streaming",
+                "pages": [
+                  "connectors/source/streaming",
+                  "connectors/source/kafka",
+                  "connectors/source/eventhub",
+                  "connectors/source/webhook",
+                  "connectors/source/datagen"
+                ]
+              },
+              {
+                "group": "SaaS & Applications",
+                "pages": [
+                  "connectors/source/saas-applications",
+                  "connectors/source/application",
+                  "connectors/source/attio",
+                  "connectors/source/hubspot",
+                  "connectors/source/salesforce"
+                ]
+              }
             ]
           },
           {
             "group": "Target Connectors",
+            "icon": "plug",
             "pages": [
-              "connectors/targets/overview",
-              "connectors/targets/bigquery",
-              "connectors/targets/clickhouse",
-              "connectors/targets/mongodb",
-              "connectors/targets/slack"
+              "connectors/target/overview",
+              {
+                "group": "Databases",
+                "pages": [
+                  "connectors/target/databases",
+                  "connectors/target/snowflake",
+                  "connectors/target/postgres",
+                  "connectors/target/mysql",
+                  "connectors/target/oracle",
+                  "connectors/target/teradata",
+                  "connectors/target/ibmi",
+                  "connectors/target/mssql",
+                  "connectors/target/clickhouse",
+                  "connectors/target/pinecone",
+                  "connectors/target/bigquery",
+                  "connectors/target/mongodb",
+                  "connectors/target/cosmosdb"
+                ]
+              },
+              {
+                "group": "Data Lakes & Streaming",
+                "pages": [
+                  "connectors/target/data-lakes-streaming",
+                  "connectors/target/iceberg",
+                  "connectors/target/hudi",
+                  "connectors/target/deltalake",
+                  "connectors/target/pubsub",
+                  "connectors/target/webhook"
+                ]
+              },
+              {
+                "group": "SaaS & Applications",
+                "pages": [
+                  "connectors/target/saas-applications",
+                  "connectors/target/application",
+                  "connectors/target/slack",
+                  "connectors/target/hubspot",
+                  "connectors/target/airtable"
+                ]
+              }
             ]
           },
           {
-            "group": "Platform Features",
+            "group": "On-Premises & Integrations",
+            "icon": "server",
             "pages": [
-              "features/alerting",
-              "features/deployment"
+              "on-prem/on-prem",
+              {
+                "group": "Snowflake IBMi",
+                "pages": [
+                  "snowflake-ibmi/quickstart",
+                  "snowflake-ibmi/db2-setup",
+                  "snowflake-ibmi/journaling"
+                ]
+              }
             ]
           },
           {
-            "group": "Snowflake IBMi",
+            "group": "Changelog",
+            "icon": "history",
             "pages": [
-              "snowflake-ibmi/quickstart"
-            ]
-          },
-          {
-            "group": "On-Premises",
-            "pages": [
-              "on-prem/overview"
+              "changelog/v3.8",
+              "changelog/v3.7",
+              "changelog/v3.29",
+              "changelog/v3.24",
+              "changelog/v3.2302",
+              "changelog/v1.84",
+              "changelog/v1.83",
+              "changelog/v1.78"
             ]
           }
         ]
@@ -87,5 +167,6 @@
   "footerSocials": {
     "website": "https://popsink.com",
     "github": "https://github.com/popsink"
-  }
+  },
+  "stylesheets": ["/styles/sidebar.css"]
 }

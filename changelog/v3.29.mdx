@@ -1,0 +1,53 @@
+---
+title: v3.29 13/11/2024
+---
+
+---
+description: hubspot, salesforce, bigquery, snowflake 
+---
+
+## Changelog Summary
+
+### Features:
+
+- **Connectors:**
+  - Added group ID support (#4624).
+  - Introduced lifecycle management for connectors, datamodels, subscriptions, and schemas (#4841).
+  - Added support for Snowpipe streaming and schema evolution (#4859).
+  - Enabled popsink source domain (#4953).
+  - Implemented single subscription pause/play (#4989).
+  - Added admin commands for managing connectors, datamodels, and schemas (#4992, #5035).
+  - Configured one consumer per source (#5032).
+
+- **Integrations:**
+  - Enhanced HubSpot functionality with retry on 429 errors and support for unique property creation (#4890, #4820).
+  - Improved BigQuery target logging (#4807).
+  - Service Account BQ experience updated (#4973).
+  - Bulk API introduced for Salesforce (#4727).
+
+- **UI/UX Improvements:**
+  - Redesigned usage page (#4550).
+  - Updated initial load button design (#4692).
+  - New loading experience introduced (#4952).
+  - Updated environment creation flow (#4974).
+
+- **Admin & Worker Enhancements:**
+  - Added worker configuration lifecycle (#4878).
+  - Improved logs and added worker logging (#4750, #4943).
+  - Added support for user-configurable workers (#4747).
+
+- **Other Features:**
+  - Free Trial extended to 30 days (#4812).
+  - Enabled blocking of consumer start and improved front status display (#5027).
+
+### Fixes:
+
+- Fixed multiple HubSpot issues, including object IDs and custom object paths (#4627, #4819, #4824).
+- Resolved Salesforce deletion and API issues (#4844).
+- Addressed Snowflake source issues (#4834).
+- Improved schema pool handling and avoided ID conflicts on new versions (#5011).
+- Fixed out-of-memory errors by updating memory limits (#5008).
+- Handled 403 loops and signout conditions (#5042, #5000).
+- Fixed nullable values in datagen source (#4764).
+- Corrected typos and improved naming conventions (#4919, #4633).
+- Fixed mapping and divider configurations (#5018, #4869).

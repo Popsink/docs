@@ -1,0 +1,56 @@
+---
+title: v3.2302 01/10/2024
+---
+
+---
+description: clickhouse, atio, hubspot, mssql, oracle, ibm
+---
+
+## Changelog Summary
+
+### New Features & Enhancements:
+
+- Added parent record support to Attio (#4183)
+- HubSpot association initial load (#4199)
+- Salesforce push topic support (#4290)
+- Added migration process for new database (#4310)
+- Added retry and error handling improvements for HubSpot (#4477, #4483)
+- Implemented Clickhouse target (#4573)
+
+### Onboarding Improvements:
+
+- Fixed onboarding issues, including OAuth connector handling (#4191)
+- Trigger backfill during onboarding (#4225)
+
+### Bug Fixes:
+
+- Fixed MSSQL issues and configurations (#4219, #4251)
+- Resolved HubSpot token and target build problems (#4441, #4509)
+- Fixed Airtable source integration (#4317, #4478)
+- Addressed multiple Salesforce-related issues (#4412, #4498)
+- Fixed soft deletion renaming (#4582)
+
+### Performance & Optimization:
+
+- Improved connectors list and subscription detail requests (#4301, #4292)
+- Enhanced e2e tests (#4155, #4316)
+- Optimized Kafka-connect images and avoided IBM-related issues (#4556)
+
+### Refinements:
+
+- Unified manifests labels (#4198)
+- Improved error messaging and user experience (#4376)
+- Standardized source/target data tables (#4544)
+
+### Version Updates:
+
+- Multiple version bumps for stability and feature releases (#4261, #4341, #4527)
+- Released versions: `0.3.229`, `0.3.2298`, `0.3.2299`, `0.3.2300`, `0.3.2301`
+
+### Miscellaneous:
+
+- Improved logging and monitoring systems (#4169, #4418)
+- Fixed email UTF-8 encoding issues (#4431)
+- Preload schema webhook slack (#4517)
+
+This summary includes major feature releases, critical fixes, and version updates based on the commits.

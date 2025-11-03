@@ -1,0 +1,59 @@
+---
+title: v3.8 25/03/2025
+---
+
+---
+description: OAuth & CVE security fixes, Snowflake, Clickhouse async, MongoDB, Teradata, Databricks improvements, Webhooks & connectors fixes, N+1 optimizations, Nuxt 3.16 migration, better logging & retries, Attio & HubSpot integrations, usage dashboard, production stability updates.
+---
+
+## Changelog Summary
+
+#### **Authentication & Security**
+
+- Improved **OAuth token handling** (code token and extra attributes).
+- **Critical CVE fix** for frontend security.
+- Updated **SSL handling for Aiven** and **Snowflake precision settings**.
+- Removed old environment variables and **Mercure**.
+
+#### **Database & Backend Improvements**
+
+- **Improved Snowflake, MongoDB, Clickhouse, and Redpanda** integration.
+- **Clickhouse now fully async** for better performance.
+- **Incremental load support** added.
+- **Multi-primary key support** for workers.
+- **PostgreSQL optimizations** (fewer tombstones, better identifier management).
+- Fixes for **JDBC memory, IBM i, and Teradata targets**.
+- **Optimized worker status updates and logging**.
+
+#### **Connectors & Integrations**
+
+- **Bug fixes and enhancements** for **BigQuery, HubSpot, Salesforce, Stripe, Webhooks, Airtable, MSSQL, Oracle, and JDBC**.
+- **Dedicated deployment for Attio webhooks** and **Attio BigQuery integration**.
+- **Databricks and Teradata targets introduced**.
+- **Salesforce source fixes**.
+- **Better handling of schema changes** for Webhooks and connectors.
+
+#### **Performance & Optimization**
+
+- **N+1 query fixes and optimizations** across backend.
+- **Retries and timeout handling improved** for production stability.
+- **Default retention time** adjustments for optimized storage.
+- **Snowflake updates** to avoid dashes in table names.
+
+#### **Frontend & UX Enhancements**
+
+- **Multiple UI fixes**, including **subscription details, button behaviors, and icon updates**.
+- **Nuxt 3.16 migration** for frontend framework.
+- **Error messages now more specific and informative**.
+- **Improved redirects when backend is down**.
+
+#### **Miscellaneous & Other Fixes**
+
+- **Webhook target and source fixes**.
+- **SSH tunnel improvements** for IBM i.
+- **Cron usage enhancements**.
+- **Better logging and debugging**:
+  - **More informative logs** with prefixes.
+  - **Removed unnecessary hot reload** in Gunicorn.
+- **Leftover invoke task removed**.
+- **Fixes for load visibility and resource initialization**.

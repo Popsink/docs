@@ -1,0 +1,58 @@
+---
+title: Source Connectors Overview
+description: Discover Popsink source connectors and learn how to capture data from your systems in real time.
+---
+
+Popsink source connectors allow you to ingest change events from your operational systems and SaaS tools with minimal setup. This overview explains the common concepts you will find in each connector guide and links to the detailed documentation for every supported source.
+
+## Before you begin
+
+- Verify that the systems you want to connect are reachable from your Popsink deployment.
+- Review the permissions required by the connector you selected. Most databases need replication or CDC privileges.
+- Identify the tables, collections, or topics you plan to replicate so you can configure filters precisely.
+
+## How each connector guide is structured
+
+Every connector page follows the same flow:
+
+1. **Prerequisites** – Network and security configuration required before connecting.
+2. **Setup** – Authentication steps, object selection, and CDC configuration.
+3. **Monitoring** – Guidance to track connector health through Popsink alerting and metrics.
+
+## Explore connector families
+
+Choose the family that matches your source to access the detailed guides:
+
+### Databases
+
+[Database connectors](./databases) cover relational engines, analytical warehouses, and document stores.
+
+- [Postgres](./postgres)
+- [MySQL](./mysql)
+- [MSSQL](./mssql)
+- [Oracle](./oracle)
+- [IBM i](./ibmi)
+- [Snowflake](./snowflake)
+- [BigQuery](./bigquery)
+- [MongoDB](./mongodb)
+- [Firestore](./firestore)
+
+### Streaming
+
+[Streaming connectors](./streaming) ingest events from your message buses and real-time producers.
+
+- [Kafka](./kafka)
+- [Event Hub](./eventhub)
+- [Datagen](./datagen)
+- [Webhook](./webhook)
+
+### SaaS & Applications
+
+[SaaS & Applications connectors](./saas-applications) synchronize your business tools and custom integrations.
+
+- [Generic Application](./application)
+- [Attio](./attio)
+- [HubSpot](./hubspot)
+- [Salesforce](./salesforce)
+
+Can't find your source? Contact [support@popsink.com](mailto:support@popsink.com) to discuss a custom integration.

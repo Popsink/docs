@@ -1,0 +1,86 @@
+---
+title: Postgres Target
+description: Operational guide for connecting Popsink to a PostgreSQL database in batch or streaming mode.
+---
+
+The Popsink Postgres target connector consolidates transactional and analytical data in a PostgreSQL database while honoring your organization's security and governance requirements.
+
+## Prerequisites
+
+- **Roles and permissions:** a PostgreSQL role with `CREATE`, `INSERT`, `UPDATE`, `DELETE`, and `ALTER` rights on the target schema, plus permission to execute functions required for `COPY` or `INSERT` operations.
+- **Infrastructure settings:** outbound network access from Popsink to port 5432 (or your custom port) with TLS enabled, root certificates imported, and PostgreSQL version 12 or later.
+- **Quotas and limits:** provision disk capacity for at least 150% of the expected daily volume and verify concurrent connection limits (`max_connections`) to accommodate Popsink workers.
+- **Monitoring and audits:** enable `pg_stat_statements` and error logging to trace connector activity.
+
+## Configuration
+
+<Tabs>
+  <Tab title="Batch ingestion">
+    <Steps>
+      <Step title="Declare the destination">
+        Provide the host, port, database, and target schema in Popsink. Attach a secret containing the user, password, and SSL string (`sslmode=require`) if needed.
+      </Step>
+      <Step title="Configure the write mode">
+        Choose `COPY` for large volumes or `INSERT` for smaller datasets. Configure the maximum batch size (`batch_size`) and duplicate key handling (`upsert_strategy`).
+      </Step>
+      <Step title="Schedule loads">
+        Define the sync cadence and retention rules for intermediate files. Ensure maintenance windows do not overlap with scheduled batches.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Streaming ingestion">
+    <Steps>
+      <Step title="Enable the real-time channel">
+        Select streaming mode in Popsink and increase the allowed connection pool on PostgreSQL to handle long-lived sessions.
+      </Step>
+      <Step title="Configure the buffer">
+        Adjust the memory buffer size (`stream_buffer_mb`) and commit interval (`commit_interval_ms`) to balance latency and cost. Enable acknowledgements to guarantee idempotency.
+      </Step>
+      <Step title="Secure the streams">
+        Apply streaming-specific roles, enable automatic secret rotation, and restrict access to target tables with RLS policies when available.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Monitoring
+
+- Instrument a dashboard built on `pg_stat_activity`, lock durations (`pg_locks`), and Popsink metrics (throughput, latency, errors).
+- Enable job failure notifications in Popsink and forward PostgreSQL logs to your SIEM.
+- Configure disk quotas and WAL usage alerts to prevent replication stoppages.
+
+## Best practices
+
+- Normalize data types (UUID, JSONB, timestamp with time zone) to avoid expensive conversions.
+- Document target tables with SQL comments to streamline maintenance.
+- Orchestrate schema changes outside of loading windows.
+
+<Callout type="warning">
+Avoid setting `synchronous_commit=off` on the Popsink session: if a failure occurs, you may lose transactions that were confirmed on the source.
+</Callout>
+
+## FAQ
+
+<AccordionGroup>
+  <Accordion title="What if a batch fails because of a unique constraint?">
+    Enable `upsert` mode with `ON CONFLICT DO UPDATE` and use a versioning column (`updated_at`) to resolve collisions.
+  </Accordion>
+  <Accordion title="How do I handle partitioned tables?">
+    Declare the parent table in Popsink and ensure the PostgreSQL partitioning strategy routes rows automatically via triggers or `PARTITION BY`.
+  </Accordion>
+  <Accordion title="Which logs should I review first?">
+    Start with Popsink logs to identify the failing step, then correlate with `postgresql.log` and `pg_stat_activity` for SQL details.
+  </Accordion>
+</AccordionGroup>
+
+<CardGroup>
+  <Card title="Monitor targets" href="/target">
+    Understand metrics shared across all target connectors.
+  </Card>
+  <Card title="Alerting Popsink" href="/alerting">
+    Configure notifications and webhooks when incidents occur.
+  </Card>
+  <Card title="Start a pipeline" href="/quickstart">
+    End-to-end example to validate your Postgres configuration.
+  </Card>
+</CardGroup>

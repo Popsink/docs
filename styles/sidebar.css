@@ -1,0 +1,42 @@
+:root {
+  --sidebar-active-background: #F7EAFE;
+  --sidebar-icon-color: #a35fce;
+}
+
+/* Style for the selected element in the sidebar */
+aside nav a[aria-current="page"],
+aside nav button[aria-current="page"],
+aside nav a[aria-current="true"],
+aside nav button[aria-current="true"],
+aside nav [data-active="true"],
+aside nav [aria-selected="true"] {
+  background-color: var(--sidebar-active-background) !important;
+  border-radius: 8px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+/* Highlight the active group button as well */
+aside nav button[aria-expanded="true"][aria-current="true"],
+aside nav button[aria-expanded="true"][data-active="true"],
+aside nav button[aria-expanded="true"][aria-selected="true"] {
+  background-color: var(--sidebar-active-background) !important;
+}
+
+/* Collapse subsections based on ARIA state */
+aside nav button[aria-expanded="false"] + ul {
+  display: none;
+}
+
+aside nav button[aria-expanded="true"] + ul {
+  display: block;
+}
+
+/* Display menu item icons and align their styling */
+aside nav li > a > span:first-child,
+aside nav li > button > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.75rem;
+  color: var(--sidebar-icon-color);
+}

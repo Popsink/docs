@@ -1,0 +1,28 @@
+---
+title: Source Database Connectors
+description: Browse the Popsink source connectors built for operational databases and analytical warehouses.
+---
+
+The connectors in this family capture change events from structured data platforms. They leverage native CDC capabilities to move data from your systems of record into Popsink pipelines.
+
+> Start with the [source connectors overview](./overview) to understand the shared configuration and security strategies across all integrations.
+
+## Relational databases
+
+- [Postgres](./postgres) – Capture logical replication streams from your Postgres clusters.
+- [MySQL](./mysql) – Use MySQL or MariaDB binlogs to feed Popsink continuously.
+- [MSSQL](./mssql) – Consume Microsoft SQL Server Change Tracking to follow every update.
+- [Oracle](./oracle) – Replicate Oracle redo logs without impacting transactional workloads.
+- [IBM i](./ibmi) – Synchronize DB2 for i entries through the platform's native journaling.
+
+## Data warehouses & analytics
+
+- [Snowflake](./snowflake) – Subscribe to Snowflake changes using dedicated tasks and streams.
+- [BigQuery](./bigquery) – Capture BigQuery changes to power your real-time analytics pipelines.
+
+## Document databases
+
+- [MongoDB](./mongodb) – Track MongoDB operations through change streams.
+- [Firestore](./firestore) – Replicate Firestore mutations from Cloud Firestore collections.
+
+Need a database that is not listed? Contact us at [support@popsink.com](mailto:support@popsink.com) to discuss a custom integration.

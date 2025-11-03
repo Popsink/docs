@@ -1,109 +1,71 @@
 ---
-title: 'Quickstart'
-description: 'Get up and running with Popsink in minutes'
-icon: 'rocket'
+title: Quickstart
+description: Launch your first Popsink pipeline in minutes with this guided tutorial.
 ---
 
-Get started with Popsink and set up your first data pipeline in just a few minutes. This guide will walk you through creating a source connector, configuring a target, and starting your first real-time data sync.
-
-## Prerequisites
+Follow this quickstart guide to create a Popsink pipeline that streams data from a source to a target connector. You will use
+the Popsink console, configure alerting, and validate that data flows end-to-end.
 
 <Steps>
-  <Step title="Choose Your Deployment">
-    Decide between [SaaS, BYOC, On-Prem, or Air-Gapped](/features/deployment) deployment.
+  <Step title="Sign in and create a workspace">
+    1. Sign in to the [Popsink console](https://console.popsink.com) with your organization account.
+    2. Create a new workspace or select an existing one. This workspace hosts the pipelines and credentials you configure.
   </Step>
-  
-  <Step title="Access Credentials">
-    Have credentials ready for your source and target systems.
+
+  <Step title="Configure a source connector">
+    1. Open **Connectors → Sources** and click **New Source**.
+    2. Select the connector that matches your system. For example, choose **Postgres** to capture database changes.
+    3. Provide the required credentials and connection parameters.
+    4. Validate the connection and save the source.
+
+    <Callout type="tip">
+      Review the connector guides to learn about network prerequisites or advanced settings specific to each technology.
+    </Callout>
+
+    <Callout type="warning">
+      Ensure you have workspace administrator rights (or equivalent) before creating and validating new connectors.
+    </Callout>
   </Step>
-  
-  <Step title="Network Access">
-    Ensure network connectivity between Popsink and your data sources/targets.
+
+  <Step title="Configure a target connector">
+    1. Open **Connectors → Targets** and create a new target connector.
+    2. Select the destination technology (for example **BigQuery** or **Snowflake**).
+    3. Provide write credentials and define the storage location (dataset or schema) Popsink should use.
+    4. Test the connection before saving the target.
+  </Step>
+
+  <Step title="Build your pipeline">
+    1. Go to **Pipelines** and click **Create pipeline**.
+    2. Select the source and target created in the previous steps.
+    3. Choose the collections, tables, or topics to replicate and adjust transformation settings.
+    4. Enable alerting so Popsink notifies you about failures or latency.
+    5. Save and start the pipeline.
+  </Step>
+
+  <Step title="Validate the data flow">
+    - Inspect the pipeline dashboard to confirm that events are processed and delivered.
+    - Check on the target system that tables or collections are updated as expected.
+    - Monitor alerts and metrics to maintain long-term performance.
   </Step>
 </Steps>
 
-## Quick Setup
+<AccordionGroup>
+  <Accordion title="Connection verification fails">
 
-<Steps>
-  <Step title="Connect a Source">
-    Choose from 20+ source connectors:
-    - [PostgreSQL](/connectors/sources/postgres)
-    - [MySQL](/connectors/sources/mysql)
-    - [Salesforce](/connectors/sources/salesforce)
-    - [BigQuery](/connectors/sources/bigquery)
-    - [And more...](/connectors/sources/overview)
-  </Step>
-  
-  <Step title="Configure a Target">
-    Select where your data should go:
-    - [BigQuery](/connectors/targets/bigquery)
-    - [Snowflake](/connectors/targets/snowflake)
-    - [ClickHouse](/connectors/targets/clickhouse)
-    - [MongoDB](/connectors/targets/mongodb)
-    - [And more...](/connectors/targets/overview)
-  </Step>
-  
-  <Step title="Create Your Pipeline">
-    Connect your source and target to create a data pipeline. Configure any transformations or filters as needed.
-  </Step>
-  
-  <Step title="Start Streaming">
-    Activate your pipeline and watch data flow in real-time!
-  </Step>
-</Steps>
+    Confirm that the required ports are open and that the supplied credentials have the expected read or write privileges. Compare against the recommended configuration in the connector documentation.
+  </Accordion>
 
-## Example: PostgreSQL to BigQuery
+  <Accordion title="The pipeline stays pending after launch">
 
-Here's a quick example of setting up a common pipeline:
-
-<CodeGroup>
-
-```bash PostgreSQL Setup
--- Enable logical replication
-ALTER SYSTEM SET wal_level = logical;
-
--- Create replication user
-CREATE USER popsink_user WITH REPLICATION;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO popsink_user;
-
--- Create publication
-CREATE PUBLICATION popsink FOR ALL TABLES;
-```
-
-```sql BigQuery Setup
--- Create dataset
-CREATE SCHEMA IF NOT EXISTS `your-project.popsink_data`;
-
--- Grant permissions to service account
-GRANT `roles/bigquery.dataEditor` 
-ON SCHEMA `your-project.popsink_data` 
-TO "serviceAccount:popsink@your-project.iam.gserviceaccount.com";
-```
-
-</CodeGroup>
-
-## Next Steps
+    Make sure change data capture is enabled on the source and that quotas or limits on the target side are not exceeded. Review the related alerts to get incident details.
+  </Accordion>
+</AccordionGroup>
 
 <CardGroup cols={2}>
-  <Card title="Explore Connectors" icon="plug" href="/connectors/sources/overview">
-    Browse all available source and target connectors
+  <Card title="Connector guides" icon="plug-circle-bolt" href="/connectors/source/overview">
+    Explore all source and target connectors, their prerequisites, and best practices.
   </Card>
-  
-  <Card title="Set Up Alerting" icon="bell" href="/features/alerting">
-    Configure monitoring and alerts for your pipelines
-  </Card>
-  
-  <Card title="Learn About Deployment" icon="rocket-launch" href="/features/deployment">
-    Understand different deployment options
-  </Card>
-  
-  <Card title="API Reference" icon="code" href="/api-reference/overview">
-    Explore the Popsink API
+  <Card title="Deployment guide" icon="building" href="/deployment">
+    Choose the deployment model that best suits you (SaaS, BYOC, or on-premises) and prepare your environment.
   </Card>
 </CardGroup>
-
-## Need Help?
-
-<Note>
-If you run into any issues, check out our troubleshooting guides in each connector's documentation or contact support at support@popsink.com
-</Note>

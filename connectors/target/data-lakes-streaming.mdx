@@ -1,0 +1,21 @@
+---
+title: Target Data Lakes & Streaming Connectors
+description: Route Popsink pipelines into your data lakehouses and streaming services.
+---
+
+Use these connectors to feed large-scale storage platforms or broadcast real-time events. They provide flexible options to expose your transformed data.
+
+> Revisit the [target connectors overview](./overview) to master the shared partitioning, schema, and monitoring parameters across all destinations.
+
+## Data lakes
+
+- [Iceberg](./iceberg) – Publish Iceberg tables optimized for ACID queries.
+- [Hudi](./hudi) – Maintain Hudi datasets with precise version control.
+- [Delta Lake](./deltalake) – Load Delta Lake tables with merge and upsert support.
+
+## Event distribution
+
+- [Pub/Sub](./pubsub) – Deliver Popsink events to Google Cloud Pub/Sub.
+- [Webhook](./webhook) – Send outbound HTTP notifications to your downstream services.
+
+Need a specific lake or streaming integration? [support@popsink.com](mailto:support@popsink.com) is ready to help.

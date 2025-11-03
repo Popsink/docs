@@ -1,0 +1,62 @@
+---
+title: Target Connectors Overview
+description: Learn how Popsink delivers real-time data to your destinations and explore each available target connector.
+---
+
+Target connectors push the data captured by Popsink into your downstream systems with low latency. Use this overview to understand the configuration principles shared by every target and quickly navigate to the detailed guide for your destination.
+
+## Deployment checklist
+
+- Confirm that the Popsink deployment has network access to the destination service.
+- Prepare credentials with the correct roles or API scopes to write data in the target system.
+- Decide how you want Popsink to structure datasets, tables, or collections before activating a pipeline.
+
+## Configuration patterns
+
+All target connector guides explain:
+
+1. **Authentication** – How to securely provide service accounts, API keys, or OAuth tokens.
+2. **Schema management** – Recommendations for managing table creation, schema drift, and conflict resolution.
+3. **Operational guidance** – Monitoring tips and error handling practices for production workloads.
+
+## Explore destination families
+
+Select the category that matches your target system to access the detailed guides:
+
+### Databases
+
+[Database connectors](./databases) cover relational engines, analytical warehouses, and NoSQL stores.
+
+- [Snowflake](./snowflake)
+- [Postgres](./postgres)
+- [MySQL](./mysql)
+- [Oracle](./oracle)
+- [Teradata](./teradata)
+- [IBM i](./ibmi)
+- [MSSQL](./mssql)
+- [ClickHouse](./clickhouse)
+- [BigQuery](./bigquery)
+- [MongoDB](./mongodb)
+- [Cosmos DB](./cosmosdb)
+- [Pinecone](./pinecone)
+
+### Data Lakes & Streaming
+
+[Data Lakes & Streaming connectors](./data-lakes-streaming) route your pipelines to lakehouse formats or event buses.
+
+- [Iceberg](./iceberg)
+- [Hudi](./hudi)
+- [Delta Lake](./deltalake)
+- [Pub/Sub](./pubsub)
+- [Webhook](./webhook)
+
+### SaaS & Applications
+
+[SaaS & Applications connectors](./saas-applications) deliver Popsink data back into your business tools and custom applications.
+
+- [Generic Application](./application)
+- [Slack](./slack)
+- [HubSpot](./hubspot)
+- [Airtable](./airtable)
+
+Need a specific destination? Contact [support@popsink.com](mailto:support@popsink.com) to discuss a new connector.

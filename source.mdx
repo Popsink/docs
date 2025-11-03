@@ -1,0 +1,68 @@
+---
+title: Source Connectors
+description: "Operational guide to configure, operate, and monitor Popsink source connectors"
+---
+
+Popsink source connectors provide continuous ingestion of operational data to power your real-time journeys. Use them to synchronize transactional databases, SaaS applications, or event streams with Popsink pipelines.
+
+<CardGroup cols={3}>
+  <Card title="Databases" icon="database" href="/connectors/source/databases">
+    PostgreSQL, MySQL, Oracle, SQL Server, IBM i—configure change data capture on your mission-critical systems.
+  </Card>
+  <Card title="SaaS applications" icon="cloud" href="/connectors/source/saas-applications">
+    HubSpot, Salesforce, Attio, and other CRM/ERP platforms to synchronize your business operations.
+  </Card>
+  <Card title="Streaming & Webhooks" icon="signal" href="/connectors/source/streaming">
+    Kafka, Event Hubs, webhooks, and custom APIs to feed Popsink from your event buses.
+  </Card>
+</CardGroup>
+
+## Configuration flow
+
+Each connector follows a shared journey that guarantees reliable and secure ingestion.
+
+<Callout type="info" title="Network and security prerequisites">
+  Allow outbound communication to Popsink endpoints (443/TCP), authorize your deployment IP at the database layer, and supply limited-privilege credentials (read + CDC). Review the [deployment section](/deployment) for detailed network matrices.
+</Callout>
+
+<Steps>
+  <Step title="Prepare the source">
+    Enable the required transaction log or event export (for example, `wal_level=logical` for PostgreSQL) and confirm that expected volumes remain compatible with continuous capture (>50k events/min supported by default).
+  </Step>
+  <Step title="Create the connector">
+    In the Popsink interface, select the appropriate family, fill in the connection parameters, and test access to the source.
+  </Step>
+  <Step title="Define the stream">
+    Choose the schemas, tables, or topics to capture, apply any required filters or masking, and define the destination area.
+  </Step>
+  <Step title="Validate and launch">
+    Start the connector, verify that the initial full sync completes, and monitor catch-up latency (&lt;5 s on average) from the dashboard.
+  </Step>
+</Steps>
+
+## Use cases
+
+- **Real-time customer activation**: replicate events from your CRM ([Salesforce](/connectors/source/salesforce) or [HubSpot](/connectors/source/hubspot)) to marketing destinations to trigger instant campaigns.
+- **Reliable finance reporting**: capture transactions from [Oracle](/connectors/source/oracle) or [PostgreSQL](/connectors/source/postgres) and feed a Snowflake warehouse without loading source systems.
+- **Product observability**: ingest [Kafka](/connectors/source/kafka) or [Event Hubs](/connectors/source/eventhub) streams to compute metrics in under two seconds.
+- **Mainframe modernization**: use the [IBM i](/connectors/source/ibmi) connector to expose RPG/DB2 data within your cloud applications.
+
+## Monitoring
+
+Combine the Popsink console with native alerting to guarantee service continuity.
+
+- **Pipeline dashboard**: track throughput (events/s), catch-up latency, and offset state.
+- **Proactive alerts**: configure thresholds on latency increases, authentication errors, or stream interruptions in the [Alerting section](/alerting).
+- **Audit and traceability**: export execution logs to your SIEM to investigate rejects or transformations.
+
+<AccordionGroup>
+  <Accordion title="How should I rotate credentials?">
+    Schedule the rotation in your secrets manager, update the connector through the Popsink API or interface, then rerun a connection test to validate the new pair.
+  </Accordion>
+  <Accordion title="What happens during a network outage?">
+    Connectors buffer events locally for 15 minutes and resume automatically thanks to offset management. Schedule a maintenance window for extended outages.
+  </Accordion>
+  <Accordion title="Can I limit the extracted throughput?">
+    Yes—set an events-per-second quota and enable adaptive throttling to avoid overloading the source database while preserving recovery guarantees.
+  </Accordion>
+</AccordionGroup>

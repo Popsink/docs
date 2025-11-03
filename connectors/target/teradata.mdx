@@ -1,0 +1,86 @@
+---
+title: Teradata Target
+description: Deploying the Teradata target connector to load analytical volumes from Popsink.
+---
+
+The Teradata target connector powers your analytical environments by leveraging Teradata's MPP parallelization and optimization features.
+
+## Prerequisites
+
+- **Accounts and roles:** a Teradata user with `CREATE TABLE`, `INSERT`, `UPDATE`, `DELETE` privileges and access to the TPT utility when used.
+- **Infrastructure:** network connectivity between Popsink and the Teradata port (`1025` by default) with TLS encryption enabled; supported versions are Vantage 17.x and later.
+- **Capacity and quotas:** sufficient `AMP` allocation to absorb write spikes, session limits sized for Popsink jobs, and appropriately dimensioned permanent/swap space.
+- **Monitoring:** access to the `DBC.ResUsage*` views and `DBC.QryLog` to collect performance and error metrics.
+
+## Configuration
+
+<Tabs>
+  <Tab title="Batch loads">
+    <Steps>
+      <Step title="Declare the target">
+        Enter the host, system (`DBCName`), and database name in Popsink. Attach a secret containing the service account and, if required, the client certificate.
+      </Step>
+      <Step title="Choose the write mode">
+        Select the `TPT` utility for large volumes or `FastLoad` for empty tables. Configure the block size (`blocksize`) and `errorlimit` level.
+      </Step>
+      <Step title="Optimize batches">
+        Configure the primary key or secondary indexes, enable multivalue compression, and define the automatic restart policy for failures.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Continuous flows">
+    <Steps>
+      <Step title="Enable streaming mode">
+        Select the `continuous loads` option in Popsink and confirm that the `Teradata Parallel Transporter` component is sized for long-running sessions.
+      </Step>
+      <Step title="Manage latency">
+        Tune the `checkpoint_interval` and `commit_frequency` parameters to balance throughput and AMP consumption.
+      </Step>
+      <Step title="Secure access">
+        Restrict the Popsink role to target tables, enable LDAP/Kerberos authentication when available, and log requests through `DBC.DBQLogTbl`.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Monitoring
+
+- Track CPU and I/O usage through `DBC.ResUsageScpu` and `DBC.ResUsageSvpr`, complemented by Popsink metrics (throughput, retries, latency).
+- Configure alerts when `2689` (duplicate row) or `2641` (AMP down) errors exceed a defined threshold.
+- Retain TPT and FastLoad logs to simplify diagnostics if a job aborts.
+
+## Best practices
+
+- Partition large tables with `PRIMARY INDEX` values aligned to the distribution key.
+- Order columns to maximize block-level compression.
+- Align Teradata maintenance windows with Popsink schedules to avoid collisions.
+
+<Callout type="warning">
+Disable the `CHECKPOINT OFF` option only for exceptional jobs: without a recovery point, restarting a large load can severely impact production.
+</Callout>
+
+## FAQ
+
+<AccordionGroup>
+  <Accordion title="How should I handle duplicate errors (2689)?">
+    Enable the Popsink upsert option or add a staging step with deduplication before the final insert.
+  </Accordion>
+  <Accordion title="What if an AMP becomes unavailable?">
+    Pause the job, work with the DBA team to restore the AMP, then restart the connector once the cluster state is validated.
+  </Accordion>
+  <Accordion title="How do I audit writes?">
+    Use `DBC.QryLog` to trace executed queries and export Popsink logs to your centralized SIEM solution.
+  </Accordion>
+</AccordionGroup>
+
+<CardGroup>
+  <Card title="Monitor targets" href="/target">
+    Configure dashboards to track the health of Teradata and other destinations.
+  </Card>
+  <Card title="Alerting Popsink" href="/alerting">
+    Receive alerts when TPT or FastLoad jobs fail.
+  </Card>
+  <Card title="Pipeline examples" href="/quickstart">
+    Reuse a reference pipeline to accelerate your Teradata deployments.
+  </Card>
+</CardGroup>
