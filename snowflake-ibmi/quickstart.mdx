@@ -1,43 +1,34 @@
 ---
-title: Quickstart
+title: "Quickstart"
 ---
 
-You've just downloaded Popsink's connector to IBMi DB2 from Snowflake's Marketplace, and you're now eager to run your
-first replication. Then, you've come to right the place !
+You've just downloaded Popsink's connector to IBMi DB2 from Snowflake's Marketplace, and you're now eager to run your first replication. Then, you've come to right the place !
 
-On first launch, the application will welcome you with a step-by-step configuration wizard that you can pause and resume any
-time, your progress will be saved.
+On first launch, the application will welcome you with a step-by-step configuration wizard that you can pause and resume any time, your progress will be saved.
 
-If you're entirely new to
-IBMi/AS400 and currently have no system to connect to, please head to [this page](db2_setup), follow the instructions
-and start experimenting with your new DB2 system.
+If you're entirely new to IBMi/AS400 and currently have no system to connect to, please head to [this page](db2-setup), follow the instructions and start experimenting with your new DB2 system.
 
 If not, you've already got a DB2 system in place, and you want to replicate it, please continue.
 
 ## 1. Prerequisites
 
-In this important step, the user goes through a check-list of actions that need to be taken before moving on to the next
-steps. Not everything can be setup through the user interface, often for security reasons.
+In this important step, the user goes through a check-list of actions that need to be taken before moving on to the next steps. Not everything can be setup through the user interface, often for security reasons.
 
 ![image](/images/prerequisites.png)
 
 ### 1.1 Enable Journaling
 
-It's a vital step to capture changes from the source databases with no additional overhead. Please head to [journaling](journaling),
-if you need help setting it up on your DB2 environment.
+It's a vital step to capture changes from the source databases with no additional overhead. Please head to [journaling](journaling), if you need help setting it up on your DB2 environment.
 
 Take notes of the journaled tables you'd like to replicate.
 
 ### 1.2 Review network access
 
-In a later step, the app will generate SQL commands that only a user with `ACCOUNTADMIN` privileges can run.
-This will open network access to the source database. Please make sure your administrator is informed that the app needs
-access to all the port of the source database.
+In a later step, the app will generate SQL commands that only a user with `ACCOUNTADMIN` privileges can run. This will open network access to the source database. Please make sure your administrator is informed that the app needs access to all the port of the source database.
 
 ### 1.3 Find an available name for the target database
 
-Snowflake's security prevents an app to list all the existing databases and schemas. That's why your administrator needs to run
-`SHOW DATABASES` to confirm that your choice of target database name is valid.
+Snowflake's security prevents an app to list all the existing databases and schemas. That's why your administrator needs to run `SHOW DATABASES` to confirm that your choice of target database name is valid.
 
 When you're ready you can mark the prerequisites as **'Completed'** and move to the next step.
 
@@ -61,16 +52,13 @@ Next step is to set up your connection to your source IBMi system. You will need
 - A network access to your hostname.
 - A username & password to an account with rights to read the DB2 journal.
 
-Snowflake has an embedded system of [external access integration (EAI)](https://docs.snowflake.com/en/developer-guide/external-network-access/creating-using-external-network-access) that securely declares the port your
-connection requires, as well as credential data (here a simple username/password pair, the only mean to connect to IBMi)
+Snowflake has an embedded system of [external access integration (EAI)](https://docs.snowflake.com/en/developer-guide/external-network-access/creating-using-external-network-access) that securely declares the port your connection requires, as well as credential data (here a simple username/password pair, the only mean to connect to IBMi)
 
 ![image](/images/firewall_1.png)
 
-When you've entered all the fields, clicking on **'Generate firewall rules'** will show a SQL Script to pass on to
-your account admin. He will be able to run and add the required objects to move on to the next step.
+When you've entered all the fields, clicking on **'Generate firewall rules'** will show a SQL Script to pass on to your account admin. He will be able to run and add the required objects to move on to the next step.
 
-The password is transferred in clear to your admin but is stored securely in Snowflake, nothing but the app can access
-it.
+The password is transferred in clear to your admin but is stored securely in Snowflake, nothing but the app can access it.
 
 ![image](/images/firewall_2.png)
 
