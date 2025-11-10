@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "mintlify": "^4.2.188"
+  },
+  "devDependencies": {
+    "@mintlify/cli": "^4.0.792"
+  }
+}

@@ -1,6 +1,33 @@
 :root {
-  --sidebar-active-background: #F7EAFE;
-  --sidebar-icon-color: #a35fce;
+--sidebar-active-background: #F7EAFE;
+--sidebar-icon-color: #a35fce;
+}
+@media (max-width: 768px) {
+  header button[data-theme-toggle] {
+    position: relative;
+    right: auto;
+    top: auto;
+    margin-left: 0.5rem;
+    z-index: 100;
+  }
+}
+
+/* Mode dark - via media query système */
+@media (prefers-color-scheme: dark) {
+:root {
+--sidebar-active-background: #2D1B3D; /* Couleur sombre adaptée */
+--sidebar-icon-color: #c084fc; /* Violet plus clair pour contraste */
+}
+}
+/* Mode dark - via sélecteur de thème Mintlify (si applicable) */
+[data-theme="dark"] {
+--sidebar-active-background: #2D1B3D;
+--sidebar-icon-color: #c084fc;
+}
+/* Alternative avec classe dark */
+.dark {
+--sidebar-active-background: #2D1B3D;
+--sidebar-icon-color: #c084fc;
 }
 
 /* Style for the selected element in the sidebar */
@@ -39,4 +66,26 @@ aside nav li > button > span:first-child {
   justify-content: center;
   margin-right: 0.75rem;
   color: var(--sidebar-icon-color);
+}
+/* --- TEMP FIX: Force le bouton dark/light à s'afficher dans la topbar --- */
+[data-theme-toggle] {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: inherit;
+}
+
+/* Positionne le bouton à droite de la loupe (navbar) */
+header button[data-theme-toggle] {
+  position: absolute;
+  right: 3rem;
+  top: 0.75rem;
+  z-index: 50;
+}
+
+/* Optionnel : ajoute un léger hover */
+header button[data-theme-toggle]:hover {
+  opacity: 0.8;
+  transition: opacity 0.2s ease-in-out;
 }

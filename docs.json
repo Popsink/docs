@@ -5,13 +5,20 @@
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
   },
+  "homePageUrl": "/introduction",
   "favicon": "/favicon.svg",
   "colors": {
     "primary": "#a35fce",
     "light": "#FFFFFF",
     "dark": "#000000"
   },
+  "appearance": {
+    "default": "light",
+    "strict": false
+  },
   "theme": "mint",
+  "topbarItems": ["search", "theme"],
+
   "topbarLinks": [
     {
       "name": "Support",
@@ -36,7 +43,7 @@
           {
             "group": "Welcome",
             "icon": "rocket",
-            "pages": ["introduction", "quickstart"]
+            "pages": ["quickstart"]
           },
           {
             "group": "Platform Overview",
@@ -162,7 +169,8 @@
           }
         ]
       }
-    ]
+    ],
+    "contextualItems": ["theme"]
   },
   "footerSocials": {
     "website": "https://popsink.com",
