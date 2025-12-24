@@ -1,0 +1,42 @@
+---
+title: Popsink Deployment Installation
+---
+
+## Prerequisites for Installing the PopSink Self-Service Solution
+
+Before installing or upgrading the PopSink self-service solution, ensure that your environment meets the following requirements.
+
+### Mandatory Requirements
+
+* **Kubernetes Cluster**
+
+  * A Kubernetes cluster with a minimum of **2 worker nodes**
+  * Each node must have at least:
+
+    * **4 vCPUs**
+    * **16 GB of RAM**
+
+* **Ingress Controller**
+
+  * An ingress controller must be installed and configured
+  * **Traefik** is required
+
+* **Storage**
+
+  * SSD-based persistent storage
+  * Minimum available disk space: **200 GB**
+
+* **Helm**
+
+  * **Helm 3** must be installed
+  * Installation and upgrades of PopSink are performed using a **Helm chart**
+
+### Optional Requirements
+
+* **Object Storage**
+
+  * An **S3-compatible storage** service (or equivalent)
+
+* **Autoscaling**
+
+  * **Kubernetes Cluster Autoscaler** (or equivalent node autoscaling solution)
