@@ -1,0 +1,121 @@
+---
+title: "Popsink Self-Hosted Deployment"
+description: Step-by-step guide to creating, configuring, and connecting a self-hosted deployment.
+---
+
+## Prerequisites
+
+Before you begin, ensure your infrastructure meets the following requirements:
+
+* **Kubernetes 1.23+**
+* **Helm 3.8.0+**
+* **Persistent Volume (PV) provisioner** support in the underlying infrastructure
+
+---
+
+## 1. Create a New Deployment
+
+1. Navigate to **Deployments** from the sidebar.
+2. Click **New Deployment**.
+
+![image](/images/sh-tuto1.png)
+
+### Deployment Settings
+
+Fill in the required fields:
+
+* **Deployment name** – Provide a recognizable name for your environment.
+* **Deployment URL** – Automatically generated based on your deployment name.
+* **Deployment method** – Select **Self-hosted** from the dropdown.
+
+Click **Configure Self-Hosted** to continue.
+
+> 💡 You can request a new region or provider if your preferred option is not listed.
+
+![image](/images/sh-tuto2.png)
+
+---
+
+## 2. Configuration
+
+The configuration step bootstraps your deployment on a cluster using the package manager.
+
+> **Note:** No information from this form is permanently stored. It is only used to pre-fill your YAML on the next step. You can skip this step and manually edit the YAML if preferred.
+
+### Optional Setup
+
+You may enable a **PostgreSQL Database** during setup if your deployment requires it.
+
+---
+
+## 3. Retention Strategy
+
+Choose how you want data retention handled:
+
+* **S3 Compatible Storage** – Recommended for scalable object storage.
+* **PostgreSQL Database** – Suitable for structured retention needs.
+
+---
+
+## 4. Configure the TLD
+
+Provide the **Fully Qualified Domain Name (FQDN)** that will be used to generate values.
+
+> ⚠️ The chart does not manage the ingress configuration. You are responsible for configuring it separately.
+
+Example:
+
+```
+demo-popsink.tld
+```
+
+Click **Create Chart** when ready.
+
+![image](/images/sh-tuto3.png)
+
+---
+
+## 5. Install the Helm Chart
+
+After generating the configuration, follow the provided commands.
+
+![image](/images/sh-tuto4.png)
+
+### Install the Chart
+
+```bash
+helm install release-name oci://ghcr.io/popsink/charts/data-plane --version 0.1.0-alpha.8
+```
+
+---
+
+## 6. Review Default Values
+
+A default configuration file is generated for your deployment. It includes:
+
+* Global FQDN
+* PostgreSQL enablement flag
+* Retention type
+* Deployment metadata
+
+Download or copy the configuration and adjust it as needed before applying it to your cluster.
+
+When finished, click **Mark as Complete**.
+
+---
+
+## 7. Await Connection
+
+Once installation is complete, the platform will wait for your self-hosted deployment to connect.
+
+You will see an **"Awaiting connection…"** status until the cluster successfully registers.
+
+![image](/images/sh-tuto5.png)
+
+### Troubleshooting Tips
+
+If the connection does not establish:
+
+* Verify your Helm installation completed successfully.
+* Confirm your ingress and DNS are properly configured.
+* Ensure outbound network access is allowed from the cluster.
