@@ -5,11 +5,11 @@ description: Step-by-step guide to creating, configuring, and connecting a self-
 
 ## Prerequisites
 
-Before you begin, ensure your infrastructure meets the following requirements:
+Ensure your infrastructure meets the following requirements before starting:
 
-* **Kubernetes 1.23+**
-* **Helm 3.8.0+**
-* **Persistent Volume (PV) provisioner** support in the underlying infrastructure
+- **Kubernetes 1.23+**
+- **Helm 3.8.0+**
+- Support for a **Persistent Volume (PV) provisioner**
 
 ---
 
@@ -22,11 +22,11 @@ Before you begin, ensure your infrastructure meets the following requirements:
 
 ### Deployment Settings
 
-Fill in the required fields:
+Provide the required information:
 
-* **Deployment name** – Provide a recognizable name for your environment.
-* **Deployment URL** – Automatically generated based on your deployment name.
-* **Deployment method** – Select **Self-hosted** from the dropdown.
+- **Deployment name** – Choose a recognizable name for your environment.
+- **Deployment URL** – Automatically generated from your deployment name.
+- **Deployment method** – Select **Self-hosted**.
 
 Click **Configure Self-Hosted** to continue.
 
@@ -36,38 +36,42 @@ Click **Configure Self-Hosted** to continue.
 
 ---
 
-## 2. Configuration
+## 2. Configure the Deployment
 
-The configuration step bootstraps your deployment on a cluster using the package manager.
+This step bootstraps your deployment on a Kubernetes cluster using Helm.
 
-> **Note:** No information from this form is permanently stored. It is only used to pre-fill your YAML on the next step. You can skip this step and manually edit the YAML if preferred.
+> **Note:** The information entered here is only used to pre-fill your YAML in the next step and is not permanently stored. You can skip this step and manually edit the YAML if preferred.
 
-### Optional Setup
+### Optional Database Setup
 
-You may enable a **PostgreSQL Database** during setup if your deployment requires it.
-
----
-
-## 3. Retention Strategy
-
-Choose how you want data retention handled:
-
-* **S3 Compatible Storage** – Recommended for scalable object storage.
-* **PostgreSQL Database** – Suitable for structured retention needs.
+You may enable a **PostgreSQL database** during setup if required by your deployment.
 
 ---
 
-## 4. Configure the TLD
+## 3. Select a Retention Strategy
 
-Provide the **Fully Qualified Domain Name (FQDN)** that will be used to generate values.
+Choose how your data will be stored:
 
-> ⚠️ The chart does not manage the ingress configuration. You are responsible for configuring it separately.
+- **S3-Compatible Storage** – Recommended for scalable object storage.
+- **PostgreSQL Database** – Suitable for structured retention needs.
 
-Example:
+---
+
+## 4. Configure the TLD (FQDN)
+
+Provide the **Fully Qualified Domain Name (FQDN)** used to generate your Helm values.
+
+> ⚠️ The chart does **not** manage ingress configuration. You must configure it separately.
+
+**Example:**
 
 ```
+
 demo-popsink.tld
-```
+
+````
+
+Make sure to set the `ingressurl` field in your `values.yaml` to this FQDN.
 
 Click **Create Chart** when ready.
 
@@ -81,17 +85,17 @@ After generating the configuration, follow the provided commands.
 
 ![image](/images/sh-tuto4.png)
 
-### Install the Chart
+### Install Command
 
 ```bash
 helm install release-name oci://ghcr.io/popsink/charts/data-plane --version 0.1.0-alpha.8
-```
+````
 
 ---
 
-## 6. Review Default Values
+## 6. Review and Customize Helm Values
 
-A default configuration file is generated for your deployment. It includes:
+A default configuration file is generated containing:
 
 * Global FQDN
 * PostgreSQL enablement flag
@@ -100,22 +104,67 @@ A default configuration file is generated for your deployment. It includes:
 
 Download or copy the configuration and adjust it as needed before applying it to your cluster.
 
+### Required Helm Values
+
+Set the following values **exactly as provided by Popsink** to allow the data-plane to register and communicate with the control-plane:
+
+* `controlPlaneUrl`
+* `controlPlaneFrontendUrl`
+* `deploymentId`
+* `deploymentJwtToken`
+
+---
+
+## Managing Secrets
+
+Sensitive values (such as tokens or credentials) can be provided in two ways:
+
+1. **Directly in `values.yaml`**
+   Simple to configure, but ensure proper access control and avoid committing secrets to Git.
+
+2. **Reference an existing Kubernetes Secret (Recommended for production)**
+   Keeps sensitive data out of Helm files and aligns with Kubernetes best practices.
+
 When finished, click **Mark as Complete**.
 
 ---
 
 ## 7. Await Connection
 
-Once installation is complete, the platform will wait for your self-hosted deployment to connect.
-
+After installation, the platform waits for your self-hosted deployment to connect.
 You will see an **"Awaiting connection…"** status until the cluster successfully registers.
 
 ![image](/images/sh-tuto5.png)
 
-### Troubleshooting Tips
+### Troubleshooting
 
-If the connection does not establish:
+If the connection is not established:
 
-* Verify your Helm installation completed successfully.
-* Confirm your ingress and DNS are properly configured.
-* Ensure outbound network access is allowed from the cluster.
+* Verify that the Helm installation completed successfully.
+* Confirm your ingress and DNS are correctly configured.
+* Ensure the cluster has outbound network access.
+
+---
+
+## Production Recommendations
+
+For most production deployments, Popsink recommends:
+
+* **Using S3-compatible object storage** for retention (scalable and durable).
+* **Providing an external PostgreSQL database** instead of running Postgres inside the cluster.
+
+These practices generally improve reliability, scalability, and operational simplicity.
+
+---
+
+## Advanced Configuration
+
+### Custom JWT Secrets (Data-Plane)
+
+For enhanced security and compliance, you can configure the deployment to **use your own JWT secrets** instead of the defaults.
+
+This approach provides tighter control over:
+
+* Token signing and rotation policies
+* Secret ownership
+* Security posture
