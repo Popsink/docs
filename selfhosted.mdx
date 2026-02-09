@@ -125,6 +125,15 @@ Sensitive values (such as tokens or credentials) can be provided in two ways:
 2. **Reference an existing Kubernetes Secret (Recommended for production)**
    Keeps sensitive data out of Helm files and aligns with Kubernetes best practices.
 
+---
+
+## Image Registry Authentication
+
+Popsink distributes container images through a private registry.
+To pull these images, you must configure authentication using an imagePullSecret.
+
+Popsink will provide a registry token that you must add to your Helm configuration.
+
 When finished, click **Mark as Complete**.
 
 ---
