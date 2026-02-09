@@ -87,7 +87,8 @@
                   "connectors/source/application",
                   "connectors/source/attio",
                   "connectors/source/hubspot",
-                  "connectors/source/salesforce"
+                  "connectors/source/salesforce",
+                  "connectors/source/sap"
                 ]
               }
             ]

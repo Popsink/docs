@@ -1,0 +1,126 @@
+---
+title: SAP Source (ODP / OData)
+description: Source connector to capture Change Data Capture (CDC) from SAP using Operational Data Provisioning and OData services.
+---
+
+The **SAP Source Connector** enables continuous ingestion of changes from SAP operational systems using **Operational Data Provisioning (ODP)** with the **Delta Queue (ODQ)** and exposes them via **OData services**. This connector is designed for reliability, supportability, and near real-time replication into Popsink pipelines.
+
+---
+
+## Prerequisites
+
+Before configuring this connector, ensure the following are in place:
+
+- **SAP System Access**  
+  A reachable SAP system with Operational Data Provisioning (ODP) configured.
+
+- **ODP / Delta Queue Support**  
+  ODP extractors configured with Delta Queue enabled. Verify that extractors (SAPI or CDS) support delta semantics.
+
+- **OData Exposure**  
+  ODP providers must be published through **SAP Gateway** as **OData services**.
+
+- **Technical User**  
+  A dedicated technical user with privileges for:
+  - Extracting ODP data
+  - Monitoring and managing ODQ subscriptions and retention
+
+- **Network Connectivity**  
+  Outbound HTTPS (443) connectivity from Popsink to the SAP Gateway endpoints.
+
+---
+
+## Key Features
+
+- **Near Real-Time CDC**  
+  Captures incremental changes using ODP delta tokens instead of periodic batch pulls.
+
+- **Standard SAP Mechanisms**  
+  Built on SAP-supported ODP and OData standards for stability and upgrade safety.
+
+- **Secure HTTP/OData Consumption**  
+  Uses HTTP/OData for reliable and firewall-friendly communication.
+
+- **Initial Load + Delta Sync**  
+  Supports initial full extraction followed by efficient delta streaming.
+
+---
+
+## Security
+
+The connector uses HTTPS to securely communicate with SAP OData endpoints.
+
+**Authentication & Permissions:**
+
+- Technical user credentials (username/password or OAuth) configured in Popsink.
+- User must have:
+  - Authorization to read ODP extractors
+  - Rights to monitor and manage ODQ
+- Follow least privilege principles.
+
+---
+
+## Configuration
+
+To set up the SAP Source Connector:
+
+### 1. Create a New Source
+
+1. In the Popsink console, navigate to **Connectors → Sources**.  
+2. Click **New Source** and select **SAP Source (ODP / OData)**.
+
+### 2. Provide Connection Details
+
+| Field | Description |
+|-------|-------------|
+| **SAP Gateway URL** | Base URL for the SAP Gateway exposing OData services |
+| **Technical Username** | User with ODP extract + ODQ monitoring rights |
+| **Password / Secret** | Secure credential for the user |
+| **OData Provider Path** | Path to specific ODP provider(s) in SAP Gateway |
+| **TLS/SSL Config** | Optional TLS settings if required |
+
+### 3. Configure Stream Definition
+
+1. Select the OData providers (extractors) you want to capture.
+2. For each provider, define:
+   - Initial load behavior
+   - Delta token handling strategy
+   - Optional filters if supported by the OData service
+
+### 4. Validate & Launch
+
+1. Test connectivity.
+2. Save and start the source.
+3. Confirm that the initial load completes and delta ingestion begins.
+
+---
+
+## Monitoring
+
+Monitor connector health through the Popsink UI and alerts:
+
+- **Throughput & Lag**  
+  Track events/s and delta latency.
+
+- **ODQ Queue Health**  
+  Ensure subscriptions, retention, and error counts remain within expected bounds.
+
+- **Errors & Retries**  
+  Configure alerts for authentication issues, extraction failures, and schema changes.
+
+- **Audit Logs**  
+  Collect logs for troubleshooting and traceability.
+
+---
+
+## Example Flow
+
+```mermaid
+flowchart LR
+    SAP["SAP System"]
+    ODP["ODP / ODQ"]
+    OData["SAP Gateway (OData)"]
+    Popsink["Popsink SAP Source"]
+    Target["Target System"]
+
+    SAP --> ODP --> OData --> Popsink --> Target
