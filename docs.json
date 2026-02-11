@@ -65,6 +65,7 @@
                   "connectors/source/firestore",
                   "connectors/source/oracle",
                   "connectors/source/ibmi",
+                  "connectors/source/ibmz",
                   "connectors/source/mssql",
                   "connectors/source/bigquery",
                   "connectors/source/mongodb"

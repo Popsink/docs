@@ -1,0 +1,78 @@
+---
+title: IBM Z Source Connector
+---
+
+# IBM Z Source Connector
+
+The IBM Z Source Connector ingests data from IBM Z systems using a **split architecture**: a lightweight **Z Host Agent** that runs inside the mainframe environment and an **Off-host Worker** that runs in Popsink outside the host.
+
+---
+
+## Overview
+
+This connector enables reliable, secure extraction of dataset/log events from IBM Z with:
+
+- **Z Host Agent (on Z)** – reads local sources and forwards events.
+- **Off-host Worker (external)** – receives, processes, and delivers events into Popsink pipelines.
+
+This split design isolates mainframe access and keeps sensitive credentials and on-host logic inside the Z environment.
+
+---
+
+## Architecture
+
+### Components
+
+**Z Host Agent**
+- Runs in IBM Z (USS or native process).
+- Reads configured Z sources (datasets, logs, SMF, etc.).
+- Emits event batches over a secure channel.
+
+**Off-host Worker**
+- Runs outside Z (Popsink Self-Hosted).
+- Writes to Popsink retention layer.
+- Handles retries, DLQ, metrics.
+
+### How It Works
+
+1. Agent reads records locally.
+2. Agent pushes batches over a secure connection to Worker.
+3. Worker processes events and writes to destination.
+4. Checkpoints are synced back to the agent.
+
+---
+
+## Z Host Agent
+
+The Z Host Agent runs on IBM z/OS and is responsible for reliable Db2 log capture and delivery. It is intentionally lightweight, minimizing CPU usage while guaranteeing ordered and recoverable event flow.
+
+### Responsibilities
+
+**Read Db2 Logs via IFI**  
+Streams log records directly from Db2 using IFI for near–real-time, low-overhead capture.
+
+**Frame (Not Decode) Records**  
+Packages raw log records for transport without decoding. Decoding happens off-host to reduce mainframe CPU usage and allow independent evolution of parsing logic.
+
+**Partition Assignment**  
+Deterministically assigns records to partitions to preserve ordering and enable parallel downstream processing.
+
+**Maintain Offset Checkpoints**  
+Tracks the current log position to ensure safe recovery and prevent data loss.
+
+**Advance Checkpoint on ACK**  
+Offsets advance only after worker acknowledgment, providing at-least-once delivery semantics.
+
+**Replay from Archive Logs**  
+Automatically resumes from Db2 archive logs when active logs are no longer available.
+
+**Local Spooling**  
+Buffers records locally during connectivity interruptions, ensuring continuous ingestion and controlled recovery.
+
+---
+
+## Prerequisites
+
+- **Z Host Agent** must be installed on the IBM Z environment.
+- Outbound connectivity from Z to Off-host Worker endpoint.
+- Appropriate read access to mainframe sources.
