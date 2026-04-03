@@ -48,7 +48,12 @@
           {
             "group": "Platform Overview",
             "icon": "sparkles",
-            "pages": ["alerting", "deployment", "roadmap", "installation", "selfhosted"]
+            "pages": ["alerting", "roadmap"]
+          },
+          {
+            "group": "Deployment",
+            "icon": "server",
+            "pages": ["deployment/deployment", "deployment/singlevm","deployment/installation", "deployment/selfhosted"]
           },
           {
             "group": "Source Connectors",

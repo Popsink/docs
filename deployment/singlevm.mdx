@@ -1,0 +1,145 @@
+---
+title: Single VM Deployment
+description: Deploy Popsink using a prebuilt virtual machine image powered by HashiCorp Packer.
+---
+
+# Single VM Deployment
+
+This guide explains how to deploy Popsink using the **Single VM** model. This approach provides a preconfigured virtual machine image built with HashiCorp Packer, allowing you to run Popsink quickly without managing a distributed infrastructure.
+
+---
+
+## Overview
+
+The **Single VM deployment** is the simplest way to run Popsink. It packages all required components into a single virtual machine image, making it ideal for:
+
+- Quick evaluations
+- Development and testing environments
+- Lightweight production workloads
+
+The VM image is built using **HashiCorp Packer**, ensuring reproducibility and consistency across environments.
+
+---
+
+## Architecture
+
+In this deployment model, all Popsink components run on a single machine:
+
+- API service  
+- Workers  
+- Database  
+- Internal dependencies  
+
+This eliminates the need for orchestration tools such as Kubernetes.
+
+---
+
+## Prerequisites
+
+Before getting started, ensure you have:
+
+- A virtualization platform or cloud provider capable of running VM images:
+  - AWS (EC2)  
+  - GCP (Compute Engine)  
+  - Azure  
+  - Local hypervisor (VirtualBox, VMware, etc.)
+- Access to a Popsink VM image (provided or self-built)
+- Minimum recommended resources:
+  - 4 vCPU  
+  - 8 GB RAM  
+  - 50 GB disk  
+
+---
+
+## Getting the VM Image
+
+Popsink provides prebuilt images for supported platforms. Contact your Popsink representative or check your distribution channel.
+
+---
+
+## Deployment
+
+### Deploy on a Cloud Provider
+
+1. Upload or register the VM image
+2. Create a new VM instance using the image
+3. Configure:
+
+   * Network access (open required ports)
+   * SSH access
+
+---
+
+### Deploy Locally
+
+1. Import the image into your hypervisor
+2. Start the VM
+3. Access via SSH or browser
+
+---
+
+## Accessing Popsink
+
+Once the VM is running, Popsink should be available at:
+
+```bash
+http://<vm-ip>:<port>
+```
+
+Default ports:
+
+* API: `8080`
+* UI (if enabled): `3000`
+
+---
+
+## Configuration
+
+Configuration is handled directly on the VM.
+
+### Environment Variables
+
+Edit the configuration file:
+
+```bash
+/etc/popsink/config.env
+```
+
+Restart services after changes:
+
+```bash
+sudo systemctl restart popsink
+```
+
+---
+
+## Updates
+
+To update Popsink:
+
+* Replace the VM with a newer image (**recommended**)
+* Or update in-place (advanced users only)
+
+---
+
+## Persistence and Backups
+
+Since everything runs on a single VM:
+
+* Ensure disk persistence is enabled
+* Regularly back up:
+
+  * Database data
+  * Configuration files
+
+---
+
+## Limitations
+
+This deployment model has some trade-offs:
+
+* No horizontal scalability
+* Single point of failure
+* Limited performance for high workloads
+
+For production-grade scalability, consider distributed deployment options.
