@@ -1,0 +1,274 @@
+---
+title:  Popsink Security & Compliance Overview
+---
+
+This page provides a comprehensive overview of Popsink’s security, compliance, availability, and operational practices across all deployment models: **SaaS**, **Self-Hosted**, and **Air-Gapped**. It is designed to support security reviews, procurement processes, and technical due diligence.
+
+# Authentication & Access Control
+
+Popsink implements modern authentication and access control mechanisms to ensure strong identity assurance and least-privilege access across all environments.
+
+## Authentication Methods
+
+* **SaaS / Self-Hosted:** Email/password, passwordless authentication (magic links), OAuth2 providers, and enterprise SSO (SAML 2.0 / OIDC)
+* **Air-Gapped:** Local authentication with optional LDAP / Active Directory integration
+
+## Multi-Factor Authentication (MFA)
+
+* **SaaS / Self-Hosted:** Supports TOTP and WebAuthn/passkeys; can be enforced for all users and administrators
+
+## SSO & Identity Federation
+
+* Integration with enterprise identity providers
+* Supports SAML 2.0 and OIDC across SaaS and Self-Hosted deployments
+* Air-gapped environments can integrate with internal IdPs
+
+## Role-Based Access Control (RBAC)
+
+* Fine-grained RBAC model with scoped permissions
+* Supports least-privilege access and role separation
+* Consistent model across all deployment types
+
+## Privileged Access Management
+
+* Administrative access is restricted to designated roles
+* All privileged actions are logged and auditable
+* Designed following least-privilege principles
+
+## Account Management
+
+* Shared accounts are not permitted
+* All access is individually assigned and traceable
+
+## Credential Security
+
+* Strong password policies supported
+* Secure hashing (bcrypt/argon2)
+* Passwordless authentication available
+
+---
+
+# Data Protection
+
+Popsink applies industry-standard encryption and data handling practices to protect customer data at all stages.
+
+## Encryption
+
+* **In transit:** TLS 1.2 or higher enforced
+* **At rest:** AES-256 or equivalent encryption
+* Applies to databases, storage, backups, and logs
+
+## Data Residency
+
+* **SaaS:** Regional deployment options available; data residency can be contractually restricted depending on configuration
+* **Self-Hosted / Air-Gapped:** All data remains within customer-controlled infrastructure
+
+---
+
+# Monitoring, Logging & Security Operations
+
+## Audit Logging
+
+* Comprehensive, timestamped audit logs
+* Covers authentication, data access, job execution, configuration changes, and administrative actions
+* Logs are protected against tampering
+* Exportable to SIEM systems
+
+## Security Monitoring
+
+* **SaaS:** 24/7 monitoring with alerting and anomaly detection
+* **Self-Hosted / Air-Gapped:** Monitoring is customer-managed with integration options
+
+## Vulnerability Management
+
+* Continuous vulnerability scanning
+* Dependency monitoring
+* Prioritized remediation workflow
+
+## Patch Management
+
+* **SaaS:** Continuous deployment with rapid security patching
+* **Self-Hosted / Air-Gapped:** Regular releases; customer-managed updates
+
+---
+
+# Secure Development & Testing
+
+Popsink follows a secure software development lifecycle (SDLC) to reduce risk throughout the development process.
+
+## Secure Development Practices
+
+* Peer code reviews
+* Static and dynamic analysis (SAST/DAST)
+* Dependency and supply chain security scanning
+* Security-focused design reviews
+
+## Security Testing
+
+* Independent third-party penetration testing conducted at least annually
+* Findings are tracked and remediated
+
+---
+
+# Incident Response
+
+## Incident Management
+
+* Formal incident response plan
+* Includes detection, containment, eradication, recovery, and post-incident review
+
+## Customer Notification
+
+* Customers are notified without undue delay in case of a confirmed incident
+* Standard contractual alignment with industry expectations (e.g., 72-hour notification)
+
+---
+
+# Compliance & Certifications
+
+Popsink maintains industry-recognized certifications and compliance frameworks.
+
+* **SOC 2 Type II**
+* **ISO/IEC 27001**
+
+These certifications cover Popsink’s organization, development lifecycle, and SaaS operations. Reports and supporting documentation can be shared under NDA.
+
+---
+
+# Availability & Resilience
+
+## Service Architecture
+
+* **SaaS:** Cloud-native, distributed, multi-availability-zone architecture
+* **Self-Hosted / Air-Gapped:** Deployment architecture defined by customer
+
+## High Availability
+
+* Built-in redundancy and failover in SaaS
+* Supported in other deployments depending on implementation
+
+## Backup Strategy
+
+* **SaaS:** Automated backups with regular snapshots
+* **Self-Hosted / Air-Gapped:** Customer-defined backup strategy
+
+## Disaster Recovery (DR)
+
+* **SaaS:** Regularly tested disaster recovery procedures
+* **Self-Hosted / Air-Gapped:** Customer responsibility with guidance provided
+
+## RTO / RPO
+
+* **SaaS:** Defined per contract and service tier
+* **Other deployments:** Defined by customer
+
+---
+
+# Networking & Connectivity
+
+Popsink supports secure connectivity patterns suitable for enterprise environments.
+
+* Private networking (private endpoints / private link)
+* VPN-based connectivity
+* IP allowlisting
+
+Supports hybrid architectures, including:
+
+* On-premises databases (e.g., DB2)
+* Cloud data platforms (e.g., Snowflake)
+
+Data can be transferred without exposure to the public internet when properly configured.
+
+---
+
+# Data Processing & Execution Model
+
+Popsink provides flexible execution models depending on deployment.
+
+## Processing Location
+
+* **SaaS:** Data processing may occur within Popsink-managed infrastructure
+* **Self-Hosted / Air-Gapped:** Processing occurs entirely within customer environment
+
+## Pipeline Execution
+
+* Supports self-hosted agents / runners
+* Enables data movement within customer network boundaries
+* No mandatory data egress in customer-controlled deployments
+
+---
+
+# Subprocessors
+
+* **SaaS:** Uses subprocessors for infrastructure and supporting services
+* All subprocessors are disclosed and contractually bound to equivalent security standards
+* **Self-Hosted / Air-Gapped:** No subprocessors required unless chosen by customer
+
+---
+
+# Lifecycle & Change Management
+
+## Release Model
+
+* **SaaS:** Continuous deployment with frequent updates
+* **Self-Hosted / Air-Gapped:** Versioned releases (typically N-1 supported)
+
+## Change Management
+
+* Formal change management process
+* Testing performed prior to release
+* Release notes and guidance provided
+
+## End-of-Life (EOL)
+
+* Defined support windows for versioned deployments
+* Advance notice for deprecations
+
+## Backward Compatibility
+
+* Maintained where possible
+* Breaking changes communicated in advance with migration guidance
+
+---
+
+# Onboarding & Offboarding
+
+## Customer Onboarding
+
+* Structured onboarding process
+* Includes technical setup, integration support, and configuration guidance
+
+## Offboarding
+
+* Controlled exit process including:
+
+  * Data export
+  * Access revocation
+  * Secure deletion (SaaS)
+
+## Data Portability
+
+* Data export available in standard formats
+* No vendor lock-in
+
+---
+
+# Enterprise & Regulatory Considerations
+
+## Known Limitations
+
+* SaaS deployment constraints (e.g., data residency, network isolation) depend on configuration
+* Certifications apply to SaaS environment scope
+* Additional controls may be required for highly regulated environments
+
+---
+
+# Summary
+
+Popsink supports multiple deployment models to meet varying security and compliance requirements:
+
+* **SaaS:** Fully managed, secure, and scalable
+* **Self-Hosted:** Customer-managed with full control over infrastructure
+* **Air-Gapped:** Fully isolated for high-security environments
+
+This flexibility enables Popsink to support enterprise, regulated, and high-security use cases while maintaining strong security and operational standards.
