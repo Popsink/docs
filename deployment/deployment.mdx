@@ -48,6 +48,8 @@ In this model, Popsink hosts and manages the full stack (compute, storage, netwo
 - Popsink: manage infrastructure, scaling, updates, high availability
 - Customer: data modeling, configuration, access controls, inbound/outbound integration
 
+![image](/images/diagrams/saas.png)
+
 ### 2. Bring Your Own Cloud (BYOC)
 
 **Description**
@@ -66,6 +68,8 @@ This model installs Popsink within the customer’s own cloud account (e.g. AWS,
 - Customer: provide the target cloud account, networking setup, VPC connectivity
 - Popsink: deliver the deployment artifacts, containers, orchestration, guidance for upgrades, monitoring
 
+![image](/images/diagrams/selfhosted.png)
+
 ### 3. On-Premises (On-Prem)
 
 **Description**
@@ -82,6 +86,8 @@ Popsink can run within a customer’s data center or private cloud environment, 
 
 - Customer: provide the physical/virtual infrastructure, storage, networking, identity, monitoring
 - Popsink: provide the software, configuration, deployment instructions, integration with identity and observability systems
+
+![image](/images/diagrams/selfhosted.png)
 
 ### 4. Air-Gapped / Isolated
 
@@ -100,3 +106,5 @@ In environments that prohibit outbound connectivity (e.g. high-security, classif
 
 - Customer: maintain the isolated network, provide mechanisms for secure update transfer, ensure auditability
 - Popsink: provide offline deployment artifacts, signature verification, rollback and upgrade procedures
+
+![image](/images/diagrams/airgapped.png)
