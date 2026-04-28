@@ -159,6 +159,10 @@
                 ]
               }
             ]
+          },{
+            "group":"Transformation",
+            "icon":"code",
+            "pages": ["transform"]
           },
           {
             "group": "Changelog",

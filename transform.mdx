@@ -1,0 +1,336 @@
+---
+title: Mapper
+description: Transform and reshape your data before it lands in the target system
+---
+
+The **Mapper** is a column-level transformation engine that runs inside a Subscription. It reads a raw CDC message (a JSON object) and produces one or more flat rows according to a mapping you define. Each row is what ultimately gets written to the target table.
+
+## How it works
+
+A mapper configuration is a list of **column rules**. Each rule declares:
+
+- the **output column name** (`key`)
+- **where the value comes from** — a path into the message, a static string, or a computed expression
+- optional **transformations** applied to the extracted value (cast, hash, encrypt, concatenate)
+
+Popsink evaluates all rules against every incoming message and emits the resulting rows to the target.
+
+```json
+[
+  { "key": "id",         "path": "user_id",        "primary_key": true },
+  { "key": "email",      "path": "user|email" },
+  { "key": "source",     "static": "crm" },
+  { "key": "created_at", "path": "created_at",      "cast": "datetime" }
+]
+```
+
+The example above maps three fields from the source message and injects a hardcoded `source` column.
+
+---
+
+## Column configuration reference
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `key` | string | Yes | Output column name in the target table |
+| `path` | string | No | Pipe-separated JSON path to the source value |
+| `static` | string | No | Hardcoded value (used when there is no source path) |
+| `cast` | string | No | Type conversion: `string`, `int`, `float`, `bool`, `date`, `datetime`, `time` |
+| `cast_format` | string | No | Format string for `date`, `datetime`, or `time` casts (e.g. `%Y-%m-%d`) |
+| `primary_key` | boolean | No | Marks this column as part of the primary key (required for JDBC targets) |
+| `nullable` | boolean | No | Whether `null` is accepted. Defaults to `true`. If `false`, a missing value produces an error row |
+| `concatenate_fields` | array | No | Combine multiple paths and static strings into a single value |
+| `hash_method` | string | No | Hash the value before writing: `md5`, `sha256`, `sha512` |
+| `encrypt_method` | string | No | Encrypt the value: `aes-256-gcm` |
+| `encrypt_key` | string | No | Encryption passphrase (required when `encrypt_method` is set) |
+
+---
+
+## Path syntax
+
+Paths navigate the JSON structure of a message using `|` as separator.
+
+```
+user|address|city        → message.user.address.city
+items|0                  → first element of the items array
+```
+
+### Nested objects
+
+```json
+// Message
+{ "order": { "shipping": { "country": "FR" } } }
+
+// Rule
+{ "key": "country", "path": "order|shipping|country" }
+
+// Result
+{ "country": "FR" }
+```
+
+### Static values
+
+When `path` is empty and `static` is set, that literal string is written to every output row.
+
+```json
+{ "key": "source_system", "static": "salesforce" }
+```
+
+---
+
+## Wildcards
+
+Use `*` in a path to **expand an array**. Each element of the array produces a separate output row.
+
+### Basic expansion
+
+```json
+// Message
+{ "tags": ["billing", "premium", "active"] }
+
+// Rule
+{ "key": "tag", "path": "tags|*" }
+
+// Result (3 rows)
+{ "tag": "billing" }
+{ "tag": "premium" }
+{ "tag": "active" }
+```
+
+### Nested expansion
+
+Wildcards can appear at multiple levels. The mapper walks through every combination and produces one row per deepest element.
+
+```json
+// Message
+{
+  "orders": [
+    {
+      "id": "O-1",
+      "items": [
+        { "sku": "A", "qty": 2 },
+        { "sku": "B", "qty": 1 }
+      ]
+    },
+    {
+      "id": "O-2",
+      "items": [
+        { "sku": "C", "qty": 5 }
+      ]
+    }
+  ]
+}
+
+// Rules
+[
+  { "key": "order_id", "path": "orders|*|id" },
+  { "key": "sku",      "path": "orders|*|items|*|sku" },
+  { "key": "qty",      "path": "orders|*|items|*|qty" }
+]
+
+// Result (3 rows)
+{ "order_id": "O-1", "sku": "A", "qty": 2 }
+{ "order_id": "O-1", "sku": "B", "qty": 1 }
+{ "order_id": "O-2", "sku": "C", "qty": 5 }
+```
+
+### Parallel lists (zip semantics)
+
+When two columns share the **same root path up to the first `*`**, the mapper treats them as aligned lists and zips them by index — no cartesian product.
+
+```json
+// Message
+{
+  "names":  ["Alice", "Bob", "Carol"],
+  "scores": [95,      82,    78]
+}
+
+// Rules — both share root "names" / "scores" at the same level
+[
+  { "key": "name",  "path": "names|*" },
+  { "key": "score", "path": "scores|*" }
+]
+
+// Result (3 rows, zipped)
+{ "name": "Alice", "score": 95 }
+{ "name": "Bob",   "score": 82 }
+{ "name": "Carol", "score": 78 }
+```
+
+This also works with deeper paths under different roots:
+
+```json
+// Message
+{
+  "orders":    [{ "line": { "sku": "SKU-1" } }, { "line": { "sku": "SKU-2" } }],
+  "shipments": [{ "route": { "carrier": "DHL" } }, { "route": { "carrier": "UPS" } }]
+}
+
+// Rules
+[
+  { "key": "sku",     "path": "orders|*|line|sku" },
+  { "key": "carrier", "path": "shipments|*|route|carrier" }
+]
+
+// Result (2 rows, index-aligned)
+{ "sku": "SKU-1", "carrier": "DHL" }
+{ "sku": "SKU-2", "carrier": "UPS" }
+```
+
+### Wildcard on a non-array field
+
+If the path segment marked `*` points to an object (not an array), the wildcard is silently skipped and the mapper continues navigating the object normally.
+
+### Deduplication
+
+When wildcard expansion produces identical rows, duplicates are automatically removed.
+
+---
+
+## Transformations
+
+Transformations are applied in this order: **concatenate → hash → encrypt → cast**.
+
+### Type casting
+
+```json
+{ "key": "amount",     "path": "raw_amount",  "cast": "float" }
+{ "key": "is_active",  "path": "active_flag", "cast": "bool" }
+{ "key": "created_on", "path": "ts",          "cast": "date", "cast_format": "%Y-%m-%d" }
+```
+
+Boolean casting recognises `"true"`, `"false"`, `"1"`, `"0"`, `"yes"`, `"no"` (case-insensitive) in addition to native booleans.
+
+For `date` / `datetime` / `time`, use a `cast_format` string in [strftime format](https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes). When omitted, ISO 8601 strings are parsed automatically.
+
+### Concatenation
+
+Combine multiple source fields and/or static separators into a single output column.
+
+```json
+{
+  "key": "full_address",
+  "concatenate_fields": [
+    { "path": "street_number" },
+    { "static": " " },
+    { "path": "street_name" },
+    { "static": ", " },
+    { "path": "city" }
+  ]
+}
+// Result: "123 Main St, New York"
+```
+
+Each entry in `concatenate_fields` has a `path` and/or a `static` value. They are appended in order.
+
+### Hashing
+
+Hash a value before it lands in the target — useful for pseudonymisation.
+
+```json
+{ "key": "email_hash", "path": "email", "hash_method": "sha256" }
+```
+
+Supported algorithms: `md5`, `sha256`, `sha512`. A `null` input produces a `null` output (no error).
+
+### Encryption
+
+Encrypt a value with AES-256-GCM. A unique random nonce is generated per call, so the same input produces a different ciphertext each time.
+
+```json
+{
+  "key": "ssn_encrypted",
+  "path": "ssn",
+  "encrypt_method": "aes-256-gcm",
+  "encrypt_key": "my-secret-passphrase"
+}
+```
+
+The encryption key is derived with PBKDF2. Store it somewhere safe — there is no way to decrypt without it.
+
+---
+
+## Null handling
+
+By default, every column is **nullable**: if the path does not exist in the message the output value is `null` and no error is raised.
+
+Set `"nullable": false` to treat a missing field as an error:
+
+```json
+{ "key": "user_id", "path": "id", "nullable": false, "primary_key": true }
+```
+
+When a non-nullable column cannot be resolved, the mapper adds an `"error"` key to the output row describing the failure.
+
+---
+
+## Primary keys
+
+Targets that write to a database table (PostgreSQL, Snowflake, Oracle, …) require at least one column marked `"primary_key": true`. This is what the connector uses to perform upserts.
+
+```json
+{ "key": "order_id", "path": "id",      "primary_key": true }
+{ "key": "item_seq", "path": "seq_num", "primary_key": true }
+```
+
+---
+
+## Testing and debugging
+
+### In the UI
+
+The subscription builder includes a **live preview** panel. Paste a raw CDC message and the panel shows the exact rows the mapper will produce before you save the subscription.
+
+### Via the API
+
+You can call the mapper directly without any pipeline or subscription:
+
+```http
+POST /smt/process_mapper
+Content-Type: application/json
+
+{
+  "table_name": "orders",
+  "config": [
+    { "key": "id",     "path": "order_id", "primary_key": true },
+    { "key": "amount", "path": "total",    "cast": "float" },
+    { "key": "tag",    "path": "tags|*" }
+  ],
+  "message": {
+    "order_id": "abc123",
+    "total": "49.99",
+    "tags": ["new", "vip"]
+  }
+}
+```
+
+Response:
+
+```json
+[
+  { "id": "abc123", "amount": 49.99, "tag": "new" },
+  { "id": "abc123", "amount": 49.99, "tag": "vip" }
+]
+```
+
+This endpoint is available on any Popsink instance and requires no special permissions. It is the fastest way to iterate on a mapper configuration.
+
+### Reading error rows
+
+When a transformation fails (bad cast, non-nullable field missing, etc.) the mapper does not drop the row — it includes it with an `"error"` key:
+
+```json
+{ "id": null, "amount": null, "error": "Field 'order_id' is required but was not found in message" }
+```
+
+Check for this key in the preview output to diagnose misconfigured paths or type mismatches.
+
+### Common mistakes
+
+| Symptom | Likely cause |
+|---|---|
+| Output has fewer rows than expected | A wildcard path points to an object instead of an array — check the shape of your message |
+| Duplicate rows in output | Multiple wildcards at the same level produce a cartesian product instead of zipping — verify that both paths share the same root prefix |
+| `null` where a value was expected | The path separator is wrong — use `\|` not `.` to separate path segments |
+| Cast failure | The source value cannot be converted (e.g. `"N/A"` cast to `int`) — add `"nullable": true` or fix the source value |
+| JDBC connector rejects the subscription | No column has `"primary_key": true` — required for upsert-capable targets |
