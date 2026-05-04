@@ -53,7 +53,7 @@
           {
             "group": "Deployment",
             "icon": "server",
-            "pages": ["deployment/deployment", "deployment/singlevm","deployment/installation", "deployment/selfhosted"]
+            "pages": ["deployment/deployment", "deployment/singlevm","deployment/installation", "deployment/selfhosted", "deployment/partners"]
           },
           {
             "group": "Source Connectors",

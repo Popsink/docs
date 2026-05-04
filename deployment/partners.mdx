@@ -1,0 +1,479 @@
+---
+title: "Install Popsink with Helm for partners"
+description: "Self-host the Popsink data plane on Kubernetes using the official Helm chart."
+---
+
+This page is intended for **integrators** who install Popsink in their own
+Kubernetes cluster. The chart deploys a self-hosted **Popsink data plane** —
+the runtime that moves data from your sources to your targets. It connects to
+a **control plane** (managed by Popsink at `control-plane.popsink.com`, or
+your own) which orchestrates and monitors the deployment.
+
+## Architecture overview
+
+The chart deploys the following components:
+
+| Component          | Purpose                                                          | Default     |
+| ------------------ | ---------------------------------------------------------------- | ----------- |
+| `data-plane`       | Main API + UI. Talks to the control plane, manages connectors    | **enabled** |
+| `tansu`            | Stateless Kafka-compatible broker, S3-backed                     | **enabled** |
+| `karapace`         | Schema Registry (Avro / JSON Schema) for Tansu                   | **enabled** |
+| `metrics-exporter` | Exports pipeline & connector metrics to the control plane        | **enabled** |
+| `kafka-ui`         | Web UI for Kafka inspection                                      | **enabled** |
+| `postgresql`       | Bitnami sub-chart, in-cluster Postgres for the data-plane DB     | **enabled** |
+
+You can disable any sub-component and bring your own:
+
+- **External Kafka** — `tansu.enabled=false`, configure `defaultKafka.*`
+- **External Schema Registry** — `karapace.enabled=false`, configure `schemaRegistry.*`
+- **External PostgreSQL** — `postgresql.enabled=false`, configure `externalDatabase.*`
+
+<Warning>
+The chart does **not** manage ingress. You must set up your own ingress
+controller (Traefik, NGINX, Istio…) and point a DNS record to it.
+See [Ingress](#ingress) below.
+</Warning>
+
+## Prerequisites
+
+### Cluster
+
+| Requirement       | Minimum                                                    |
+| ----------------- | ---------------------------------------------------------- |
+| Kubernetes        | `1.23+`                                                    |
+| Helm              | `3.8.0+`                                                   |
+| Worker nodes      | 2 nodes, `amd64`                                           |
+| Per-node          | 4 vCPU, 16 GB RAM                                          |
+| Persistent volume | SSD-backed StorageClass, ≥ 200 GB available                |
+| Ingress           | Traefik / NGINX / Istio (or any IngressClass-compatible)   |
+| Object storage    | S3-compatible bucket (recommended for Tansu)               |
+
+### Access to Popsink images
+
+All images are published to a private GAR registry:
+
+```
+europe-west1-docker.pkg.dev/popsink-common-438615/onprem
+```
+
+Popsink will provide you with a service-account JSON token to pull these
+images.
+
+<Tabs>
+  <Tab title="Chart-managed pull secret">
+    Let the chart create the `imagePullSecret` for you:
+
+    ```yaml
+    imagePullSecret:
+      create: true
+      registry: europe-west1-docker.pkg.dev/popsink-common-438615/onprem
+      token: |
+        <base64-encoded service account JSON, or the JSON itself>
+    ```
+  </Tab>
+  <Tab title="Bring your own pull secret">
+    Create the secret yourself, then reference it via `global.imagePullSecrets`:
+
+    ```bash
+    kubectl create secret docker-registry popsink-registry \
+      --docker-server=europe-west1-docker.pkg.dev \
+      --docker-username=_json_key \
+      --docker-password="$(cat key.json)" \
+      -n popsink
+    ```
+
+    ```yaml
+    global:
+      imagePullSecrets:
+        - popsink-registry
+    ```
+  </Tab>
+</Tabs>
+
+## Onboarding flow (control plane)
+
+Before installing the chart, you need a **deployment ID** and a
+**deployment JWT token** issued by the control plane.
+
+<Steps>
+  <Step title="Open the control plane">
+    Log into `https://control-plane.popsink.com` (or your own control plane).
+  </Step>
+  <Step title="Create a self-hosted deployment">
+    Open **Deployments → New deployment** and pick **Self-hosted**.
+  </Step>
+  <Step title="Fill the wizard">
+    - Optional pre-fill of PostgreSQL credentials (not stored).
+    - **Retention strategy** — pick S3-compatible storage (recommended) or
+      PostgreSQL.
+    - **FQDN** — the public URL where the data plane will be reachable
+      (e.g. `https://popsink.your-company.com`).
+  </Step>
+  <Step title="Copy the values snippet">
+    The wizard outputs a `values-control-plane.yaml` snippet containing
+    `controlPlaneUrl`, `deploymentId` and `deploymentJwtToken`.
+    **Use these values verbatim** — they identify and authenticate your data
+    plane against the control plane.
+  </Step>
+  <Step title="Wait for connection">
+    Keep the wizard open. After `helm install`, the control plane will switch
+    from **Awaiting connection…** to **Connected** once the data plane
+    registers.
+  </Step>
+</Steps>
+
+## Required secrets to generate yourself
+
+Beyond the values handed by the control plane, you must generate four secrets
+locally:
+
+| Secret                                                       | Format                                          | How to generate                                                                              |
+| ------------------------------------------------------------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `adminCredentials.username` / `password`                     | any                                             | Pick a strong password                                                                       |
+| `jwt.secret`                                                 | random string ≥ 32 chars                        | `openssl rand -base64 48`                                                                    |
+| `connectorConfigEncryptionKey.key`                           | URL-safe base64-encoded **32-byte** Fernet key  | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`  |
+| `postgresql.auth.password` (or `externalDatabase.password`)  | any                                             | `openssl rand -base64 24`                                                                    |
+
+<Warning>
+These four secrets encrypt connector credentials, sign user sessions and
+protect the admin login. **Lose them and you lose access to your stored
+connector configs**. Back them up in your secret manager.
+</Warning>
+
+If you prefer to manage secrets out of band (Vault, Sealed Secrets, External
+Secrets Operator…), set the corresponding `existingSecret` field instead.
+
+## Tansu storage (S3)
+
+Tansu is a stateless Kafka broker that stores log segments in S3. You must
+provide an S3-compatible bucket and a way to authenticate.
+
+<CodeGroup>
+
+```yaml AWS — IRSA (recommended on EKS)
+tansu:
+  storage:
+    engine: "s3://my-popsink-bucket/kafka/"
+    aws:
+      region: eu-west-1
+      irsaRoleArn:    arn:aws:iam::123456789012:role/popsink-tansu
+      assumedRoleArn: arn:aws:iam::123456789012:role/popsink-tansu
+```
+
+```yaml AWS — static credentials
+tansu:
+  storage:
+    engine: "s3://my-popsink-bucket/kafka/"
+    aws:
+      region: eu-west-1
+      accessKeyId: AKIA…
+      secretAccessKey: <secret>
+```
+
+```yaml MinIO / non-AWS S3
+tansu:
+  storage:
+    engine: "s3://my-popsink-bucket/kafka/"
+    aws:
+      region: us-east-1
+      endpoint: http://minio.minio.svc.cluster.local:9000
+      allowHttp: true
+      accessKeyId: minio
+      secretAccessKey: minio123
+```
+
+</CodeGroup>
+
+The bucket must exist, be writable by the configured identity, and ideally
+have **object versioning** enabled.
+
+<Note>
+If you don't want Tansu, set `tansu.enabled=false` and `karapace.enabled=false`,
+then point the data plane at your existing Kafka:
+
+```yaml
+tansu:    { enabled: false }
+karapace: { enabled: false }
+
+defaultKafka:
+  bootstrapServer: kafka.example.com:9093
+  securityProtocol: SASL_SSL
+  saslMechanism: SCRAM-SHA-512
+  saslUsername: popsink
+  saslPassword: <secret>
+  caCert: |-
+    -----BEGIN CERTIFICATE-----
+    …
+  cert: ""
+  key:  ""
+
+schemaRegistry:
+  url: https://schema-registry.example.com
+  username: popsink
+  password: <secret>
+```
+</Note>
+
+## Ingress
+
+The chart's built-in `ingress.enabled` flag is **off by default** and we
+recommend leaving it that way: ingress in production usually needs
+company-specific annotations (cert-manager, WAF, allow-lists). Provide your
+own `Ingress` resource that exposes:
+
+- the data-plane HTTP service (`<release>-data-plane`, port `80`),
+- on the FQDN you declared in the control plane (`ingressUrl`).
+
+Example with NGINX + cert-manager:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: popsink
+  namespace: popsink
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [popsink.your-company.com]
+      secretName: popsink-tls
+  rules:
+    - host: popsink.your-company.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: <release>-data-plane
+                port: { number: 80 }
+```
+
+If you want the chart to render an `Ingress` for you, set `ingress.enabled=true`
+and configure `ingress.hostname`, `ingress.ingressClassName`, `ingress.tls`.
+
+<Tip>
+The value of **`ingressUrl`** in the chart **must** match the public URL the
+control plane redirects users to (it is also used for OAuth-style callbacks):
+
+```yaml
+ingressUrl: "https://popsink.your-company.com"
+```
+</Tip>
+
+## Putting it together — minimal `values.yaml`
+
+```yaml values.yaml
+# ───── Identity (from the control-plane wizard) ─────
+controlPlaneUrl:         https://control-plane-api.popsink.com/api
+controlPlaneFrontendUrl: https://control-plane.popsink.com
+deploymentMode: SELF_HOSTED
+deploymentId:   <uuid-from-wizard>
+deploymentJwtToken:
+  token: <jwt-from-wizard>
+
+# ───── Public URL of this data plane ─────
+ingressUrl: https://popsink.your-company.com
+
+# ───── Image pull ─────
+imagePullSecret:
+  create: true
+  token: <gar-service-account-json>
+
+# ───── Secrets you generated ─────
+adminCredentials:
+  username: admin
+  password: <strong-password>
+jwt:
+  secret: <openssl rand -base64 48>
+connectorConfigEncryptionKey:
+  key: <fernet-key>
+
+# ───── In-cluster Postgres (default) ─────
+postgresql:
+  enabled: true
+  auth:
+    password: <strong-password>
+  primary:
+    persistence:
+      size: 50Gi
+      storageClass: <your-ssd-class>
+
+# ───── Tansu + S3 ─────
+tansu:
+  enabled: true
+  storage:
+    engine: "s3://my-popsink-bucket/kafka/"
+    aws:
+      region: eu-west-1
+      irsaRoleArn:    arn:aws:iam::123:role/popsink-tansu
+      assumedRoleArn: arn:aws:iam::123:role/popsink-tansu
+
+karapace:
+  enabled: true
+```
+
+## Install
+
+```bash
+# 1. Create the namespace
+kubectl create namespace popsink
+
+# 2. Install (chart is published as an OCI artifact)
+helm install popsink \
+  oci://ghcr.io/popsink/charts/data-plane \
+  -n popsink \
+  -f values.yaml \
+  --version <chart-version>
+```
+
+<Tip>
+Use `helm search repo` or check the chart's `Chart.yaml` (`version:`) to pin
+the chart version. Pinning avoids surprise upgrades.
+</Tip>
+
+Watch the rollout:
+
+```bash
+kubectl -n popsink get pods -w
+```
+
+When all pods are `Ready`, head back to the control-plane deployment page —
+the status should flip from **Awaiting connection…** to **Connected** within
+a minute. Open `ingressUrl` and log in with the `adminCredentials` you set.
+
+## Production checklist
+
+<AccordionGroup>
+  <Accordion title="Versions & images">
+    - Pin the chart version (`--version`) and the application image
+      (`image.tag`) — never deploy `latest`.
+  </Accordion>
+  <Accordion title="State">
+    - Use **external** PostgreSQL (`postgresql.enabled=false`,
+      `externalDatabase.*`) backed by managed snapshots, not the in-cluster
+      Bitnami chart.
+    - Use **external** S3 with versioning + lifecycle policy for Tansu.
+  </Accordion>
+  <Accordion title="Resources & availability">
+    - Set explicit `resources.requests/limits` on every component (defaults
+      target small-medium clusters; tune for your workload).
+    - Configure `replicaCount ≥ 2` on `data-plane` (default), keep
+      `tansu.replicaCount=3` (default).
+    - Enable `pdb.create: true` (default) — at least 1 pod stays during node
+      drains.
+  </Accordion>
+  <Accordion title="Secrets">
+    - Provide `imagePullSecrets` via a sealed secret / external secrets
+      controller, not plain values.
+    - Back up the four secrets (admin credentials, JWT secret, Fernet key,
+      DB password) in your secret manager.
+  </Accordion>
+  <Accordion title="Safety switches">
+    - Keep `allowDesignLogin: false` (default) and `pipelineMode: false`
+      unless explicitly told otherwise — these are dev-only switches.
+  </Accordion>
+  <Accordion title="Network">
+    - Ingress: TLS-only, cert-manager (or equivalent), restrict source ranges
+      if your data plane is internet-exposed only for known IPs.
+  </Accordion>
+</AccordionGroup>
+
+## Upgrade
+
+```bash
+helm upgrade popsink \
+  oci://ghcr.io/popsink/charts/data-plane \
+  -n popsink \
+  -f values.yaml \
+  --version <new-chart-version>
+```
+
+The data plane runs DB migrations on startup. Watch a pod's logs:
+
+```bash
+kubectl -n popsink logs -l app.kubernetes.io/component=data-plane -f
+```
+
+## Uninstall
+
+```bash
+helm uninstall popsink -n popsink
+```
+
+<Warning>
+By default the **PostgreSQL PVC and Tansu/S3 data are kept**
+(`postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted=Retain`,
+S3 buckets are external). Delete them manually if you want a clean slate:
+
+```bash
+kubectl -n popsink delete pvc -l app.kubernetes.io/instance=popsink
+aws s3 rm s3://my-popsink-bucket/kafka/ --recursive   # ⚠ destroys all topics
+```
+</Warning>
+
+## Troubleshooting
+
+| Symptom                                                              | Likely cause                                                                                                |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Control plane stays on "Awaiting connection…"                        | Wrong `controlPlaneUrl` / `deploymentId` / `deploymentJwtToken`, or egress to the control plane is blocked  |
+| `data-plane` pods crash-loop on `connector-config-encryption-key`    | Fernet key is not a valid URL-safe base64-encoded 32-byte string                                            |
+| `tansu` pods `CrashLoopBackOff` with S3 errors                       | `storage.engine`, `region`, or IAM role/credentials are wrong; bucket missing                               |
+| `ImagePullBackOff` on every pod                                      | `imagePullSecret.token` not set / not a valid GAR service-account JSON                                      |
+| Login at `ingressUrl` fails with redirect loop                       | `ingressUrl` doesn't match the public URL fronted by your ingress                                           |
+| Workers (connectors) never become `LIVE`                             | The data-plane pod cannot reach Tansu / Karapace inside the cluster — check `NetworkPolicy`                 |
+| Ingress 502 on `/api/livez`                                          | Service name in your `Ingress` doesn't match `<release>-data-plane`                                         |
+
+For deeper logs:
+
+```bash
+kubectl -n popsink logs -l app.kubernetes.io/component=data-plane --tail=200
+kubectl -n popsink logs -l app.kubernetes.io/component=tansu       --tail=200
+kubectl -n popsink logs -l app.kubernetes.io/component=karapace    --tail=200
+```
+
+## Reference — most useful values
+
+A full list lives in `values.yaml` (annotated with `@param` blocks). The most
+common knobs are:
+
+| Path                                            | What it does                                              |
+| ----------------------------------------------- | --------------------------------------------------------- |
+| `controlPlaneUrl` / `controlPlaneFrontendUrl`   | Control plane API and UI URLs                             |
+| `deploymentId`, `deploymentJwtToken.token`      | Identity vs. control plane                                |
+| `ingressUrl`                                    | Public URL of this data plane                             |
+| `image.tag`                                     | Pin the data-plane image version                          |
+| `replicaCount`                                  | Data-plane API replicas (default 2)                       |
+| `resources`                                     | Data-plane CPU / memory requests / limits                 |
+| `imagePullSecret.*` / `global.imagePullSecrets` | How to authenticate to the GAR registry                   |
+| `adminCredentials.*`                            | First admin login                                         |
+| `jwt.secret`                                    | Signs user session tokens                                 |
+| `connectorConfigEncryptionKey.key`              | Encrypts connector credentials at rest                    |
+| `tansu.enabled`, `tansu.storage.*`              | In-cluster Kafka or BYO; S3 backend                       |
+| `karapace.enabled` / `schemaRegistry.*`         | In-cluster Schema Registry or BYO                         |
+| `postgresql.enabled` / `externalDatabase.*`     | In-cluster Postgres or BYO                                |
+| `metricsExporter.*`                             | Pushes metrics to the control plane                       |
+| `kafkaUi.*`                                     | Optional Kafka inspection UI                              |
+| `pdb.create`                                    | PodDisruptionBudget (default `true`)                      |
+| `autoscaling.hpa.*`, `autoscaling.vpa.*`        | HPA / VPA — disabled by default                           |
+
+## Further reading
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation prerequisites"
+    icon="server"
+    href="https://docs.popsink.com/deployment/installation"
+  >
+    Hardware, ingress and storage requirements for a Popsink-ready cluster.
+  </Card>
+  <Card
+    title="Self-hosted onboarding"
+    icon="cloud-arrow-up"
+    href="https://docs.popsink.com/deployment/selfhosted"
+  >
+    The control-plane wizard that issues your `deploymentId` and JWT token.
+  </Card>
+</CardGroup>
