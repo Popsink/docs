@@ -215,6 +215,23 @@
                   "changelog/data-plane/alpha-9"
                 ]
               },
+              {
+                "group": "Control Plane",
+                "pages": [
+                  "changelog/control-plane/cp-2026-04-22",
+                  "changelog/control-plane/cp-2026-04-15",
+                  "changelog/control-plane/cp-2026-04-01",
+                  "changelog/control-plane/cp-2026-03-26",
+                  "changelog/control-plane/cp-2026-02-27",
+                  "changelog/control-plane/cp-2026-02-25",
+                  "changelog/control-plane/cp-2026-02-10",
+                  "changelog/control-plane/cp-2026-02-09",
+                  "changelog/control-plane/cp-2026-02-06",
+                  "changelog/control-plane/cp-2026-02-03-1",
+                  "changelog/control-plane/cp-2026-02-03",
+                  "changelog/control-plane/cp-2026-01-22"
+                ]
+              },
               "changelog/v3.8",
               "changelog/v3.7",
               "changelog/v3.29",

@@ -1,0 +1,19 @@
+---
+title: "v2026.02.09 09/02/2026"
+---
+
+---
+
+**Description**: WebSocket deployment status; production kustomize overlay; heartbeat refactor.
+
+### Features
+
+- Implement WebSocket support for deployment-status updates (#1423).
+- Self-hosted deployments are now supported in the organization-creation flow (#1424).
+- Add a production kustomization overlay (#1427).
+- Refactor `ReceiveDeploymentHeartbeatCommand` to include the environment repository (#1429).
+- kafka-connect healthcheck (#1422).
+
+### Tests
+
+- Set up the new modular e2e architecture for control-plane tests (#1407).

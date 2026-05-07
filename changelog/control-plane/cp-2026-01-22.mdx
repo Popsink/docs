@@ -1,0 +1,35 @@
+---
+title: "v2026.01.22 22/01/2026"
+---
+
+---
+
+**Description**: First control-plane release inside the data-plane monorepo. Brings billing, usage, deployment forms, multi-tenant primitives and a SQLite → PostgreSQL migration.
+
+### Features
+
+- Merge the control-plane codebase into the data-plane monorepo (#1135).
+- Tidy up CI following the merge (#1166).
+- Add the control-plane preprod environment (#1292).
+- Wire data-plane ↔ control-plane communication (#1280).
+- Add the billing details page (#1252).
+- Add the Usage tab (#1254).
+- Add the self-hosted deployment form (#1266).
+- Add the Zendesk resources page (#1250).
+- Migrate the data store from SQLite to PostgreSQL — drop Atlas, switch to Alembic, add a one-shot migration script (#1102).
+- Mass dependency bump (#1177).
+- Rename `popsink` → `data-plane` across the repo, namespace, image and chart (#1167).
+
+### Fixes
+
+- Validate inputs everywhere and improve error messages (#1160).
+- Reject duplicate names (#1158).
+- Fix control-plane e2e tests (#1224).
+- Fix CVE #1268 (#1279).
+- CVE batch (#1322).
+- Force `h3@1.15.5` and `devalue@5.6.2` via Yarn resolutions (#1263).
+- Fix CVE 27/01/2025 (#1338).
+- Use `popsink.com` as the email domain in e2e tests (#1326).
+- Fix exposed credentials in code (#1291).
+- Switch to the `onprem-internal/control-plane` image registry (#1349).
+- Add a generic page-code component (#1255).
