@@ -1,0 +1,39 @@
+---
+title: "v2026.04.15 15/04/2026"
+---
+
+---
+
+**Description**: Design-system batch (Datatable / Tabs / Tooltips / Date picker), refresh-loop fix, default-env handling, CVE batch.
+
+### Design system
+
+- DS — implement & encapsulate `Datatable` ([#1872](https://github.com/Popsink/data-plane/pull/1872)).
+- DS — implement & encapsulate `Tabs` ([#1871](https://github.com/Popsink/data-plane/pull/1871)).
+- DS — implement & encapsulate `Tooltips` ([#1864](https://github.com/Popsink/data-plane/pull/1864)).
+- DS — implement & encapsulate `Date picker` ([#1854](https://github.com/Popsink/data-plane/pull/1854)).
+
+### Features
+
+- Default environment handling in DP/CP ([#1982](https://github.com/Popsink/data-plane/pull/1982)).
+- Update admin URL ([#2043](https://github.com/Popsink/data-plane/pull/2043)).
+- Update Nuxt configuration; add `NUXT_PUBLIC_APP_URL` to CI/CI-E2E/Dev/Dev-E2E overlays ([#1889](https://github.com/Popsink/data-plane/pull/1889)).
+- Update page titles for control-plane and data-plane in `nuxt.config.ts` ([#1893](https://github.com/Popsink/data-plane/pull/1893)).
+- Topic-prefix enhancements ([#1901](https://github.com/Popsink/data-plane/pull/1901)).
+- `prod gogo` — production wiring ([#1866](https://github.com/Popsink/data-plane/pull/1866)).
+
+### Fixes
+
+- Fix deployment-name collision error not displayed ([#2023](https://github.com/Popsink/data-plane/pull/2023)).
+- Fix control-plane setup in dev ([#1955](https://github.com/Popsink/data-plane/pull/1955)).
+- CP multiple fixes ([#1943](https://github.com/Popsink/data-plane/pull/1943)).
+- Fix connector requirement for at least one table ([#1915](https://github.com/Popsink/data-plane/pull/1915)).
+- Make the data-plane Docker frontend build reproducible ([#1935](https://github.com/Popsink/data-plane/pull/1935)).
+- Notification bell does not open any panel ([#1887](https://github.com/Popsink/data-plane/pull/1887)).
+- Refresh-loop bug on control-plane ([#1880](https://github.com/Popsink/data-plane/pull/1880)).
+- CVE batch ([#1883](https://github.com/Popsink/data-plane/pull/1883)).
+
+### Tests / Chart
+
+- Replace Playwright MCP with the Playwright CLI for e2e ([#1966](https://github.com/Popsink/data-plane/pull/1966)).
+- Generate chart secrets from direct values in the data-plane chart ([#1961](https://github.com/Popsink/data-plane/pull/1961)).

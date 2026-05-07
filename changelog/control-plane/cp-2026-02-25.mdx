@@ -1,0 +1,44 @@
+---
+title: "v2026.02.25 25/02/2026"
+---
+
+---
+
+**Description**: Large release: membership-scoped queries, environment management, e2e test cases, Postgres source, and Nuxt 4.3 bump.
+
+### Features
+
+- Filter deployment and environment queries by user membership ([#1565](https://github.com/Popsink/data-plane/pull/1565)).
+- Enhance organization member removal ([#1559](https://github.com/Popsink/data-plane/pull/1559)).
+- Block environment listing based on permissions; align frontend interactions ([#1535](https://github.com/Popsink/data-plane/pull/1535)).
+- Self-hosted wizard now handles JWT tokens via `DeploymentDTO` ([#1425](https://github.com/Popsink/data-plane/pull/1425)).
+- Refactor `useSelfHostedWizard` and related components ([#1470](https://github.com/Popsink/data-plane/pull/1470)).
+- Tighter control-plane threshold ([#1548](https://github.com/Popsink/data-plane/pull/1548)).
+- Refactor the auth flow and routing logic in `app.vue` ([#1483](https://github.com/Popsink/data-plane/pull/1483)).
+- Add a Postgres source connector ([#1466](https://github.com/Popsink/data-plane/pull/1466)).
+- Bump Nuxt to 4.3 ([#1497](https://github.com/Popsink/data-plane/pull/1497)).
+
+### Fixes
+
+- Fix bug-batch on control-plane ([#1563](https://github.com/Popsink/data-plane/pull/1563)).
+- Fix CP deployment bug #1408 ([#1517](https://github.com/Popsink/data-plane/pull/1517)).
+- Front-end fixes ([#1511](https://github.com/Popsink/data-plane/pull/1511)).
+- Fix user deletion and config drift ([#1473](https://github.com/Popsink/data-plane/pull/1473)).
+- Refactor region type imports and improve formatting in deployment-creation pages ([#1455](https://github.com/Popsink/data-plane/pull/1455)).
+
+### Tests / CI
+
+- Add integration tests in CI ([#1555](https://github.com/Popsink/data-plane/pull/1555)).
+- E2E test cases for navigation and security ([#1502](https://github.com/Popsink/data-plane/pull/1502)).
+- E2E test cases for member management ([#1494](https://github.com/Popsink/data-plane/pull/1494)).
+- E2E test cases for environment management ([#1488](https://github.com/Popsink/data-plane/pull/1488)).
+- E2E test cases for deployment management ([#1474](https://github.com/Popsink/data-plane/pull/1474)).
+- E2E test cases for organization management ([#1460](https://github.com/Popsink/data-plane/pull/1460)).
+- Auto-cleanup for Clerk users; fix auth CI failures ([#1485](https://github.com/Popsink/data-plane/pull/1485)).
+
+### Maintenance
+
+- Helm chart CI experience improvements ([#1516](https://github.com/Popsink/data-plane/pull/1516)).
+- Unify local prod ingress routes ([#1454](https://github.com/Popsink/data-plane/pull/1454)).
+- First batch of changes ([#1515](https://github.com/Popsink/data-plane/pull/1515)).
+- Bump `tar` ([#1525](https://github.com/Popsink/data-plane/pull/1525)); bump `@isaacs/brace-expansion` for control-plane e2e ([#1522](https://github.com/Popsink/data-plane/pull/1522)); generic bump ([#1482](https://github.com/Popsink/data-plane/pull/1482)).
