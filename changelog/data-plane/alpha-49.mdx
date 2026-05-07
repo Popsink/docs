@@ -8,7 +8,7 @@ title: "v0.1.0-alpha.49 23/04/2026"
 
 ### Changes
 
-- Bring the dev environment in line with production by adding mTLS for Tansu ([#2145](https://github.com/Popsink/data-plane/pull/2145)):
+- Bring the dev environment in line with production by adding mTLS for Tansu (#2145):
   - Deploy Vault (bank-vaults operator) with cfssl-generated PKI: root CA + intermediate CA imported via devspace hooks.
   - Add Istio (base, `istiod`, gateway) with an mTLS listener on port 9092.
   - Add `cert-manager` + `vault-issuer` `ClusterIssuer` to auto-issue the gateway server cert.

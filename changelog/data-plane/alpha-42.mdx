@@ -8,7 +8,7 @@ title: "v0.1.0-alpha.42 17/04/2026"
 
 ### Changes
 
-- Refactor `settings.py` to remove all hard-coded fallback defaults — every setting must come from an environment variable (ConfigMap in Kubernetes or GitHub Actions env in CI). `.settings.json` remains a local-dev override mechanism ([#2067](https://github.com/Popsink/data-plane/pull/2067)).
+- Refactor `settings.py` to remove all hard-coded fallback defaults — every setting must come from an environment variable (ConfigMap in Kubernetes or GitHub Actions env in CI). `.settings.json` remains a local-dev override mechanism (#2067).
 - CI: use valid UUIDs for `DEPLOYMENT_ID` to prevent UUID parse errors.
 - Migration: widen `user_log.action` from VARCHAR(19) to VARCHAR(32) to fit `subscription_*` actions.
 - Tests: isolate flaky tests from xdist parallel pollution (unique subject / topic names, real `UserRepository` in `ConfigSyncService` tests).
