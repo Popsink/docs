@@ -1,0 +1,17 @@
+---
+title: "v0.1.0-alpha.49 23/04/2026"
+---
+
+---
+
+**Description**: Dev: full mTLS for Tansu via Vault + Istio Gateway.
+
+### Changes
+
+- Bring the dev environment in line with production by adding mTLS for Tansu (#2145):
+  - Deploy Vault (bank-vaults operator) with cfssl-generated PKI: root CA + intermediate CA imported via devspace hooks.
+  - Add Istio (base, `istiod`, gateway) with an mTLS listener on port 9092.
+  - Add `cert-manager` + `vault-issuer` `ClusterIssuer` to auto-issue the gateway server cert.
+  - Add an hourly CRL fetcher CronJob plus an `EnvoyFilter` with `only_verify_leaf_cert_crl` to enforce revocation.
+  - Wire data-plane, `metrics-exporter`, `kafka-to-jdbc` and `popsink-connect` dev entrypoints to consume the new SSL certs.
+  - Run a second `kafka-plain` Tansu deployment so Karapace and `kafka-ui` can keep using plain TCP.

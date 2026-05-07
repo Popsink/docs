@@ -1,0 +1,14 @@
+---
+title: "v0.1.0-alpha.26 10/04/2026"
+---
+
+---
+
+**Description**: metrics-exporter is now part of the data-plane chart.
+
+### Changes
+
+- Bootstrap `metrics-exporter` templates inside the data-plane chart; build and push images alongside data-plane (#1902).
+- Refactor CI tasks to push to each registry independently.
+- `metrics-exporter` version is now pinned in chart values.
+- Dev: expose port 5005 for `metrics-exporter` debugging.

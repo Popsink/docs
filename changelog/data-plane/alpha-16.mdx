@@ -1,0 +1,17 @@
+---
+title: "v0.1.0-alpha.16 03/03/2026"
+---
+
+---
+
+**Description**: New design system: shared `@popsink/ui` package, Tailwind v4, AppBar / UserDropdown.
+
+### Changes
+
+- Major UI overhaul (#1550):
+  - Extract a shared `@popsink/ui` package with design tokens, Vuetify config and `Geist` typography.
+  - Migrate from `@nuxtjs/tailwindcss` (v3) to `@tailwindcss/vite` (v4); centralise shared modules in `packages/ui`.
+  - Apply `pop-title` / `pop-content` typography to data-plane and control-plane.
+  - Introduce shared `AppBar` and `UserDropdown` components; remove the legacy `AppNavbar`.
+  - Configure CSS cascade layers so Vuetify and Tailwind v4 coexist cleanly.
+  - Standalone build pipelines updated to integrate `@popsink/ui` for both data-plane and control-plane.

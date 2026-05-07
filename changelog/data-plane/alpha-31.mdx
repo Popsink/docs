@@ -1,0 +1,13 @@
+---
+title: "v0.1.0-alpha.31 13/04/2026"
+---
+
+---
+
+**Description**: SHA1 prefix for `deploymentId`; clearer chart error messages.
+
+### Changes
+
+- Use a SHA1 prefix for `deploymentId` in `metrics-exporter` and fail fast with an explicit error message when it is empty (#1993).
+- Add validation error messages for missing values and missing `existingSecrets` in the data-plane chart.
+- `schemaRegistry` secret is now optional when using Karapace.

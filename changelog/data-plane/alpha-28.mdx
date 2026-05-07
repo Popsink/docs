@@ -1,0 +1,14 @@
+---
+title: "v0.1.0-alpha.28 10/04/2026"
+---
+
+---
+
+**Description**: Generate chart secrets directly from values.
+
+### Changes
+
+- Generate Kubernetes Secrets from direct chart values for `deploymentJwtToken`, `connectorConfigEncryptionKey`, `adminCredentials`, JWT secret, `schemaRegistry`, `tansuStorageAws`, `defaultKafka` and `externalDatabase` (#1961).
+- Drop `-ref` suffix from data-plane deployments and fix checksum annotation names.
+- Add the missing `secrets.yaml` template for `metrics-exporter`.
+- `metricsExporter` is now enabled by default.
