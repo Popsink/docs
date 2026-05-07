@@ -232,14 +232,19 @@
                   "changelog/control-plane/cp-2026-01-22"
                 ]
               },
-              "changelog/v3.8",
-              "changelog/v3.7",
-              "changelog/v3.29",
-              "changelog/v3.24",
-              "changelog/v3.2302",
-              "changelog/v1.84",
-              "changelog/v1.83",
-              "changelog/v1.78"
+              {
+                "group": "Legacy App",
+                "pages": [
+                  "changelog/v3.8",
+                  "changelog/v3.7",
+                  "changelog/v3.29",
+                  "changelog/v3.24",
+                  "changelog/v3.2302",
+                  "changelog/v1.84",
+                  "changelog/v1.83",
+                  "changelog/v1.78"
+                ]
+              }
             ]
           }
         ]
