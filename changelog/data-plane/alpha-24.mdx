@@ -1,0 +1,13 @@
+---
+title: "v0.1.0-alpha.24 07/04/2026"
+---
+
+---
+
+**Description**: Debezium logical date fields normalised to ISO format.
+
+### Changes
+
+- Add normalisation for Debezium logical date fields after Avro deserialization, including nullable and nested-record handling ([#1891](https://github.com/Popsink/data-plane/pull/1891)).
+- Update `SchemaRegistryMessageDecoder` and `KafkaSourceAdapter` to use the new normalisation utility.
+- Image tag refresh to `2026.04.07`.

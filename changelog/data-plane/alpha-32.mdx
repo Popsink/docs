@@ -1,0 +1,13 @@
+---
+title: "v0.1.0-alpha.32 14/04/2026"
+---
+
+---
+
+**Description**: Two replicas by default; explicit error when Tansu lacks S3 retention.
+
+### Changes
+
+- Default to 2 data-plane replicas; bump `metrics-exporter` and chart ([#2006](https://github.com/Popsink/data-plane/pull/2006)).
+- Surface an explicit error if Tansu is enabled but S3 retention is not provided.
+- Remove the dedicated preprod / prod overlays for `metrics-exporter` (now bundled in the chart).

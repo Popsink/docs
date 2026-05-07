@@ -1,0 +1,13 @@
+---
+title: "v0.1.0-alpha.43 17/04/2026"
+---
+
+---
+
+**Description**: Tests now hit the test database, not dev; restore safe defaults.
+
+### Changes
+
+- Parse the `CI` environment variable as a boolean — `CI="false"` was previously truthy and made tests run against the `data_plane` dev database ([#2079](https://github.com/Popsink/data-plane/pull/2079)).
+- Restore safe defaults for `DEBUG`, `CI` and `ALLOW_DESIGN_LOGIN` to prevent `KeyError` when those env vars are absent.
+- Drop `DATA_PLANE_FRONTEND_URL` in favour of `INGRESS_URL`.

@@ -1,0 +1,13 @@
+---
+title: "v0.1.0-alpha.25 09/04/2026"
+---
+
+---
+
+**Description**: Single JWT secret per data-plane; stricter token-type checks.
+
+### Changes
+
+- Unify `JWT_SERVICE_ACCOUNT_SECRET` and `METRICS_EXPORTER_TOKEN` into a single `JWT_SECRET` per data-plane; remove the `serviceAccountSecret` from the chart ([#1922](https://github.com/Popsink/data-plane/pull/1922)).
+- Reject service-account tokens in `get_current_user` so the existence check still runs through `get_current_service_account_user`.
+- Add a `token_type` claim to user and service-account tokens.
