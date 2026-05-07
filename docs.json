@@ -235,14 +235,14 @@
               {
                 "group": "Legacy App",
                 "pages": [
-                  "changelog/v3.8",
-                  "changelog/v3.7",
-                  "changelog/v3.29",
-                  "changelog/v3.24",
-                  "changelog/v3.2302",
-                  "changelog/v1.84",
-                  "changelog/v1.83",
-                  "changelog/v1.78"
+                  "changelog/legacy/v3.8",
+                  "changelog/legacy/v3.7",
+                  "changelog/legacy/v3.29",
+                  "changelog/legacy/v3.24",
+                  "changelog/legacy/v3.2302",
+                  "changelog/legacy/v1.84",
+                  "changelog/legacy/v1.83",
+                  "changelog/legacy/v1.78"
                 ]
               }
             ]
