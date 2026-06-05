@@ -2,4 +2,37 @@
 title: Webhook Target
 ---
 
-The Webhook Target Connector allows you to receive data from Popsink over a defined webhook. It is the most efficient way to build a direct integration between a streaming service and Popsink. Wou will be able to select existing streams from your Popsink catalog to send them to this webhook link.
+The Webhook Target Connector delivers data from Popsink to any HTTP endpoint via webhook. It is the most efficient way to build a direct integration between Popsink and a downstream service: select existing streams from your Popsink catalog, and each event is forwarded as an HTTP request to your configured URL.
+
+## Key Features
+
+- **Push delivery:** events are forwarded to your endpoint as they flow through the pipeline — no polling required.
+- **Flexible authentication:** token sent as a Bearer header or as a URL query parameter.
+- **Configurable method:** deliver events with `POST` (payload in the body, recommended) or `GET`.
+
+## Prerequisites
+
+- An HTTP(S) endpoint reachable from Popsink that accepts incoming requests.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Target webhook URL (e.g. `https://api.myservice.com/events`) |
+| **Token** | No | Authentication token, sent according to the authentication type |
+| **Authentication Type** | Yes | `BEARER` (default) or `URL` — see below |
+| **Request Method** | Yes | `POST` (default, recommended) or `GET` |
+
+## Authentication Types
+
+| Type | Description |
+|---|---|
+| **BEARER** | Token sent in the `Authorization: Bearer <token>` header |
+| **URL** | Token sent as a `?token=<token>` query parameter |
+
+## Request Methods
+
+| Method | Description |
+|---|---|
+| **POST** | Event payload sent in the request body — recommended |
+| **GET** | Request sent without a body |

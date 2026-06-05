@@ -1,13 +1,64 @@
 ---
-title: Snowflake source
+title: Snowflake Source
 ---
 
-The Snowflake Source integration in PopSink allows you to seamlessly ingest data from a Snowflake database into PopSink pipelines. With this connector, you can extract structured data for processing, transformation, and further downstream operations.
+The Snowflake Source Connector streams changes from Snowflake tables into Popsink pipelines using the native `CHANGES` clause together with Time Travel. It performs an initial full load of each selected table, then polls for incremental changes (inserts, updates, and deletes) every 10 minutes, making your warehouse data available downstream without manual exports.
+
+## Key Features
+
+- **Native change tracking:** uses Snowflake's `CHANGES (INFORMATION => DEFAULT)` clause with Time Travel — no triggers or staging objects in your account.
+- **Initial Load:** the connector automatically performs an initial full table load, then switches to incremental polling.
+- **Schema evolution:** the table schema is re-introspected on every poll cycle, and the stream schema is updated automatically when columns change.
+- **Resilient:** if the worker is offline longer than 12 hours, the connector automatically falls back to a full reload on restart, protecting against Time Travel window expiry.
 
 ## Prerequisites
 
-The table should be configure with :
+1. A **dedicated user** with read access on the source database and schema.
+2. **Key-pair authentication** enabled for that user. Only key-pair authentication is supported — password authentication is intentionally disabled.
+3. **Change tracking** enabled on the tables you want to replicate:
+   ```sql
+   ALTER TABLE <your_table> SET CHANGE_TRACKING = TRUE;
+   ```
+4. The account's **Time Travel retention** must cover the poll interval (the standard tier default of 24 hours is sufficient).
 
-```sql
-CHANGE_TRACKING = TRUE
-```
+## Setting up Key-Pair Authentication
+
+1. Generate an RSA key pair (no passphrase):
+   ```bash
+   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out rsa_key.p8 -nocrypt
+   openssl rsa -in rsa_key.p8 -pubout -out rsa_key.pub
+   ```
+2. Register the public key on the Snowflake user:
+   ```sql
+   ALTER USER <your_user> SET RSA_PUBLIC_KEY='<public_key_body>';
+   ```
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Account** | Yes | Snowflake account identifier (e.g. `xy12345.eu-west-1`) |
+| **User** | Yes | Snowflake user configured for key-pair authentication |
+| **Database / Schema** | Yes | Database and schema containing the tables to replicate |
+| **Private Key** | Yes | Base64 body of the PEM PKCS8 private key **without** the `-----BEGIN/END PRIVATE KEY-----` headers — the connector adds them automatically |
+| **Warehouse** | No | Warehouse to use for queries; the user's default warehouse is used when omitted |
+
+## Table Selection
+
+After entering credentials, select tables from the discovered list. For each selected table the connector:
+
+1. **Initial load:** reads all existing rows.
+2. **CDC polling:** every 10 minutes, queries `CHANGES (INFORMATION => DEFAULT) AT (TIMESTAMP => ...)` for inserts, updates, and deletes.
+
+## Schema Handling
+
+Snowflake column types are mapped as follows:
+
+| Snowflake type | Stream type |
+|---|---|
+| `VARCHAR` / `CHAR` / `TEXT` / `BINARY` | `string` |
+| `NUMBER` / `INTEGER` / `DECIMAL` | `float` |
+| `FLOAT` / `DOUBLE` / `REAL` | `double` |
+| `BOOLEAN` | `boolean` |
+| `DATE` / `TIMESTAMP` (all variants) | `long` (Unix epoch milliseconds) |
+| `VARIANT` / `OBJECT` / `ARRAY` | `string` (JSON-serialized) |
