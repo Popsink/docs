@@ -2,13 +2,15 @@
 title: Postgres Source
 ---
 
+import SshTunnel from '/snippets/ssh-tunnel.mdx';
+
 The Postgres Source Connector is a powerful and efficient solution designed to facilitate seamless data integration between your PostgreSQL databases and Popsink. This connector helps you synchronize with PostgreSQL in real-time, ensuring that your target systems remain updated with the latest information in real-time, driving business intelligence, analytics, and operational efficiency.
 
 ## Prerequisites
 
-- Your Postgres should be in `logical` mode (use `SHOW wal_level`). More info here.
+- Your Postgres should be in `logical` mode (use `SHOW wal_level`).
 
-- A user with `REPLICATION` rights on the tables you wish to connect to. One way to do this is (for others, check here):
+- A user with `REPLICATION` rights on the tables you wish to connect to. One way to do this is:
 
 ```sql
 CREATE ROLE replication_role REPLICATION;
@@ -17,7 +19,7 @@ GRANT replication_role TO <your_user>;
 
 - Are you using PostgreSQL on Heroku? Here’s a great guide to [migrating](https://towardsdatascience.com/migrating-from-heroku-postgres-to-amazon-rds-2e738e7730e5).
 
-- Each table should have is `REPLICA IDENTITY` set to `FULL`
+- Each table should have its `REPLICA IDENTITY` set to `FULL`
 
 ```sql
 ALTER TABLE mytable REPLICA IDENTITY FULL
@@ -42,6 +44,30 @@ CREATE PUBLICATION popsink FOR TABLE <your table list here>;
 - Initial Load: The connector automatically performs an initial full table load.
 
 - Advanced Filtering: The Postgres Source Connector provides a range of filtering options, including table and schema filters, allowing you to selectively replicate specific tables and schemas based on your needs.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Hostname or IP address of the PostgreSQL server |
+| **Port** | Yes | TCP port (default `5432`) |
+| **Database** | Yes | Database name to connect to |
+| **Schema** | Yes | Default schema used when resolving tables (default `public`) |
+| **User / Password** | Yes | Credentials with replication and metadata access |
+
+### Advanced Options
+
+| Field | Default | Description |
+|---|---|---|
+| **Publication Name** | — | Name of the PostgreSQL publication listing the tables to replicate |
+| **Replication Slot Name** | — | Logical replication slot name; use a dedicated name per connector instance to avoid conflicts |
+| **Initial Load** | `true` | Snapshot existing rows before streaming changes |
+
+<SshTunnel />
+
+## Table Selection
+
+After a successful credential check, pick the tables to replicate from the discovered list. The selection is stored as a comma-separated whitelist in `schema.table` format.
 
 ## Security
 

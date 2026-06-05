@@ -1,0 +1,10 @@
+## Connecting through an SSH Tunnel
+
+If the database is only reachable through a bastion host, enable **SSH Tunnel** and provide:
+
+| Field | Required | Description |
+|---|---|---|
+| **SSH Host** | Yes | Hostname or IP of the bastion host |
+| **SSH Port** | Yes | SSH port (default `22`) |
+| **SSH User** | Yes | User to authenticate as on the bastion |
+| **SSH Private Key** | Yes | **Base64-encoded** private key for the SSH user |

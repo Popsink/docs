@@ -2,6 +2,8 @@
 title: HubSpot Source
 ---
 
+import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
+
 The HubSpot Source Connector ingests CRM data from HubSpot — contacts, companies, deals, tickets, and custom objects — into Popsink pipelines. It runs on a configurable schedule and performs incremental synchronization, so only records updated since the last run are delivered downstream. This is particularly valuable for consolidating customer data, building comprehensive customer profiles, and powering data-driven marketing and sales analytics.
 
 ## Key Features
@@ -22,12 +24,4 @@ The HubSpot Source Connector ingests CRM data from HubSpot — contacts, compani
 | **Access Token** | Yes | The private app access token |
 | **Schedule** | Yes | Sync frequency — see [Scheduling](#scheduling) |
 
-## Scheduling
-
-API source connectors run on a schedule rather than streaming continuously. A first run is always triggered immediately after the connector is created; subsequent runs depend on the selected mode:
-
-| Mode | Behavior | Example |
-|---|---|---|
-| **days** | Runs every N days at 00:00 UTC + offset (in minutes) | Offset 30 → every day at 00:30 UTC |
-| **hours** | Runs every N hours at :00 + offset (in minutes) | Offset 15 → 00:15, 01:15, 02:15, … |
-| **minutes** | Runs every N minutes, anchored on the connector creation time | Created 10:03, interval 10 → 10:13, 10:23, … |
+<ApiSourceScheduling />
