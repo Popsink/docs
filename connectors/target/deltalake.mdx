@@ -1,5 +1,79 @@
 ---
-title: DeltaLake Target
+title: Unity Catalog (Delta Lake) Target
 ---
 
-The DeltaLake Target Connector enables seamless integration with Delta Lake, an open-source storage layer that brings ACID transactions to Apache Spark and big data workloads. This connector allows you to stream data from Popsink directly into Delta Lake tables, supporting both batch and real-time data ingestion. It handles schema evolution, data type conversion, and can automatically create or update tables as needed. The DeltaLake connector is particularly useful for organizations looking to build reliable data lakes, implement lakehouse architectures, or enhance their existing Spark-based data pipelines. It enables data teams to leverage Delta Lake's key features such as ACID transactions, scalable metadata handling, time travel (data versioning), and unified batch and streaming data processing. This connector is ideal for businesses requiring a robust and performant solution for large-scale data analytics, machine learning, and data science workflows while ensuring data reliability and consistency.
+The Unity Catalog Target Connector writes your pipeline data to Delta Lake tables stored in Azure Blob Storage and registers them in a Databricks Unity Catalog catalog and schema. Data is written in Delta format with full ACID compliance and schema evolution, and tables are queryable from any Databricks workspace once registered. The connector is delivered as a native worker — no Spark cluster and no SQL warehouse are required on your side — streaming change events directly into your lakehouse.
+
+## Table of Contents
+
+1. [Key Features](#key-features)
+2. [Prerequisites](#prerequisites)
+3. [Storage Authentication](#storage-authentication)
+4. [Databricks Authentication](#databricks-authentication)
+5. [Catalog and Schema](#catalog-and-schema)
+
+## Key Features
+
+- **Delta Lake format:** data is written as Delta tables with ACID transactions and schema evolution.
+- **Unity Catalog registration:** each subscription's target table is automatically created or updated under the catalog and schema you provide, making it instantly queryable from Databricks.
+- **Native streaming worker:** change events are streamed directly into Azure Blob Storage without a Spark job or SQL API in the write path.
+- **Secure by design:** Databricks access uses OAuth Machine-to-Machine with a Service Principal — no Personal Access Tokens.
+
+## Prerequisites
+
+- An Azure Blob Storage account with an existing container for the Delta data.
+- A Databricks workspace with Unity Catalog enabled.
+- An existing Unity Catalog **catalog** and **schema** — the connector registers tables but does not create the catalog or schema.
+- A Databricks **Service Principal** with an OAuth secret and the required privileges on the target catalog and schema (at minimum: `USE CATALOG`, `USE SCHEMA`, `CREATE TABLE`, `MODIFY`).
+
+## Storage Authentication
+
+Two authentication methods are supported for the underlying Azure Blob Storage. Pick the one that matches how you administer the storage account.
+
+### Option A — Connection String
+
+Authenticate with an Azure Blob Storage connection string, found in the Azure Portal under **Storage Account → Access keys**.
+
+| Field | Description |
+|---|---|
+| **Connection String** | e.g. `DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=...;EndpointSuffix=core.windows.net` |
+| **Container Name** | Existing container where Delta table data will be written (e.g. `my-lakehouse`) |
+
+### Option B — Service Principal (SPN)
+
+Authenticate with an Azure Active Directory Service Principal. The Service Principal must have the **Storage Blob Data Contributor** role on the storage account.
+
+| Field | Description |
+|---|---|
+| **Storage Account Name** | Name of the Azure Storage account (e.g. `mystorageaccount`) |
+| **Tenant ID** | Azure AD tenant ID (Azure Portal → Microsoft Entra ID → Overview) |
+| **Client ID** | Application (client) ID of the registered app |
+| **Client Secret** | A client secret generated for the registered app |
+| **Container Name** | Existing container where Delta table data will be written |
+
+## Databricks Authentication
+
+The connector authenticates to Databricks via **OAuth Machine-to-Machine (M2M)** using a Databricks Service Principal: it exchanges the Service Principal's client ID and secret for a short-lived access token at the workspace token endpoint, then registers each target table under your catalog and schema.
+
+<Note>Personal Access Tokens (PATs) are not supported by this connector. Databricks deprecates PATs for new integrations — use a Service Principal with an OAuth secret.</Note>
+
+### Setting up the Service Principal
+
+1. In your Databricks workspace, open **Settings → Identity and access → Service principals** and create a new Service Principal (or pick an existing one).
+2. Under the Service Principal, generate an **OAuth secret**. Copy the displayed **client ID** and **secret** — the secret is shown only once.
+3. Grant the Service Principal the required Unity Catalog privileges on the target catalog and schema: `USE CATALOG`, `USE SCHEMA`, `CREATE TABLE`, `MODIFY`.
+
+| Field | Description |
+|---|---|
+| **Workspace URL** | Base URL of your Databricks workspace (e.g. `https://adb-1234567890123456.7.azuredatabricks.net`) |
+| **Databricks Client ID** | The Service Principal's application ID (UUID) |
+| **Databricks Client Secret** | The OAuth secret generated for the Service Principal |
+
+## Catalog and Schema
+
+| Field | Description |
+|---|---|
+| **Catalog Name** | Unity Catalog catalog where tables will be registered (e.g. `main`) |
+| **Schema Name** | Schema (database) under that catalog (e.g. `bronze`) |
+
+Both must exist before the connector starts. Tables are created or updated using each subscription's target table name within this catalog and schema.

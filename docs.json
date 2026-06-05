@@ -119,7 +119,8 @@
                   "connectors/target/pinecone",
                   "connectors/target/bigquery",
                   "connectors/target/mongodb",
-                  "connectors/target/cosmosdb"
+                  "connectors/target/cosmosdb",
+                  "connectors/target/elasticsearch"
                 ]
               },
               {
@@ -129,6 +130,7 @@
                   "connectors/target/iceberg",
                   "connectors/target/hudi",
                   "connectors/target/deltalake",
+                  "connectors/target/kafka",
                   "connectors/target/pubsub",
                   "connectors/target/webhook"
                 ]
