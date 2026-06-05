@@ -2,4 +2,27 @@
 title: Oracle Target
 ---
 
-The Oracle Target Connector enables seamless data transfer from Popsink into an Oracle Database. This connector is ideal for managing and analyzing structured data within Oracle's robust relational database system. It supports both real-time and batch data updates, allowing you to keep your Oracle tables synchronized with Popsink data. The connector facilitates integration by mapping data to your Oracle schema and handling various data formats. This is particularly valuable for organizations using Oracle for enterprise applications, data warehousing, or complex analytics that require reliable and scalable database solutions.
+The Oracle Target Connector enables seamless data transfer from Popsink into an Oracle Database. This connector is ideal for managing and analyzing structured data within Oracle's robust relational database system. It supports both real-time and batch data updates, allowing you to keep your Oracle tables synchronized with Popsink data. The connector facilitates integration by mapping data to your Oracle schema and handling various data formats.
+
+## Key Features
+
+- **CDC replication:** applies inserts, updates, and deletes from your pipelines to Oracle tables, keeping them in sync with the source.
+- **Automatic type mapping:** Popsink handles data type mapping to Oracle formats including `VARCHAR2`, `NUMBER`, `DATE`, and `CLOB`.
+
+## Prerequisites
+
+- A reachable Oracle database.
+- A user with **write permissions** on the target schema: `CREATE TABLE`, `INSERT`, `UPDATE`, and `DELETE`.
+- **Primary keys configured in the subscription mapping:** Oracle is a JDBC target — primary keys are required so that CDC updates and deletes can be applied correctly.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Hostname or IP address of the Oracle server |
+| **Port** | Yes | Port the Oracle listener is on (default `1521`) |
+| **Database** | Yes | Oracle database name (e.g. `ORCL`) |
+| **Server Name** | Yes | Oracle service name (e.g. `ORCLPDB1`) |
+| **Server ID** | Yes | Oracle system identifier (SID) |
+| **User** | Yes | Username with write permissions on the target tables |
+| **Password** | Yes | Password for the Oracle user |

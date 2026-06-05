@@ -3,3 +3,45 @@ title: Kafka Source
 ---
 
 The Kafka Source Connector integrates with Apache Kafka, a distributed, fault-tolerant, and highly-scalable event streaming platform designed for handling real-time data streams. It enables the efficient publishing, storing, and processing of large volumes of events, making it ideal for building data pipelines, messaging systems, and real-time analytics applications. Kafka is widely used across various industries for its high throughput, low latency, and strong durability guarantees.
+
+## Key Features
+
+- **Continuous consumption:** the connector subscribes to your Kafka topics and streams events into Popsink as they are produced.
+- **Broad authentication support:** PLAINTEXT, SSL, and SASL (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, OAUTHBEARER, GSSAPI), including mutual TLS.
+- **Message metadata:** optionally include Kafka message metadata (topic, partition, offset, timestamp) alongside the payload.
+
+## Prerequisites
+
+- A reachable Kafka cluster.
+- Credentials with permission to **read** from the source topics (and to use the configured consumer group).
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Bootstrap Servers** | Yes | Comma-separated `host:port` pairs (e.g. `kafka1.example.com:9092,kafka2.example.com:9092`) |
+| **Security Protocol** | Yes | `PLAINTEXT`, `SSL`, `SASL_PLAINTEXT`, or `SASL_SSL` |
+| **SASL Mechanism** | With SASL | `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, `OAUTHBEARER`, or `GSSAPI` |
+| **SASL Username / Password** | With SASL | Credentials for the chosen SASL mechanism |
+| **Topic** | Yes | Kafka topic to consume from |
+| **Consumer Group ID** | No | Consumer group used to track offsets; auto-generated when omitted |
+| **Include Metadata** | No | Include Kafka message metadata (topic, partition, offset, timestamp) in the records (default: `false`) |
+
+## TLS and Mutual TLS
+
+When connecting over `SSL` or `SASL_SSL`, you can additionally provide certificates (PEM or base64-encoded PEM):
+
+| Field | Description |
+|---|---|
+| **CA Certificate** | CA certificate used to verify the brokers |
+| **Client Certificate** | Client certificate for mutual TLS |
+| **Client Private Key** | Client private key for mutual TLS |
+
+## Security Protocols
+
+| Protocol | Encryption | Authentication |
+|---|---|---|
+| `PLAINTEXT` | None | None — development only |
+| `SSL` | TLS | TLS client certificates (optional) |
+| `SASL_PLAINTEXT` | None | SASL |
+| `SASL_SSL` | TLS | SASL — recommended for production |
