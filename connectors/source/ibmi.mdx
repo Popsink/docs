@@ -2,4 +2,163 @@
 title: IBMi (AS/400) Source
 ---
 
-The IBMi (AS/400) Source Connector integrates with IBM i, formerly known as IBM AS/400 and iSeries, a powerful and reliable midrange computer system widely used in enterprise environments. This connector enables the extraction and streaming of data from IBMi systems, which are known for hosting critical business applications and databases in industries such as manufacturing, finance, and healthcare. It allows organizations to tap into their legacy IBMi data, including information from DB2 for i databases and various file systems. By connecting IBMi to modern data pipelines, this connector facilitates data modernization efforts, enabling real-time analytics, cross-platform data integration, and the ability to leverage legacy data in cloud-based or hybrid environments. This is particularly valuable for organizations looking to modernize their data infrastructure while maintaining their investments in IBMi systems.
+The IBMi (AS/400) Source Connector integrates with IBM i, formerly known as IBM AS/400 and iSeries, a powerful and reliable midrange computer system widely used in enterprise environments. This connector enables the extraction and streaming of data from IBMi systems, which are known for hosting critical business applications and databases in industries such as manufacturing, finance, and healthcare. It allows organizations to tap into their legacy IBMi data, including information from DB2 for i databases and various file systems. By connecting IBMi to modern data pipelines, this connector facilitates data modernization efforts, enabling real-time analytics, cross-platform data integration, and the ability to leverage legacy data in cloud-based or hybrid environments.
+
+## Table of Contents
+
+1. [Key Features](#key-features)
+2. [How It Works](#how-it-works)
+3. [Core Concepts](#core-concepts)
+4. [Prerequisites](#prerequisites)
+5. [Enabling Journaling](#enabling-journaling)
+6. [Granting User Permissions](#granting-user-permissions)
+7. [Enabling Incremental Load](#enabling-incremental-load)
+8. [Estimating Change Volume](#estimating-change-volume)
+9. [Housekeeping](#housekeeping)
+
+## Key Features
+
+- **Real-time Change Data Capture (CDC):** the connector reads native IBM i journal binaries directly, capturing and streaming changes (inserts, updates, and deletes) as they occur, with end-to-end latency typically between 50–200 ms from commit to publication.
+- **Agentless:** no software needs to be installed on the IBM i system. The connector accesses journals remotely via JT400, keeping SQL engine involvement minimal.
+- **Low System Overhead:** lightweight binary parsing keeps CPU impact low on the source partition — typically under 2% at low volumes (<10k changes/min), ~5% at moderate volumes (~50k changes/min), and 10–15% at high volumes (100k+ changes/min) — leaving headroom for business-critical workloads.
+- **High Throughput:** continuous streaming with exact receiver offset tracking sustains more than 50k changes/sec on mid-range Power9 systems and remains stable under burst load.
+- **Initial Load:** the connector automatically performs an initial full table load using JDBC + SQL snapshots.
+- **Fault-tolerant:** the connector tracks exact journal receiver offsets and resumes replication from the last known position in case of failures, ensuring data consistency and minimal downtime.
+
+## How It Works
+
+The connector combines two mechanisms:
+
+1. **Snapshots:** initial full loads are performed over JDBC using SQL.
+2. **Change capture:** ongoing changes are read directly from the native IBM i journal binaries attached to your physical files, via a remote procedure call (RPC) approach over JT400. Rather than polling journals through SQL, the connector streams raw journal entries continuously and tracks exact receiver offsets, minimizing load on the SQL engine and transferring changes in a compact binary format.
+
+## Core Concepts
+
+- **Journal Receiver:** the physical storage object containing change records with before-and-after data images, metadata, timestamps, and transaction information.
+- **Journal:** the database tracking mechanism that records changes to specific database objects, maintains metadata, and points to Journal Receivers.
+- **Journal Library:** the repository storing journal definitions and organizing journal objects.
+- **Journal Receiver Library:** a separate storage location for Journal Receivers, enabling better organization and maintenance.
+
+## Prerequisites
+
+- The tables you want to ingest must be journaled. [See Enabling Journaling](#enabling-journaling)
+- You will need a user with the necessary permissions. [See Granting User Permissions](#granting-user-permissions)
+- For incremental load support, a signal table must be created and journaled. [See Enabling Incremental Load](#enabling-incremental-load)
+
+## Enabling Journaling
+
+To capture changes, the tables you want to track must be journaled. If your tables are already journaled, you can skip to [Granting User Permissions](#granting-user-permissions).
+
+1. **Create a Journal Receiver:**
+   ```
+   CRTJRNRCV <RECEIVER_LIB>/<RECEIVER_NAME>
+   ```
+
+2. **Create a Journal attached to the Receiver:**
+   ```
+   CRTJRN <JOURNAL_LIB>/<JOURNAL_NAME> <RECEIVER_LIB>/<RECEIVER_NAME>
+   ```
+
+3. **Start journaling the tables you want to track:**
+   ```
+   STRJRNPF <FILE_LIB>/<FILE_NAME> <JOURNAL_LIB>/<JOURNAL_NAME>
+   ```
+
+4. **Enable before/after image capture (recommended):**
+   ```
+   CHGJRNOBJ OBJ((<FILE_LIB>/<FILE_NAME> *FILE)) ATR(*IMAGES) IMAGES(*BOTH)
+   ```
+   Capturing both before and after images is required to correctly handle updates to Primary Key columns.
+
+## Granting User Permissions
+
+The connector's user profile needs the following authorities. No SQL-level SELECT authority is needed on system UDTFs.
+
+```
+GRTOBJAUT OBJ(<JOURNAL_LIB>) OBJTYPE(*LIB) USER(popsink) AUT(*EXECUTE)
+GRTOBJAUT OBJ(<JOURNAL_LIB>/*ALL) OBJTYPE(*JRNRCV) USER(popsink) AUT(*USE)
+GRTOBJAUT OBJ(<JOURNAL_LIB>/<JOURNAL_NAME>) OBJTYPE(*JRN) USER(popsink) AUT(*USE *OBJEXIST)
+GRTOBJAUT OBJ(<RECEIVER_LIB>) OBJTYPE(*LIB) USER(popsink) AUT(*EXECUTE)
+GRTOBJAUT OBJ(<RECEIVER_LIB>/*ALL) OBJTYPE(*FILE) USER(popsink) AUT(*USE)
+```
+
+In summary, the user requires:
+
+- **\*EXECUTE** authority on the journal library and the receiver library
+- **\*USE** and **\*OBJEXIST** authority on the journal object
+- **\*USE** authority on the journal receivers
+
+## Enabling Incremental Load
+
+To enable incremental load, the connector uses a signal table:
+
+1. **Create the signal table:**
+   ```sql
+   CREATE TABLE SCHEMA.POP_SIGNAL (
+     ID VARCHAR(128) NOT NULL,
+     TYPE VARCHAR(32) NOT NULL,
+     DATA VARCHAR(2048)
+   )
+   ```
+
+2. **Journal this table in the same journal as the tracked tables:**
+   ```
+   STRJRNPF <FILE_LIB>/POP_SIGNAL <JOURNAL_LIB>/<JOURNAL_NAME>
+   ```
+
+3. **Grant the user write permissions on this table** (this table only — no write access is needed anywhere else).
+
+## Estimating Change Volume
+
+You can estimate your daily change volume by counting journal entries over the last 24 hours:
+
+```sql
+SELECT J.OBJECT,
+  COUNT(CASE WHEN J.JOURNAL_ENTRY_TYPE = 'PT' THEN 1 END) AS INSERT_COUNT,
+  COUNT(CASE WHEN J.JOURNAL_ENTRY_TYPE = 'UP' THEN 1 END) AS UPDATE_COUNT,
+  COUNT(CASE WHEN J.JOURNAL_ENTRY_TYPE = 'DL' THEN 1 END) AS DELETE_COUNT
+FROM TABLE(QSYS2.DISPLAY_JOURNAL('<JOURNAL_LIB>', '<JOURNAL_NAME>')) AS J
+WHERE J.ENTRY_TIMESTAMP >= CURRENT_TIMESTAMP - 24 HOURS
+GROUP BY J.OBJECT;
+```
+
+## Housekeeping
+
+### Journal Receiver Retention
+
+Journal receivers take up disk space, so it is best practice to delete old ones regularly. There is a tradeoff between retention and the operational resilience of your replication pipeline: longer retention gives you more time to recover from outages before having to resync, while shorter retention takes up less space. We recommend a maximum retention of 7 days, and a minimum of 1 day depending on your requirements.
+
+1. **Delete journal receivers older than 7 days:**
+   ```
+   DLTJRNRCV JRNRCV(<RECEIVER_LIB>/<RECEIVER_NAME>) DLTOPT(*IGNINQMSG) SELECT(*OLD) RETENTION(7)
+   ```
+   Wildcard patterns are supported (e.g. `RECEIVER_NAME*`). You can schedule this command periodically using `WRKJOBSCDE`.
+
+2. **Monitor active receivers:**
+   ```
+   WRKJRNRCV <JOURNAL_LIB>/<JOURNAL_NAME>
+   ```
+
+3. **Monitor receiver disk usage:**
+   ```
+   DSPJRNRCVA
+   ```
+
+### Stopping and Restarting CDC
+
+1. **Stop CDC connectivity:**
+   ```
+   ENDTCPIFC INTERFACE(<CDC_SERVER_IP>)
+   ```
+
+2. **Restart CDC connectivity:**
+   ```
+   STRTCPIFC INTERFACE(<CDC_SERVER_IP>)
+   ```
+
+### Disabling Journaling
+
+1. **Stop journaling a table:**
+   ```
+   ENDJRNPF FILE(<FILE_LIB>/<FILE_NAME>) JRN(<JOURNAL_LIB>/<JOURNAL_NAME>)
+   ```
