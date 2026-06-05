@@ -2,6 +2,8 @@
 title: MSSQL Source
 ---
 
+import SshTunnel from '/snippets/ssh-tunnel.mdx';
+
 The MSSQL Source Connector is a powerful and efficient solution designed to facilitate seamless data integration between your Microsoft SQL Server (MSSQL) databases and Popsink. This connector helps you synchronize with Microsoft SQL Server in real-time, ensuring that your target systems remain updated with the latest information in real-time, driving business intelligence, analytics, and operational efficiency.
 
 ## Table of Contents
@@ -9,9 +11,10 @@ The MSSQL Source Connector is a powerful and efficient solution designed to faci
 1. [Key Features](#key-features)
 2. [Security](#security)
 3. [Prerequisites](#prerequisites)
-4. [Creating a Dedicated Role](#creating-a-dedicated-role)
-5. [Enabling CDC](#enabling-cdc)
-6. [Housekeeping Scripts](#housekeeping-scripts)
+4. [Configuration](#configuration)
+5. [Creating a Dedicated Role](#creating-a-dedicated-role)
+6. [Enabling CDC](#enabling-cdc)
+7. [Housekeeping Scripts](#housekeeping-scripts)
 
 ## Key Features
 
@@ -33,6 +36,29 @@ The connector supports SSL/TLS encryption for secure communication between the c
 
 - **sysadmin:** role required for enabling CDC at the database level.
 - **db\_owner:** role required for enabling CDC at the table level.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Hostname or IP address of the SQL Server |
+| **Port** | Yes | TCP port (default `1433`) |
+| **Database** | Yes | Database name — a single database per connector for CDC capture |
+| **User / Password** | Yes | SQL Server login with the permissions described below |
+
+### Advanced Options
+
+| Field | Default | Description |
+|---|---|---|
+| **Encrypt** | `true` | JDBC connection encryption |
+| **Trust Server Certificate** | `true` | Skips certificate verification — useful for self-signed certificates |
+| **Initial Load** | `true` | Full snapshot of existing data before streaming changes |
+
+<SshTunnel />
+
+### Table Selection
+
+After a successful credential check, pick the tables to replicate from the discovered list. The selection is stored as a comma-separated whitelist in `schema.table` format.
 
 ## Creating a Dedicated Role
 
