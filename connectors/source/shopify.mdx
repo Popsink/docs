@@ -1,0 +1,28 @@
+---
+title: Shopify Source
+---
+
+import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
+
+The Shopify Source Connector ingests commerce data from your Shopify store — orders, products, and customers — into Popsink pipelines through the Shopify Admin API. It runs on a configurable schedule, making your storefront data available for revenue analytics, inventory monitoring, and customer insights.
+
+## Key Features
+
+- **Core commerce resources:** ingests **orders**, **products**, and **customers** by default; the resource list can be customized.
+- **Admin API integration:** uses a custom app access token scoped to exactly the data you allow.
+- **Scheduled ingestion:** flexible scheduling by minutes, hours, or days, with an immediate first run on creation.
+
+## Prerequisites
+
+- A Shopify store with permission to create custom apps.
+- An **Admin API access token**: in your Shopify admin, go to **Settings → Apps and sales channels → Develop apps**, create a custom app, grant it the Admin API access scopes `read_orders`, `read_products`, and `read_customers`, then install the app and copy the access token.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Shop URL** | Yes | Your store URL (e.g. `https://mystore.myshopify.com`) |
+| **Access Token** | Yes | The custom app's Admin API access token |
+| **Schedule** | Yes | Sync frequency — see [Scheduling](#scheduling) |
+
+<ApiSourceScheduling />

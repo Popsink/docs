@@ -1,0 +1,33 @@
+---
+title: Google Ads Source
+---
+
+import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
+
+The Google Ads Source Connector ingests advertising data from the Google Ads API into Popsink pipelines. It retrieves campaign and performance data on a configurable schedule, enabling marketing analytics, spend monitoring, and cross-channel attribution with fresh advertising data.
+
+## Key Features
+
+- **Campaign data by default:** retrieves campaign attributes out of the box; queries can be customized using GAQL (Google Ads Query Language).
+- **OAuth2 authentication:** secure access through your own Google Cloud OAuth application.
+- **Scheduled ingestion:** flexible scheduling by minutes, hours, or days, with an immediate first run on creation.
+
+## Prerequisites
+
+- A Google Ads account and its **customer ID**.
+- A Google Ads API **developer token** (requested from a Google Ads manager account under **Tools & settings → API Center**).
+- A Google Cloud project with the Google Ads API enabled and an **OAuth2 client** (client ID and client secret).
+- An OAuth2 **refresh token** authorized for the Google Ads account (obtained through the OAuth consent flow with the `https://www.googleapis.com/auth/adwords` scope).
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Customer ID** | Yes | Google Ads customer ID (e.g. `123-456-7890`) |
+| **Developer Token** | Yes | Google Ads API developer token |
+| **Client ID** | Yes | OAuth2 client ID from your Google Cloud project |
+| **Client Secret** | Yes | OAuth2 client secret |
+| **Refresh Token** | Yes | OAuth2 refresh token authorized for the account |
+| **Schedule** | Yes | Sync frequency — see [Scheduling](#scheduling) |
+
+<ApiSourceScheduling />

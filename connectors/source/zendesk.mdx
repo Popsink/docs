@@ -1,0 +1,29 @@
+---
+title: Zendesk Source
+---
+
+import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
+
+The Zendesk Source Connector ingests support data from your Zendesk instance — tickets, users, organizations, and any other standard resource — into Popsink pipelines. It runs on a configurable schedule and performs incremental synchronization, so only records updated since the last run are delivered downstream. This is ideal for powering support analytics, SLA dashboards, and customer 360 initiatives with fresh helpdesk data.
+
+## Key Features
+
+- **Incremental synchronization:** the connector tracks each resource's `updated_at` cursor across runs and only delivers new or updated records.
+- **Selectable resources:** choose which Zendesk resources to ingest (e.g. `tickets`, `users`, `organizations`); available resources are discovered automatically.
+- **Scheduled ingestion:** flexible scheduling by minutes, hours, or days, with an immediate first run on creation.
+
+## Prerequisites
+
+- A Zendesk account with API access enabled.
+- A Zendesk **API token**: in Zendesk Admin Center, go to **Apps and integrations → APIs → Zendesk API**, enable Token Access, and add an API token.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Subdomain** | Yes | Your Zendesk subdomain (e.g. `mycompany` for `mycompany.zendesk.com`) |
+| **Email** | Yes | Agent email address associated with the API token |
+| **API Token** | Yes | The Zendesk API token |
+| **Schedule** | Yes | Sync frequency — see [Scheduling](#scheduling) |
+
+<ApiSourceScheduling />

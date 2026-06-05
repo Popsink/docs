@@ -91,10 +91,17 @@
                 "pages": [
                   "connectors/source/saas-applications",
                   "connectors/source/application",
+                  "connectors/source/rest-api",
                   "connectors/source/attio",
                   "connectors/source/hubspot",
                   "connectors/source/salesforce",
-                  "connectors/source/sap"
+                  "connectors/source/sap",
+                  "connectors/source/zendesk",
+                  "connectors/source/shopify",
+                  "connectors/source/pipedrive",
+                  "connectors/source/google-ads",
+                  "connectors/source/facebook-ads",
+                  "connectors/source/sharepoint"
                 ]
               }
             ]

@@ -1,0 +1,33 @@
+---
+title: SharePoint Source
+---
+
+import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
+
+The SharePoint Source Connector ingests data from a SharePoint Online site — site lists and their contents — into Popsink pipelines via the SharePoint REST API. It authenticates through a Microsoft Entra ID (Azure AD) application and runs on a configurable schedule, making collaborative and operational data from SharePoint available for analytics and integration.
+
+## Key Features
+
+- **Site lists by default:** ingests the site's **lists** out of the box; the resource list can be customized.
+- **Entra ID authentication:** secure app-only access using the OAuth2 client credentials flow — no user account required.
+- **Scheduled ingestion:** flexible scheduling by minutes, hours, or days, with an immediate first run on creation.
+
+## Prerequisites
+
+- A SharePoint Online site you want to ingest from.
+- A Microsoft Entra ID **app registration** with:
+  - A **client secret**.
+  - The **`Sites.Read.All`** application permission granted and admin-consented.
+- The app must be authorized to access SharePoint site content in your tenant.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Site URL** | Yes | SharePoint site URL (e.g. `https://contoso.sharepoint.com/sites/mysite`) |
+| **Tenant ID** | Yes | Microsoft Entra ID tenant ID |
+| **Client ID** | Yes | Application (client) ID of the app registration |
+| **Client Secret** | Yes | Client secret generated for the app registration |
+| **Schedule** | Yes | Sync frequency — see [Scheduling](#scheduling) |
+
+<ApiSourceScheduling />

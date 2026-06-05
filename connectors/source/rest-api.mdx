@@ -1,0 +1,73 @@
+---
+title: REST API Source
+---
+
+import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
+
+The REST API Source Connector lets you ingest data from **any REST API** into Popsink pipelines by providing a declarative JSON configuration. It is the generic counterpart to the dedicated API connectors (Zendesk, Shopify, Pipedrive, …): if a SaaS platform doesn't have its own connector yet, you can usually integrate it in minutes with this one. The configuration follows the [dlt `rest_api_source` schema](https://dlthub.com/docs/dlt-ecosystem/verified-sources/rest_api), describing the API client (base URL, authentication, pagination) and the resources (endpoints) to ingest.
+
+## Key Features
+
+- **Connect to any REST API:** base URL, authentication, pagination, and endpoints are all declared in a single JSON configuration.
+- **Multiple auth styles:** bearer tokens, API keys (header or query), HTTP basic, and OAuth2 client credentials.
+- **Incremental synchronization:** declare a cursor field per resource and only new or updated records are delivered on each run.
+- **Scheduled ingestion:** flexible scheduling by minutes, hours, or days, with an immediate first run on creation.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Configuration** | Yes | A JSON object following the dlt `rest_api_source` schema — see below |
+| **Schedule** | Yes | Sync frequency — see [Scheduling](#scheduling) |
+
+### Configuration structure
+
+The configuration JSON has two main blocks:
+
+- **`client`** — how to reach and authenticate against the API: `base_url`, `auth`, optional `paginator` and `headers`.
+- **`resources`** — an array of endpoints to ingest. Each resource becomes a stream/table, with its `path`, a `data_selector` pointing at the records in the response, optional query `params`, and an optional `incremental` cursor.
+
+### Example
+
+Ingesting two resources from an API authenticated with a bearer token, with cursor-based incremental sync on `updated_at`:
+
+```json
+{
+  "client": {
+    "base_url": "https://api.example.com/v1",
+    "auth": {
+      "type": "bearer",
+      "token": "YOUR_API_TOKEN"
+    },
+    "paginator": {
+      "type": "json_link",
+      "next_url_path": "paging.next"
+    }
+  },
+  "resources": [
+    {
+      "name": "customers",
+      "endpoint": {
+        "path": "customers",
+        "data_selector": "data",
+        "params": { "per_page": 100 },
+        "incremental": {
+          "cursor_path": "updated_at",
+          "initial_value": "1970-01-01T00:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "invoices",
+      "endpoint": {
+        "path": "invoices",
+        "data_selector": "data"
+      }
+    }
+  ]
+}
+```
+
+Refer to the [dlt REST API source documentation](https://dlthub.com/docs/dlt-ecosystem/verified-sources/rest_api) for the full schema, including all supported authentication types and paginators.
+
+<ApiSourceScheduling />
