@@ -20,7 +20,7 @@ The IBMi (AS/400) Source Connector integrates with IBM i, formerly known as IBM 
 
 - **Real-time Change Data Capture (CDC):** the connector reads native IBM i journal binaries directly, capturing and streaming changes (inserts, updates, and deletes) as they occur, with end-to-end latency typically between 50–200 ms from commit to publication.
 - **Agentless:** no software needs to be installed on the IBM i system. The connector accesses journals remotely via JT400, keeping SQL engine involvement minimal.
-- **Low System Overhead:** lightweight binary parsing keeps CPU impact low on the source partition — typically under 2% at low volumes (<10k changes/min), ~5% at moderate volumes (~50k changes/min), and 10–15% at high volumes (100k+ changes/min) — leaving headroom for business-critical workloads.
+- **Low System Overhead:** lightweight binary parsing keeps CPU impact low on the source partition — typically under 2% at low volumes (&lt;10k changes/min), ~5% at moderate volumes (~50k changes/min), and 10–15% at high volumes (100k+ changes/min) — leaving headroom for business-critical workloads.
 - **High Throughput:** continuous streaming with exact receiver offset tracking sustains more than 50k changes/sec on mid-range Power9 systems and remains stable under burst load.
 - **Initial Load:** the connector automatically performs an initial full table load using JDBC + SQL snapshots.
 - **Fault-tolerant:** the connector tracks exact journal receiver offsets and resumes replication from the last known position in case of failures, ensuring data consistency and minimal downtime.
