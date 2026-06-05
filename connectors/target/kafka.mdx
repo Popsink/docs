@@ -1,0 +1,41 @@
+---
+title: Kafka Target
+---
+
+The Kafka Target Connector defines the Apache Kafka cluster where your pipelines write output events, enabling Kafka-to-Kafka replication through Popsink. Use it to relay, fan out, or bridge event streams between clusters — for example from an on-premises cluster to a cloud-managed one — while applying Popsink transformations in between. This target only stores the broker connection and authentication for the sink cluster: source topics and consumer groups are configured on the Kafka source connector and on your subscriptions.
+
+## Table of Contents
+
+1. [Key Features](#key-features)
+2. [Prerequisites](#prerequisites)
+3. [Configuration](#configuration)
+4. [Security Protocols](#security-protocols)
+
+## Key Features
+
+- **Kafka-to-Kafka pipelines:** bridge event streams between clusters with Popsink transformations applied in flight.
+- **Broad authentication support:** PLAINTEXT, SSL, and SASL (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, OAUTHBEARER, GSSAPI).
+- **Topic passthrough:** output topic names follow your subscription configuration — no renaming is imposed by the target.
+
+## Prerequisites
+
+- A reachable Kafka cluster to use as the sink.
+- Credentials with permission to **produce** to the target topics (and to create them, if they don't pre-exist and auto-creation is disabled on the cluster).
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Bootstrap Servers** | Yes | Comma-separated `host:port` pairs for the target cluster (e.g. `kafka1.example.com:9092,kafka2.example.com:9092`) |
+| **Security Protocol** | Yes | `PLAINTEXT`, `SSL`, `SASL_PLAINTEXT`, or `SASL_SSL` |
+| **SASL Mechanism** | With SASL | `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, `OAUTHBEARER`, or `GSSAPI` |
+| **SASL Username / Password** | With SASL | Credentials for the chosen SASL mechanism |
+
+## Security Protocols
+
+| Protocol | Encryption | Authentication |
+|---|---|---|
+| `PLAINTEXT` | None | None — development only |
+| `SSL` | TLS | TLS client certificates (optional) |
+| `SASL_PLAINTEXT` | None | SASL |
+| `SASL_SSL` | TLS | SASL — recommended for production |

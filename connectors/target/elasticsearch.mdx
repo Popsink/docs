@@ -1,0 +1,61 @@
+---
+title: Elasticsearch Target
+---
+
+The Elasticsearch Target Connector enables your pipelines to deliver data from Popsink directly into Elasticsearch indices. Elasticsearch is a distributed search and analytics engine widely used for full-text search, log analytics, and real-time application monitoring. By streaming change events into Elasticsearch, this connector keeps your indices continuously up to date with your source systems, powering search experiences and analytics dashboards with fresh data.
+
+## Table of Contents
+
+1. [Key Features](#key-features)
+2. [Prerequisites](#prerequisites)
+3. [Configuration](#configuration)
+4. [Authentication Methods](#authentication-methods)
+
+## Key Features
+
+- **Real-time indexing:** change events are streamed into Elasticsearch indices as they occur, keeping search results current.
+- **Flexible authentication:** supports basic authentication, API keys, or no authentication for local development.
+- **TLS support:** connects over HTTPS with optional certificate verification control.
+
+## Prerequisites
+
+- A reachable Elasticsearch cluster (self-managed or Elastic Cloud).
+- A user or API key with **write permissions** on the target indices.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **URL** | Yes | Full URL of the Elasticsearch cluster, including protocol and port (e.g. `https://my-cluster.es.example.com:9243`) |
+| **Authentication Method** | Yes | `basic` (default), `api_key`, or `none` |
+| **Username / Password** | With `basic` | Credentials of an Elasticsearch user with write permissions on the target indices |
+| **API Key** | With `api_key` | Base64-encoded API key |
+| **Verify SSL** | No | Whether to verify TLS certificates (default: `true`) |
+
+## Authentication Methods
+
+| Method | Description |
+|---|---|
+| **basic** | Username and password authentication |
+| **api_key** | API key authentication — recommended for production |
+| **none** | No authentication — local development only |
+
+### Creating an API Key
+
+You can create a Base64-encoded API key using the [Elasticsearch Create API Key API](https://www.elastic.co/guide/en/elasticsearch/reference/current/security-api-create-api-key.html):
+
+```json
+POST /_security/api_key
+{
+  "name": "popsink-target",
+  "role_descriptors": {
+    "popsink_writer": {
+      "indices": [
+        { "names": ["*"], "privileges": ["create_index", "write", "view_index_metadata"] }
+      ]
+    }
+  }
+}
+```
+
+Use the `encoded` value returned by the API as the connector's API Key.
