@@ -1,0 +1,67 @@
+---
+title: "v0.1.0-alpha.2 27/01/2026"
+---
+
+---
+
+**Description**: Mass bump dependencies.
+
+### Changes
+
+- Mass bump dependencies (#1177).
+- Upgrade node-forge to 1.3.2 and qs to 6.14.1 to fix CVE vulnerabilities (#1194).
+- Add filtered existing connectors by selected type in selection component (#1193).
+- Add margin to loading indicator in status component (#1196).
+- Update versions for data-plane and kafka-to-iceberg components to 2026.01.08.1; remove debug logging in IcebergTargetAdapter class; set logging levels for pyiceberg and azure to WARNING in main.py (#1198).
+- Move cleanup e2e tests from popsink to data-plane directory (#1200).
+- Error table behaviour (#1195).
+- Az bugs (#1208).
+- [Sqlite -> PG migration] Remove everything related to Atlas and use Alembic instead (#1102).
+- Feature/test refactoring plan (#1230).
+- Add PIPELINE_MODE feature flag (#1199).
+- Fix typing (#1234).
+- Update primary key toggle logic and clean up column configuration checks in mapper.vue (#1239).
+- Align breadcrumb and burger menu (#1225).
+- Close #1212 (#1226).
+- Pipeline name ellipsis (#1227).
+- Subscription front fixes (#1231).
+- It should not be possible to edit the source or target connector of a pipeline (#1235).
+- Update azure-core dependency to version 1.38.0 and add it to project dependencies (#1241).
+- Change pipeline start/pause to manage subscription state instead of worker pods (#1192).
+- Datamodel front fix (#1244).
+- Env creation fix (#1245).
+- Source target fix (#1246).
+- Add zendesk resources (#1250).
+- Fix tests (#1251).
+- Connector types enum (#1258).
+- Update entrypoint.sh to increase Uvicorn worker count from 1 to 3 for improved performance (#1265).
+- Force h3@1.15.5 and devalue@5.6.2 via yarn resolutions (#1263).
+- Fixed TC10 and TC11 due to front changes (#1272).
+- Pg pools (#1278).
+- Fix CVE issue #1268 (#1279).
+- Implement connector lock state for edit mode (#1275).
+- Update image tags for data-plane and connectors to version 2026.01.19 (#1284).
+- Feature/test refactoring (#1253).
+- Remove pvc for Allianz Chart (#1288).
+- Enhance Kafka and message processing functionality (#1289).
+- Data-Plane - Control-Plane communication (#1280).
+- Add karapace to data plane chart (#1281).
+- Update data-plane image tag to version 2026.01.20 and modify service account annotations for EKS role ARN. Change v-data-table to v-data-table-virtual in configure-many.vue for improved performance (#1299).
+- Refactor WebSocket routes to use session context manager (#1294).
+- Merge pipeline modules and fix test selectors (#1301).
+- Update Kafka source form to include metadata and adjust layout in configure-many.vue for improved styling. Modify subscriptions-builder store to return selected subscriptions directly instead of readonly (#1307).
+- User logs (#1302).
+- Refactor DEPLOYMENT_MODE setting for consistency and update app lifespan logic. Changed DEPLOYMENT_MODE from "SELF HOSTED" to "SELF_HOSTED" for improved type safety and consistency across the codebase (#1300).
+- Update SQLAlchemyConnectorReadPort to reintroduce distinct clause for PostgreSQL compatibility. This change ensures proper handling of JSON columns while maintaining the intended functionality in subscription queries (#1309).
+- Update image tags and buffer sizes for Kafka connectors and increase memory limits in Kubernetes configuration. Updated data-plane and connector versions to 2026.01.21, reflecting the latest changes in image tags and buffer size adjustments for Iceberg and Oracle target adapters. (#1310) (#1312).
+- Refactor authentication and user management components (#1313).
+- Revert "Refactor authentication and user management components (#1313)" (#1316).
+- Fix admin auth (#1319).
+- Cves (#1322).
+- Control plane preprod environment (#1292).
+- E2E Tests: Catalog module activation & Slack reporter fix (#1323).
+- Fixing credentials in the code (#1291).
+- Fix failing E2E tests and team deletion with requests (#1324).
+- Use popsinkcom as email domain in e2e tests (#1326).
+- E2e/fix pp tests version (#1335).
+- Host data plane helm chart (#1336).
