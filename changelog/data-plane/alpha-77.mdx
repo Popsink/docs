@@ -1,0 +1,17 @@
+---
+title: "v0.1.0-alpha.77 11/06/2026"
+---
+
+---
+
+**Description**: Fix pipeline subscription using wrong source datamodel.
+
+### Changes
+
+- Fix pipeline subscription using wrong source datamodel (#2634).
+- Backend: restart worker + reliable deferred backfill on table add (#2640).
+- Migrate kafka_to_kafka_target / kafka_to_oracle / kafka_to_webhook / snowflake_to_kafka to env-only credentials (#2611).
+- Remove kafka_connect worker; migrate Postgres/MySQL to popsink-connect (#2622).
+- Google Ads OAuth — generic, plug-and-play OAuth plumbing (#2511).
+- Subscription logs tab: replace infinite "Loading logs" with a clear empty state (#2645).
+- Switch to popsinktansu (#2657).
