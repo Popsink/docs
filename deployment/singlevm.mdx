@@ -16,6 +16,21 @@ The VM is distributed as a pre-built image (`.qcow2` for KVM/QEMU, `.ova` for VM
 
 ---
 
+## VM Platform
+
+| Property | Value |
+|---|---|
+| **Operating system** | Ubuntu 24.04 LTS "Noble Numbat" |
+| **Architecture** | x86-64 (amd64) |
+| **Base image** | Ubuntu Server Cloud Image (`noble-server-cloudimg-amd64.img`) |
+| **Container runtime** | k3s v1.35.5+k3s1 (single-node Kubernetes) |
+| **Disk format** | qcow2 (KVM/QEMU) / OVA (VMware vSphere) |
+| **Disk size** | 20 GiB (sparse — actual usage is much lower at rest) |
+
+The VM does not require internet access after first boot, but it does need to reach the external dependencies listed below.
+
+---
+
 ## Prerequisites
 
 ### Hardware
