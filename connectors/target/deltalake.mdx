@@ -3,3 +3,55 @@ title: DeltaLake Target
 ---
 
 The DeltaLake Target Connector enables seamless integration with Delta Lake, an open-source storage layer that brings ACID transactions to Apache Spark and big data workloads. This connector allows you to stream data from Popsink directly into Delta Lake tables, supporting both batch and real-time data ingestion. It handles schema evolution, data type conversion, and can automatically create or update tables as needed. The DeltaLake connector is particularly useful for organizations looking to build reliable data lakes, implement lakehouse architectures, or enhance their existing Spark-based data pipelines. It enables data teams to leverage Delta Lake's key features such as ACID transactions, scalable metadata handling, time travel (data versioning), and unified batch and streaming data processing. This connector is ideal for businesses requiring a robust and performant solution for large-scale data analytics, machine learning, and data science workflows while ensuring data reliability and consistency.
+
+When targeting **Databricks Unity Catalog**, Popsink writes Delta files directly to your ADLS storage container and then registers each table as an **external** table through the Unity Catalog REST API. Because the write happens outside Databricks compute, a few prerequisites must be in place before the connector can go live.
+
+## Prerequisites
+
+### Metastore: External Data Access enabled
+
+Popsink registers externally-written Delta files as external tables. This requires the metastore-level **External Data Access** flag to be enabled. It is a **per-metastore** setting that only a **metastore admin** can change. When it is disabled, table registration fails with a `403 PERMISSION_DENIED` (`EXTERNAL_ACCESS_DISABLED_ON_METASTORE`).
+
+Enable it one of two ways:
+
+- **UI:** Catalog → Metastore details → *External data access* → enable.
+- **API:**
+
+```bash
+PATCH /api/2.1/unity-catalog/metastores/{metastore_id}
+{ "external_access_enabled": true }
+```
+
+<Note>
+Popsink's credential check fails fast at configuration time if External Data Access is disabled, so you can fix this before the connector goes live rather than discovering it at runtime.
+</Note>
+
+### OAuth M2M service principal
+
+Authentication to Databricks uses OAuth Machine-to-Machine (the `client_credentials` grant) against a Databricks **Service Principal**. Create a service principal in your workspace and generate an OAuth secret, then provide:
+
+- `workspace_url` — e.g. `https://adb-xxxxxxxxxxxx.x.azuredatabricks.net`
+- `databricks_client_id` — the service principal application ID
+- `databricks_client_secret` — the service principal OAuth secret
+
+### Catalog & schema grants
+
+Because Popsink registers **external** tables (Delta files written outside Databricks compute), the service principal needs the external-table privileges on top of the usual `USE` grants:
+
+```sql
+GRANT USE CATALOG ON CATALOG <catalog_name> TO `<service_principal>`;
+GRANT USE SCHEMA ON SCHEMA <catalog_name>.<schema_name> TO `<service_principal>`;
+GRANT CREATE EXTERNAL TABLE ON SCHEMA <catalog_name>.<schema_name> TO `<service_principal>`;
+GRANT EXTERNAL USE SCHEMA ON SCHEMA <catalog_name>.<schema_name> TO `<service_principal>`;
+```
+
+`USE CATALOG` / `USE SCHEMA` make the catalog and schema visible; `CREATE EXTERNAL TABLE` allows registering externally-written Delta files; `EXTERNAL USE SCHEMA` lets a non-Databricks engine operate on the schema's tables. Popsink's credential check verifies all four at configuration time when the service principal can read its own effective permissions.
+
+### Storage authentication
+
+Delta files are written to Azure Blob Storage / ADLS. Provide one of:
+
+- **Connection string** — an Azure Blob Storage connection string for the target account, or
+- **Service Principal (SPN)** — `tenant_id`, `client_id`, `client_secret`, and `storage_account_name`, with the SPN granted write/delete access to the target storage container.
+
+In both cases the connector verifies it can write and delete a test blob in the configured container during the credential check.
