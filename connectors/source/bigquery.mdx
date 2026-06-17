@@ -2,16 +2,37 @@
 title: BigQuery Source
 ---
 
-The BigQuery Source integration in PopSink allows you to seamlessly ingest data from a BigQuery database into PopSink pipelines. With this connector, you can extract structured data for processing, transformation, and further downstream operations.
+The BigQuery Source Connector streams changes from Google BigQuery tables into Popsink pipelines using the native `CHANGES()` function. It performs an initial full load of each selected table, then polls for incremental changes (inserts, updates, and deletes) every 10 minutes, making your warehouse data available downstream without manual exports.
+
+## Key Features
+
+- **Native change history:** uses BigQuery's `CHANGES()` function — no extra infrastructure in your GCP project.
+- **Initial Load:** the connector automatically performs an initial full table load, then switches to incremental polling.
+- **Schema evolution:** the table schema is re-introspected on every poll cycle, and the stream schema is updated automatically when columns are added or removed.
 
 ## Prerequisites
 
-The table should be configure with :
+1. A **GCP service account** with BigQuery read permissions on the target dataset (including `bigquery.tables.getData`).
+2. **Change history** enabled on the tables you want to replicate:
+   ```sql
+   ALTER TABLE <your_table> SET OPTIONS (enable_change_history = TRUE);
+   ```
+   BigQuery retains change history for up to 7 days by default.
+3. Selected tables should be **standard tables** — views and external tables are not supported.
 
-```sql
-enable_change_history=TRUE
-```
+## Configuration
 
-## Permissions
+| Field | Required | Description |
+|---|---|---|
+| **Service Account** | Yes | GCP service account key in JSON format — paste the full content of the key file |
+| **Project** | Yes | GCP project ID where the BigQuery dataset lives (e.g. `my-gcp-project-123`) |
+| **Dataset** | Yes | BigQuery dataset containing the tables to replicate (e.g. `analytics`) |
 
-- bigquery.tables.getData
+## Table Selection
+
+After entering credentials, select tables from the discovered list. For each selected table the connector:
+
+1. **Initial load:** reads all existing rows.
+2. **CDC polling:** every 10 minutes, queries `CHANGES()` for inserts, updates, and deletes.
+
+For details on change history retention and limitations, see the [BigQuery Change Data Capture documentation](https://cloud.google.com/bigquery/docs/change-data-capture).

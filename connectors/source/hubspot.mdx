@@ -2,4 +2,26 @@
 title: HubSpot Source
 ---
 
-The HubSpot Source Connector integrates with HubSpot, a comprehensive inbound marketing, sales, and customer service platform. HubSpot offers a wide range of tools for Customer Relationship Management (CRM), marketing automation, content management, and sales pipeline tracking. This connector allows you to extract and stream data from various HubSpot modules, including contacts, companies, deals, tickets, and marketing campaigns. It enables real-time synchronization of customer data, interaction history, and marketing analytics from HubSpot to your data pipeline. This integration is particularly valuable for businesses looking to consolidate their customer data, perform advanced analytics, create comprehensive customer profiles, or build data-driven marketing and sales strategies across multiple platforms.
+import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
+
+The HubSpot Source Connector ingests CRM data from HubSpot — contacts, companies, deals, tickets, and custom objects — into Popsink pipelines. It runs on a configurable schedule and performs incremental synchronization, so only records updated since the last run are delivered downstream. This is particularly valuable for consolidating customer data, building comprehensive customer profiles, and powering data-driven marketing and sales analytics.
+
+## Key Features
+
+- **Incremental synchronization:** the connector tracks each object's `hs_lastmodifieddate` cursor across runs and only delivers new or updated records.
+- **Selectable CRM objects:** choose which objects to ingest (e.g. `contacts`, `companies`, `deals`); standard and custom objects are discovered automatically.
+- **Scheduled ingestion:** flexible scheduling by minutes, hours, or days, with an immediate first run on creation.
+
+## Prerequisites
+
+- A HubSpot account with permission to create private apps.
+- A **private app access token**: in HubSpot, go to **Settings → Integrations → Private apps**, create a private app, grant it read scopes for the CRM objects you want to ingest (e.g. `crm.objects.contacts.read`, `crm.objects.companies.read`, `crm.objects.deals.read`), and copy the access token.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Access Token** | Yes | The private app access token |
+| **Schedule** | Yes | Sync frequency — see [Scheduling](#scheduling) |
+
+<ApiSourceScheduling />

@@ -1,0 +1,29 @@
+---
+title: Facebook Ads Source
+---
+
+import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
+
+The Facebook Ads Source Connector ingests advertising data from the Meta Marketing API into Popsink pipelines. It retrieves campaigns, ad sets, and ads on a configurable schedule, enabling marketing analytics, budget tracking, and cross-channel reporting with fresh advertising data.
+
+## Key Features
+
+- **Ad structure by default:** ingests **campaigns**, **ad sets**, and **ads** out of the box; the resource list can be customized.
+- **Token-based authentication:** uses a Marketing API access token scoped to your ad account.
+- **Scheduled ingestion:** flexible scheduling by minutes, hours, or days, with an immediate first run on creation.
+
+## Prerequisites
+
+- A Meta app with the **Marketing API** product added.
+- A Marketing API **access token** with the `ads_read` permission for the target ad account.
+- Your **ad account ID** (found in Meta Ads Manager).
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Access Token** | Yes | Marketing API access token with `ads_read` permission |
+| **Account ID** | Yes | Ad account ID, with or without the `act_` prefix |
+| **Schedule** | Yes | Sync frequency — see [Scheduling](#scheduling) |
+
+<ApiSourceScheduling />

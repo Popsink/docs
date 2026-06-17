@@ -2,6 +2,8 @@
 title: Oracle Source
 ---
 
+import SshTunnel from '/snippets/ssh-tunnel.mdx';
+
 The Oracle Source Connector is an advanced tool designed to synchronize Oracle databases with Popsink efficiently and in real-time. It enables the real-time transfer of data, ensuring that the latest database changes are mirrored to the target systems. This capability is crucial for maintaining up-to-date business intelligence, enabling real-time analytics, and enhancing operational workflows.
 
 ## **Prerequisites**
@@ -89,24 +91,29 @@ In the *Credentials* sections fill in the required information.
 - **Type**: **`string`**
 - **Example**: **`p@ssw0rd123`**
 
-### **`database`**
+### **`service_name`** or **`sid`**
 
-- **Description**: The specific Oracle database (also referred to as a service name) to connect to.
-- **Type**: **`string`**
-- **Example**: **`ORCL`**
+Provide **exactly one** of the two:
 
-### **`server name`**
+- **`service_name`**: The Oracle service name to connect to.
+  - **Type**: **`string`**
+  - **Example**: **`ORCLPDB1`**
+- **`sid`**: The Oracle System Identifier, for legacy databases that are not service-name addressable.
+  - **Type**: **`string`**
+  - **Example**: **`ORCL`**
 
-- **Description**: A logical name that identifies the Oracle server instance in Popsink, which can be useful for distinguishing between multiple sources.
-- **Type**: **`string`**
-- **Example**: **`oracle_source_01`**
+### Advanced Options
 
-### **`server id`**
+| Field | Default | Description |
+|---|---|---|
+| **Poll Interval (ms)** | `2000` | How often the connector polls for new redo log activity |
+| **Initial Load** | `true` | Snapshot existing rows before streaming changes |
 
-- **Description**: A unique numeric identifier for the server instance. This is used by the connector for identifying itself to the database, which is particularly important for databases with multiple replicas.
-- **Type**: **`integer`**
-- **Constraints**: Must be a positive integer and unique across all Oracle Source Connectors.
-- **Example**: **`5501`**
+<SshTunnel />
+
+### Table Selection
+
+After a successful credential check, pick the tables to replicate from the discovered list. The selection is stored as a comma-separated whitelist in `SCHEMA.TABLE` format.
 
 You can use **Check Credentials** at any moment to verify the validity of your inputs.
 

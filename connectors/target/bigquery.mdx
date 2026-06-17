@@ -2,13 +2,34 @@
 title: BigQuery Target
 ---
 
-The BigQuery Target Connector enables seamless integration with Google BigQuery, a fully-managed, serverless data warehouse that enables super-fast SQL queries using the processing power of Google's infrastructure. This connector allows you to stream data from Popsink directly into BigQuery tables, supporting both batch and real-time data ingestion. It automatically handles schema mapping, data type conversion, and can create or update tables as needed. The BigQuery connector is particularly useful for organizations looking to perform large-scale data analytics, run complex queries on massive datasets, or combine streaming data with historical data for comprehensive business intelligence. It enables data teams to leverage BigQuery's powerful analytics capabilities while maintaining low-latency data pipelines from various sources through Popsink.
+The BigQuery Target Connector enables seamless integration with Google BigQuery, a fully-managed, serverless data warehouse that enables super-fast SQL queries using the processing power of Google's infrastructure. This connector streams data from Popsink directly into BigQuery, automatically handling schema mapping, data type conversion, and table creation. It is particularly useful for organizations looking to perform large-scale analytics or combine streaming data with historical data for comprehensive business intelligence.
 
-## Permissions
+## Key Features
 
-- bigquery.tables.get
-- bigquery.tables.create
-- bigquery.tables.delete
-- bigquery.tables.updateData
-- bigquery.tables.update
-- bigquery.jobs.create
+- **Automatic table management:** tables are created automatically inside your dataset; schema evolution is handled as the source schema changes.
+- **History + latest state:** every change event is preserved in a history table, with an upsert view exposing the current state per primary key.
+- **CDC replication:** primary keys configured in the subscription mapping are used to apply updates and deletes correctly.
+
+## Prerequisites
+
+- A GCP project with BigQuery enabled and an **existing dataset** — Popsink creates tables, not datasets.
+- A **service account** with the following roles on the dataset/project:
+  - **BigQuery Data Editor** (`roles/bigquery.dataEditor`) — create tables and insert data
+  - **BigQuery Job User** (`roles/bigquery.jobUser`) — run load jobs
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Service Account** | Yes | GCP service account key in JSON format — paste the full content of the key file |
+| **Project** | No | GCP project ID; auto-extracted from the service account's `project_id` when empty |
+| **Dataset** | Yes | Existing BigQuery dataset where tables will be created |
+
+## How It Works
+
+For each subscription, Popsink creates:
+
+1. A **history table** (`{table}_history`) containing all CDC events with metadata columns.
+2. An **upsert view** (`{table}`) exposing the latest state per primary key.
+
+Schema evolution is handled automatically — new columns are added to the BigQuery table as the source schema evolves.

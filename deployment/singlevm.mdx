@@ -1,145 +1,527 @@
 ---
 title: Single VM Deployment
-description: Deploy Popsink using a prebuilt virtual machine image powered by HashiCorp Packer.
----
-
-# Single VM Deployment
-
-This guide explains how to deploy Popsink using the **Single VM** model. This approach provides a preconfigured virtual machine image built with HashiCorp Packer, allowing you to run Popsink quickly without managing a distributed infrastructure.
-
+description: Deploy Popsink on a single virtual machine — ideal for evaluation and lightweight usage.
 ---
 
 ## Overview
 
-The **Single VM deployment** is the simplest way to run Popsink. It packages all required components into a single virtual machine image, making it ideal for:
+The **Single VM** deployment packages the entire Popsink data-plane into a single virtual machine image. It is designed for:
 
-- Quick evaluations
-- Development and testing environments
-- Lightweight production workloads
+- **Proof-of-concept and evaluation** — get Popsink running in your environment quickly, without managing a distributed infrastructure.
+- **Lightweight workloads** — small teams or low-traffic environments where horizontal scalability is not a requirement.
 
-The VM image is built using **HashiCorp Packer**, ensuring reproducibility and consistency across environments.
+> This deployment model is intentionally simple. For high-availability or large-scale production use, see the [Kubernetes deployment](./selfhosted) instead.
+
+The VM is distributed as a pre-built image (`.qcow2` for KVM/QEMU, `.ova` for VMware vSphere). No Kubernetes knowledge is required to operate it.
 
 ---
 
-## Architecture
+## VM Platform
 
-In this deployment model, all Popsink components run on a single machine:
+| Property | Value |
+|---|---|
+| **Operating system** | Ubuntu 24.04 LTS "Noble Numbat" |
+| **Architecture** | x86-64 (amd64) |
+| **Base image** | Ubuntu Server Cloud Image (`noble-server-cloudimg-amd64.img`) |
+| **Container runtime** | k3s v1.35.5+k3s1 (single-node Kubernetes) |
+| **Disk format** | qcow2 (KVM/QEMU) / OVA (VMware vSphere) |
+| **Disk size** | 20 GiB (sparse — actual usage is much lower at rest) |
 
-- API service  
-- Workers  
-- Database  
-- Internal dependencies  
-
-This eliminates the need for orchestration tools such as Kubernetes.
+The VM does not require internet access after first boot, but it does need to reach the external dependencies listed below.
 
 ---
 
 ## Prerequisites
 
-Before getting started, ensure you have:
+### Hardware
 
-- A virtualization platform or cloud provider capable of running VM images:
-  - AWS (EC2)  
-  - GCP (Compute Engine)  
-  - Azure  
-  - Local hypervisor (VirtualBox, VMware, etc.)
-- Access to a Popsink VM image (provided or self-built)
-- Minimum recommended resources:
-  - 4 vCPU  
-  - 8 GB RAM  
-  - 50 GB disk  
+| Parameter | Minimum |
+|---|---|
+| CPU | 4 vCPU |
+| RAM | 16 GB |
+| Disk | ~25 GB |
+
+> Hypervisors that pre-allocate the full sparse image size require significantly more datastore space. Confirm the allocation behaviour of your target hypervisor before import.
+
+### External Dependencies
+
+The VM requires two external services to be reachable before it can start. These are **not** bundled in the image.
+
+| Service | Requirement |
+|---|---|
+| **PostgreSQL 17** | A database instance accessible from the VM. The VM will not start if unreachable. |
+| **S3-compatible object store** | A bucket accessible from the VM (AWS S3, MinIO, or equivalent). The VM will not start if unreachable. |
+
+Ensure outbound connectivity from the VM to both services before deployment.
+
+### Supported Hypervisors
+
+| Format | Target |
+|---|---|
+| `popsink-deploy-vm-<version>.qcow2` | KVM/QEMU |
+| `popsink-deploy-vm-<version>.ova` | VMware vSphere |
 
 ---
 
 ## Getting the VM Image
 
-Popsink provides prebuilt images for supported platforms. Contact your Popsink representative or check your distribution channel.
+Popsink provides pre-built images for each release. Contact your Popsink representative to receive a download link and its accompanying `.sha256` checksum file.
+
+Once you have both files, verify the image integrity before importing:
+
+```bash
+sha256sum -c popsink-deploy-vm-<version>.<format>.sha256
+```
+
+Expected output: `popsink-deploy-vm-<version>.<format>: OK`
+
+---
+
+## Network Configuration
+
+### Inbound
+
+| Port | Protocol | Purpose |
+|---|---|---|
+| 80 | TCP | Popsink data-plane — all HTTP traffic |
+
+Open port 80 from your internal network to the VM. TLS termination and HTTPS are your responsibility — the VM does not perform TLS.
+
+### Outbound
+
+| Destination | Required | Effect if unreachable |
+|---|---|---|
+| Your PostgreSQL 17 instance | **Hard** | VM fails to start |
+| Your S3-compatible object store | **Hard** | VM fails to start |
+| Popsink authentication backend (HTTPS) | Soft | Pipelines run normally; UI logins fail |
+
+Ensure the hard requirements are in place before booting the VM. The soft dependency (authentication backend) only affects UI logins — pipelines are unaffected.
+
+### Outbound Proxy
+
+If your network enforces an outbound proxy, set `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` in the configuration file (see [Configuration](#configuration)).
 
 ---
 
 ## Deployment
 
-### Deploy on a Cloud Provider
+### KVM/QEMU
 
-1. Upload or register the VM image
-2. Create a new VM instance using the image
-3. Configure:
+1. Build the `seed.iso` configuration image first — see [Cloud-Init](#cloud-init) below for step-by-step instructions.
 
-   * Network access (open required ports)
-   * SSH access
+2. Import the image and attach the `seed.iso` as a virtual CD-ROM in a single command. The example below uses `virt-install`; `virsh` and `virt-manager` are equally valid:
 
----
+   ```bash
+   virt-install \
+     --name popsink \
+     --memory 16384 \
+     --vcpus 4 \
+     --disk path=popsink-deploy-vm-<version>.qcow2,format=qcow2 \
+     --disk path=seed.iso,device=cdrom,readonly=yes \
+     --import \
+     --os-variant generic \
+     --noautoconsole
+   ```
 
-### Deploy Locally
+3. Boot the VM. Cloud-init reads the ISO on first boot and configures the data-plane automatically.
 
-1. Import the image into your hypervisor
-2. Start the VM
-3. Access via SSH or browser
+### VMware vSphere
 
----
+1. Build the `seed.iso` configuration image first — see [Cloud-Init](#cloud-init) below for step-by-step instructions.
 
-## Accessing Popsink
+2. In the vSphere UI, right-click the target datacenter or cluster → **Deploy OVF Template**.
 
-Once the VM is running, Popsink should be available at:
+3. Follow the wizard:
+   - At the **Select networks** step, map the VM's network adapter to a port group that satisfies the inbound and outbound requirements listed above.
+   - Confirm the hardware summary: 4 vCPU, 16 GB RAM, 20 GiB disk.
+   - At the **Select storage** step, choose thin provisioning unless thick is required by your policy.
 
-```bash
-http://<vm-ip>:<port>
-```
+4. After the deploy task completes, **do not boot the VM yet**. Upload `seed.iso` to your vSphere datastore:
+   - In the vSphere Client, navigate to the target datastore → **Files** tab → **Upload**.
+   - Upload the `seed.iso` file you generated.
 
-Default ports:
+5. Attach `seed.iso` as a CD-ROM drive on the VM:
+   - Right-click the VM → **Edit Settings**.
+   - Click **Add Other Device** → **CD/DVD Drive**.
+   - Select **Datastore ISO File** and browse to the uploaded `seed.iso`.
+   - Ensure **Connect at Power On** is checked, then click **OK**.
 
-* API: `8080`
-* UI (if enabled): `3000`
+6. Boot the VM. Cloud-init reads the ISO on first boot and configures the data-plane automatically.
 
 ---
 
 ## Configuration
 
-Configuration is handled directly on the VM.
+The VM reads its configuration from `/etc/popsink/config.env` at first boot, then runs `popsink-configure.service` which applies the settings to the data-plane.
 
-### Environment Variables
+### Cloud-Init
 
-Edit the configuration file:
+Cloud-init is the standard Linux mechanism for configuring a VM on first boot. On both KVM/QEMU and VMware, configuration is delivered via a small ISO image — the `seed.iso` — which you attach as a virtual CD-ROM drive. The VM reads it automatically at boot; no manual console access is needed.
+
+The `seed.iso` contains two plain-text files:
+
+- **`meta-data`** — minimal instance identity (hostname and ID).
+- **`user-data`** — the actual configuration in `#cloud-config` format.
+
+#### Step 1 — Create a working directory
 
 ```bash
-/etc/popsink/config.env
+mkdir popsink-cloudinit
+cd popsink-cloudinit
 ```
 
-Restart services after changes:
+#### Step 2 — Create `meta-data`
+
+```
+instance-id: popsink-vm
+local-hostname: popsink-vm
+```
+
+Save this as a file named exactly `meta-data` (no extension).
+
+#### Step 3 — Create `user-data`
+
+Save the following as `user-data`, filling in all `REPLACE_WITH_*` placeholders with your values:
+
+```yaml
+#cloud-config
+write_files:
+  - path: /etc/popsink/config.env
+    owner: root:root
+    permissions: '0600'
+    content: |
+      PG_HOST=db.example.com
+      PG_PORT=5432
+      PG_DATABASE=popsink
+      PG_USER=popsink
+      PG_PASSWORD=REPLACE_WITH_SECRET
+
+      KORA_DB_HOST=db.example.com
+      KORA_DB_PORT=5432
+      KORA_DB_DATABASE=kora
+      KORA_DB_USER=kora
+      KORA_DB_PASSWORD=REPLACE_WITH_SECRET
+
+      S3_BUCKET=s3://my-bucket/kafka/
+      S3_REGION=eu-west-1
+      S3_ACCESS_KEY_ID=REPLACE_WITH_KEY_ID
+      S3_SECRET_ACCESS_KEY=REPLACE_WITH_SECRET
+
+      DEPLOYMENT_ID=REPLACE_WITH_UUID
+      DEPLOYMENT_JWT_TOKEN=REPLACE_WITH_SECRET
+      INGRESS_URL=http://vm.example.com
+
+      ADMIN_PANEL_USERNAME=admin
+      ADMIN_PANEL_PASSWORD=REPLACE_WITH_SECRET
+
+      JWT_SECRET=REPLACE_WITH_SECRET
+      CONNECTOR_CONFIG_ENCRYPTION_KEY=REPLACE_WITH_SECRET
+```
+
+See [Parameter Reference](#parameter-reference) for the description and constraints of each value.
+
+> **Security:** This file contains secrets. Do not commit it to version control with real credentials. Keep it in a secure location and delete it once the VM is configured.
+
+> **SSH access (optional):** No SSH keys are pre-provisioned in the image. To enable SSH, add an `ssh_authorized_keys` stanza to your `user-data` alongside the `write_files` block:
+>
+> ```yaml
+> ssh_authorized_keys:
+>   - ssh-rsa AAAA...your-public-key...
+> ```
+>
+> Without this, the VM is only accessible via the hypervisor console.
+
+#### Static IP (optional)
+
+By default the VM uses DHCP. If your environment requires a fixed IP address, create a third file named `network-config` in the same directory as `meta-data` and `user-data`:
+
+```yaml
+version: 2
+ethernets:
+  eth0:
+    addresses:
+      - 192.168.1.50/24
+    gateway4: 192.168.1.1
+    nameservers:
+      addresses: [192.168.1.1]
+```
+
+Replace `eth0` with the actual interface name for your VM (visible in the hypervisor console at first boot), and adjust the IP addresses for your network. If you create this file, include it when generating the ISO in Step 4 below.
+
+#### Step 4 — Generate `seed.iso`
+
+Choose the tool available on your machine. All three produce an equivalent result.
+
+**Option A — `cloud-localds`** (Linux, simplest)
+
+`cloud-localds` is purpose-built for this task and requires no flags:
 
 ```bash
-sudo systemctl restart popsink
+# Install on Ubuntu/Debian
+sudo apt-get install cloud-image-utils
+
+# Without static IP
+cloud-localds seed.iso user-data meta-data
+
+# With static IP (if you created a network-config file)
+cloud-localds seed.iso user-data meta-data --network-config network-config
 ```
+
+**Option B — `genisoimage` or `mkisofs`** (Linux)
+
+`genisoimage` and `mkisofs` are interchangeable — use whichever is installed:
+
+```bash
+# Install on Ubuntu/Debian
+sudo apt-get install genisoimage
+
+# Without static IP
+genisoimage -output seed.iso -volid cidata -joliet -rock user-data meta-data
+
+# With static IP (if you created a network-config file)
+genisoimage -output seed.iso -volid cidata -joliet -rock user-data meta-data network-config
+```
+
+```bash
+# Install on RHEL/Fedora
+sudo dnf install genisoimage
+
+# Without static IP
+mkisofs -output seed.iso -volid cidata -joliet -rock user-data meta-data
+
+# With static IP
+mkisofs -output seed.iso -volid cidata -joliet -rock user-data meta-data network-config
+```
+
+> The `-volid cidata` flag is mandatory. Cloud-init identifies the NoCloud datasource by looking for a volume labelled `cidata` — any other label will be ignored.
+
+**Option C — `hdiutil`** (macOS)
+
+`hdiutil` is built into macOS. It takes a directory rather than individual files, so run it from the parent directory. If you created a `network-config` file, simply place it in the directory alongside the other files — no additional flags are needed:
+
+```bash
+hdiutil makehybrid -o seed.iso -hfs -joliet -iso -default-volume-name cidata popsink-cloudinit/
+```
+
+#### Step 5 — Attach as CD-ROM and boot
+
+- **KVM/QEMU:** pass `seed.iso` as a virtual CD-ROM in the `virt-install` command (see the [KVM/QEMU deployment section](#kvmqemu) above).
+- **VMware vSphere:** upload `seed.iso` to your datastore and attach it as a CD/DVD drive before booting (see the [VMware vSphere deployment section](#vmware-vsphere) above).
+
+Cloud-init reads the ISO exactly once on first boot. The ISO is no longer needed afterwards and can be detached and deleted.
+
+### Manual Configuration
+
+Use this method only if your hypervisor cannot attach a CD-ROM drive, or if the VM has already booted without one. Deliver the configuration directly at the hypervisor console:
+
+1. Create the configuration file:
+
+   ```bash
+   sudo install -m 0600 -o root -g root /dev/null /etc/popsink/config.env
+   sudo tee /etc/popsink/config.env <<'EOF'
+   PG_HOST=db.example.com
+   # ... (fill in all required parameters — see table below)
+   EOF
+   ```
+
+2. Start the configure service:
+
+   ```bash
+   sudo systemctl start popsink-configure.service
+   ```
+
+3. Verify success:
+
+   ```bash
+   sudo journalctl -u popsink-configure.service
+   ```
+
+   A successful run ends with:
+   ```
+   Popsink cloud-init configuration applied successfully. Data-plane is running.
+   ```
+
+### Re-applying Configuration
+
+After a successful first run, the configure service creates a marker file `/etc/popsink/.configured` and will not re-run on subsequent boots. If you need to update the configuration — for example, to correct a credential or change the PostgreSQL host — update the file and clear the marker:
+
+1. Edit `/etc/popsink/config.env` with the new values.
+
+2. Remove the marker and restart the service:
+
+   ```bash
+   sudo rm /etc/popsink/.configured
+   sudo systemctl restart popsink-configure.service
+   ```
+
+3. Verify success:
+
+   ```bash
+   sudo journalctl -u popsink-configure.service
+   ```
+
+### Parameter Reference
+
+#### PostgreSQL (required)
+
+| Parameter | Required | Default | Description |
+|---|---|---|---|
+| `PG_HOST` | Yes | — | PostgreSQL host (FQDN or IP) |
+| `PG_PORT` | No | `5432` | PostgreSQL port |
+| `PG_DATABASE` | No | `popsink` | Database name |
+| `PG_USER` | No | `popsink` | Database username |
+| `PG_PASSWORD` | Yes | — | Database password |
+
+#### Kora Schema Registry Database (required)
+
+Kora is Popsink's internal schema registry — it tracks the structure of the data flowing through your pipelines. It requires its own PostgreSQL database, but can share the same PostgreSQL instance as the main data-plane. Point `KORA_DB_HOST` at the same host and use a separate database name (e.g. `kora`); sharing the same database works but is not the default.
+
+| Parameter | Required | Default | Description |
+|---|---|---|---|
+| `KORA_DB_HOST` | Yes | — | Kora database host (FQDN or IP) |
+| `KORA_DB_PORT` | No | `5432` | Port |
+| `KORA_DB_DATABASE` | No | `kora` | Database name |
+| `KORA_DB_USER` | No | `kora` | Username |
+| `KORA_DB_PASSWORD` | Yes | — | Password |
+
+#### S3-Compatible Storage (required)
+
+| Parameter | Required | Default | Description |
+|---|---|---|---|
+| `S3_BUCKET` | Yes | — | Full S3 URL including prefix: `s3://bucket/prefix/` — **not** just the bucket name |
+| `S3_REGION` | Yes | — | AWS region (e.g. `eu-west-1`). Use any non-empty value for S3-compatible services that don't require a real region. |
+| `S3_ACCESS_KEY_ID` | Yes | — | Access key ID |
+| `S3_SECRET_ACCESS_KEY` | Yes | — | Secret access key |
+| `S3_ENDPOINT` | No | — | Custom endpoint URL (e.g. MinIO). Omit for AWS S3. |
+
+#### Popsink Platform (required)
+
+| Parameter | Required | Description |
+|---|---|---|
+| `DEPLOYMENT_ID` | Yes | UUID for this deployment — provided by Popsink |
+| `DEPLOYMENT_JWT_TOKEN` | Yes | Deployment JWT token — provided by Popsink |
+| `INGRESS_URL` | Yes | Display-only URL of this VM (e.g. `http://10.0.1.50`). Does **not** configure routing or TLS. |
+
+#### Admin Credentials (required)
+
+| Parameter | Required | Description |
+|---|---|---|
+| `ADMIN_PANEL_USERNAME` | Yes | Admin UI login username |
+| `ADMIN_PANEL_PASSWORD` | Yes | Admin UI login password |
+
+#### Security Keys (required)
+
+| Parameter | Required | Description |
+|---|---|---|
+| `JWT_SECRET` | Yes | JWT signing secret. Changing this invalidates all active sessions. |
+| `CONNECTOR_CONFIG_ENCRYPTION_KEY` | Yes | Encryption key for connector configurations. **Back this up before going live.** If lost, all connector configurations become permanently unreadable — Popsink cannot recover this key. |
+
+#### Outbound Proxy (optional)
+
+| Parameter | Description |
+|---|---|
+| `HTTP_PROXY` | HTTP proxy URL (e.g. `http://proxy.example.com:3128`) |
+| `HTTPS_PROXY` | HTTPS proxy URL |
+| `NO_PROXY` | Comma-separated list of hosts to bypass the proxy |
+
+---
+
+## Health Verification
+
+After the VM boots, verify each layer in order. Fix a failing layer before investigating the ones above it.
+
+### Layer 1 — Data-Plane (network reachability)
+
+From any host with network access to the VM:
+
+```bash
+curl http://<vm-ip>/api/readyz
+```
+
+Expected: HTTP 200.
+
+### Layer 2 — k3s Runtime
+
+At the VM console or over SSH:
+
+```bash
+systemctl status k3s
+```
+
+Expected: `Active: active (running)`. k3s may take a minute to reach this state on first boot.
+
+### Layer 3 — Configuration Service
+
+```bash
+journalctl -u popsink-configure.service
+```
+
+Look for the success message at the end of the output. If the service failed, the log identifies the cause (PostgreSQL unreachable, invalid S3 credentials, etc.).
+
+### Layer 4 — Boot Check
+
+```bash
+journalctl -u popsink-boot-check.service
+```
+
+- **No output:** configuration was present at boot — this layer is healthy.
+- **Output present:** no configuration was found when the VM booted. Deliver the configuration file and re-run the configure service:
+  ```bash
+  sudo rm -f /etc/popsink/.configured
+  sudo systemctl start popsink-configure.service
+  ```
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `curl /api/readyz` — no response or connection refused | Configuration service failed, or k3s still starting | Check Layer 3 then Layer 2 in Health Verification above |
+| `popsink-configure.service` shows a PostgreSQL error | `PG_HOST` unreachable, wrong port, or bad credentials | Test connectivity from the VM console: `nc -zv <PG_HOST> <PG_PORT>`; verify `pg_hba.conf` allows the VM's IP |
+| `popsink-configure.service` shows an S3 error | Wrong `S3_BUCKET` format or unreachable endpoint | `S3_BUCKET` must be a full URL — `s3://bucket/prefix/` not just `bucket` |
+| VM booted but appears unconfigured | `seed.iso` not attached, or wrong volume label | Check `journalctl -u popsink-boot-check.service`; verify the ISO was generated with `-volid cidata`; re-deliver and re-run (see [Re-applying Configuration](#re-applying-configuration)) |
+| UI loads but all logins fail | Popsink authentication backend unreachable | Verify outbound HTTPS from the VM to the Popsink auth backend; check proxy settings if applicable |
+| Port 80 unreachable from another host, but the VM is healthy | Network firewall blocking inbound port 80 | Open TCP port 80 from your internal network to the VM's IP |
+
+---
+
+## Accessing Popsink
+
+Once all health checks pass, open a browser and navigate to:
+
+```
+http://<vm-ip>/
+```
+
+Log in with the `ADMIN_PANEL_USERNAME` and `ADMIN_PANEL_PASSWORD` you set in the configuration.
 
 ---
 
 ## Updates
 
-To update Popsink:
+The VM is stateless — all data lives in your external PostgreSQL instance and S3 bucket. Updating Popsink means replacing the VM with a newer image; no in-place upgrades are required.
 
-* Replace the VM with a newer image (**recommended**)
-* Or update in-place (advanced users only)
+**Replacement procedure:**
 
----
+1. Boot the new VM with the same configuration.
+2. Confirm `curl http://<new-vm-ip>/api/readyz` returns HTTP 200.
+3. Run a test pipeline end-to-end on the new VM.
+4. Pause any active pipelines on the old VM, then switch network routing to the new VM.
+5. Resume pipelines and decommission the old VM.
 
-## Persistence and Backups
+> The old and new VM can run against the same database and S3 bucket simultaneously — state is in the external systems, and concurrent access is safe. Do **not** serve production traffic from both VMs at the same time, as pipelines may execute in duplicate.
 
-Since everything runs on a single VM:
-
-* Ensure disk persistence is enabled
-* Regularly back up:
-
-  * Database data
-  * Configuration files
+If the new VM fails verification, restore routing to the old VM. Its state is unaffected.
 
 ---
 
 ## Limitations
 
-This deployment model has some trade-offs:
+| Limitation | Details |
+|---|---|
+| No horizontal scaling | Performance is bounded by a single machine. |
+| Single point of failure | If the VM goes down, the data-plane is unavailable. |
+| No built-in TLS | HTTPS termination is your responsibility. |
 
-* No horizontal scalability
-* Single point of failure
-* Limited performance for high workloads
-
-For production-grade scalability, consider distributed deployment options.
+For production-grade scalability and high availability, consider the [Kubernetes deployment](./selfhosted).

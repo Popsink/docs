@@ -2,6 +2,8 @@
 title: IBMi (AS/400) Source
 ---
 
+import SshTunnel from '/snippets/ssh-tunnel.mdx';
+
 The IBMi (AS/400) Source Connector integrates with IBM i, formerly known as IBM AS/400 and iSeries, a powerful and reliable midrange computer system widely used in enterprise environments. This connector enables the extraction and streaming of data from IBMi systems, which are known for hosting critical business applications and databases in industries such as manufacturing, finance, and healthcare. It allows organizations to tap into their legacy IBMi data, including information from DB2 for i databases and various file systems. By connecting IBMi to modern data pipelines, this connector facilitates data modernization efforts, enabling real-time analytics, cross-platform data integration, and the ability to leverage legacy data in cloud-based or hybrid environments.
 
 ## Table of Contents
@@ -10,11 +12,12 @@ The IBMi (AS/400) Source Connector integrates with IBM i, formerly known as IBM 
 2. [How It Works](#how-it-works)
 3. [Core Concepts](#core-concepts)
 4. [Prerequisites](#prerequisites)
-5. [Enabling Journaling](#enabling-journaling)
-6. [Granting User Permissions](#granting-user-permissions)
-7. [Enabling Incremental Load](#enabling-incremental-load)
-8. [Estimating Change Volume](#estimating-change-volume)
-9. [Housekeeping](#housekeeping)
+5. [Configuration](#configuration)
+6. [Enabling Journaling](#enabling-journaling)
+7. [Granting User Permissions](#granting-user-permissions)
+8. [Enabling Incremental Load](#enabling-incremental-load)
+9. [Estimating Change Volume](#estimating-change-volume)
+10. [Housekeeping](#housekeeping)
 
 ## Key Features
 
@@ -44,6 +47,31 @@ The connector combines two mechanisms:
 - The tables you want to ingest must be journaled. [See Enabling Journaling](#enabling-journaling)
 - You will need a user with the necessary permissions. [See Granting User Permissions](#granting-user-permissions)
 - For incremental load support, a signal table must be created and journaled. [See Enabling Incremental Load](#enabling-incremental-load)
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Hostname or IP address of the IBM i system |
+| **Port** | — | The connector uses port `446` for IBM i access (fixed, not exposed as a form field) |
+| **User / Password** | Yes | IBM i user profile and password |
+| **Schema (Library)** | Yes | IBM i library containing the tables to replicate (e.g. `MYLIB`) |
+
+### Advanced Options
+
+| Field | Default | Description |
+|---|---|---|
+| **Initial Load** | `true` | Snapshot existing rows before streaming journal changes |
+| **Poll Interval (ms)** | `2000` | How often the connector polls for new journal activity |
+| **Unicode Escape** | `false` | Apply Unicode escape handling for special characters in field names |
+| **Transaction Buffered** | `false` | Buffer transactions and emit changes only after commit, avoiding partial or uncommitted rows downstream |
+| **Incremental Load** | `false` | Enable incremental load via the signal table — see [Enabling Incremental Load](#enabling-incremental-load) |
+
+<SshTunnel />
+
+### Table Selection
+
+After a successful credential check, pick the tables to replicate from the discovered list. Only **journaled** tables can be selected — the list indicates the journaling status of each table. The selection is stored as a comma-separated whitelist.
 
 ## Enabling Journaling
 

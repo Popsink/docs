@@ -2,4 +2,46 @@
 title: Iceberg Target
 ---
 
-The Iceberg Target Connector enables seamless integration with Apache Iceberg, an open table format designed for huge analytic datasets. This connector allows you to stream data from Popsink directly into Iceberg tables, supporting both batch and near real-time data ingestion. It handles schema evolution, data type conversion, and can automatically create or update tables as needed. The Iceberg connector is particularly useful for organizations building large-scale data lakes or data warehouses that require high performance, flexibility, and reliability. It enables data teams to leverage Iceberg's key features such as ACID transactions, time travel queries, partition evolution, and schema evolution without affecting concurrent reads. This connector is ideal for use cases involving complex analytics, machine learning pipelines, or multi-function analytics on petabyte-scale datasets. It allows businesses to maintain data consistency and performance at scale while integrating data from various sources through Popsink, making it especially valuable for cloud data platforms and organizations transitioning to modern data architectures.
+The Iceberg Target Connector writes your pipeline data to Apache Iceberg tables stored in Azure Blob Storage. Apache Iceberg is an open table format designed for huge analytic datasets, providing ACID transactions, time travel queries, partition evolution, and schema evolution without affecting concurrent reads. This connector streams change events from Popsink directly into your data lake in Iceberg format, making it ideal for lakehouse architectures, large-scale analytics, and machine learning pipelines.
+
+## Key Features
+
+- **Iceberg open table format:** full ACID compliance, time travel, and schema evolution on your data lake.
+- **Streaming ingestion:** change events are written continuously — no batch jobs to schedule.
+- **Flexible Azure authentication:** connection string or Service Principal (SPN), with optional proxy support for restricted networks.
+
+## Prerequisites
+
+- An Azure Blob Storage account with an **existing container** for the Iceberg data.
+- Storage credentials: either the storage account **connection string**, or a **Service Principal** with the **Storage Blob Data Contributor** role on the storage account.
+
+## Storage Authentication
+
+Two authentication methods are supported. Pick the one that matches how you administer the storage account.
+
+### Option A — Connection String
+
+Authenticate with an Azure Blob Storage connection string, found in the Azure Portal under **Storage Account → Access keys**.
+
+| Field | Description |
+|---|---|
+| **Connection String** | e.g. `DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=...;EndpointSuffix=core.windows.net` |
+| **Container Name** | Existing container where Iceberg table data will be written |
+
+### Option B — Service Principal (SPN)
+
+Authenticate with an Azure Active Directory Service Principal. The Service Principal must have the **Storage Blob Data Contributor** role on the storage account.
+
+| Field | Description |
+|---|---|
+| **Storage Account Name** | Name of the Azure Storage account (e.g. `mystorageaccount`) |
+| **Tenant ID** | Azure AD tenant ID (Azure Portal → Microsoft Entra ID → Overview) |
+| **Client ID** | Application (client) ID of the registered app |
+| **Client Secret** | A client secret generated for the registered app |
+| **Container Name** | Existing container where Iceberg table data will be written |
+
+## Advanced Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **HTTP Proxy** | No | Optional HTTP(S) proxy URL for the Entra ID token endpoint (`login.microsoftonline.com`). Storage and local traffic stay direct. Only used with SPN authentication — connection-string authentication makes no Entra ID call. |

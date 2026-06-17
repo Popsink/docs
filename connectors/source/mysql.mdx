@@ -2,11 +2,19 @@
 title: MySQL Source
 ---
 
+import SshTunnel from '/snippets/ssh-tunnel.mdx';
+
 The MySQL Source Connector is a powerful and efficient solution designed to facilitate seamless data integration between your MySQL databases and Popsink. This connector helps you synchronize with MySQL in real-time, ensuring that your target systems remain updated with the latest information in real-time, driving business intelligence, analytics, and operational efficiency.
 
 ## Prerequisites
 
-- Binlogs enabled in FULL. [See](https://debezium.io/documentation/reference/stable/connectors/mysql.html#enable-mysql-binlog).
+- Binary logging enabled with **row-based format**. [See](https://debezium.io/documentation/reference/stable/connectors/mysql.html#enable-mysql-binlog):
+
+```
+log_bin = ON
+binlog_format = ROW
+binlog_row_image = FULL
+```
 
 - A user with the following privileges on the target source(s):
 
@@ -18,21 +26,40 @@ REPLICATION SLAVE
 REPLICATION CLIENT
 ```
 
-if you want to connect with a ssh tunnel. Create the use with :
-
-```sql
-CREATE USER 'user'@'%' IDENTIFIED BY 'password';
-```
+- Tables must use the **InnoDB** storage engine — MyISAM and other engines do not support transactional CDC reliably. Non-InnoDB tables are disabled in the table selection.
 
 ## Key Features
 
-- Real-time Change Data Capture (CDC): the MySQL Source Connector employs a CDC mechanism using the native MySQL Server logical decoding feature, capturing and streaming changes (inserts, updates, and deletes) as they occur in your database.
+- Real-time Change Data Capture (CDC): the MySQL Source Connector employs a CDC mechanism using the native MySQL binlog, capturing and streaming changes (inserts, updates, and deletes) as they occur in your database.
 
 - Fault-tolerant and Scalable: The MySQL Source Connector is built with fault tolerance and scalability in mind. It is capable of resuming data replication from the last known offset in case of failures, ensuring data consistency and minimal downtime.
 
 - Initial Load: The connector automatically performs an initial full table load.
 
 - Advanced Filtering: The MySQL Source Connector provides a range of filtering options, including table and schema filters, allowing you to selectively replicate specific tables and schemas based on your needs.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Hostname or IP address of the MySQL server |
+| **Port** | Yes | TCP port (default `3306`) |
+| **Database** | Yes | Database name to connect to |
+| **User / Password** | Yes | Credentials with replication and read access |
+
+### Advanced Options
+
+| Field | Default | Description |
+|---|---|---|
+| **Use TLS** | `true` | Encrypts the connection to MySQL |
+| **Trust Server Certificate** | `true` | Skips certificate verification — useful for self-signed certificates |
+| **Initial Load** | `true` | Full snapshot of existing data before streaming binlog events; recommended for first-time setup |
+
+<SshTunnel />
+
+## Table Selection
+
+After a successful credential check, pick the tables to replicate from the discovered list. The selection is stored as a comma-separated whitelist.
 
 ## Security
 

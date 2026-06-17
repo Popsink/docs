@@ -1,0 +1,19 @@
+---
+title: "v0.1.0-alpha.76 11/06/2026"
+---
+
+---
+
+**Description**: Migrate workers to env-only credentials.
+
+### Changes
+
+- Migrate workers to env-only credentials (#2556).
+- [IBM i] Incremental load: status, cancel & concurrency guard (#2592) (#2603).
+- Trigger a blocking snapshot for source connectors (connector + data model scope) (#2610).
+- Worker heartbeat 422: state field carries reason, backend expects bare enum (#2507).
+- Do not auto-trigger the credentials test when opening the connector edit modal (#2607).
+- Connector edit must not be able to remove whitelist topics (additive only; removal solely via data-model deletion) (#2609).
+- Allow changing a pipeline's target connector (recreates subscriptions) (#2632).
+- Source page: backfill on add, fix table delete, restore Subscribe all (#2638).
+- Tidy up provisioner (#2637).
