@@ -4,13 +4,16 @@ title: Unity Catalog (Delta Lake) Target
 
 The Unity Catalog Target Connector writes your pipeline data to Delta Lake tables stored in Azure Blob Storage and registers them in a Databricks Unity Catalog catalog and schema. Data is written in Delta format with full ACID compliance and schema evolution, and tables are queryable from any Databricks workspace once registered. The connector is delivered as a native worker — no Spark cluster and no SQL warehouse are required on your side — streaming change events directly into your lakehouse.
 
+Because the worker writes Delta files directly to Azure Blob Storage (outside Databricks compute) and registers them as **external** tables, two requirements are easy to miss: the metastore must allow **External Data Access**, and the Service Principal needs the **external-table** privileges. Both are detailed below.
+
 ## Table of Contents
 
 1. [Key Features](#key-features)
 2. [Prerequisites](#prerequisites)
 3. [Storage Authentication](#storage-authentication)
 4. [Databricks Authentication](#databricks-authentication)
-5. [Catalog and Schema](#catalog-and-schema)
+5. [External Data Access](#external-data-access)
+6. [Catalog and Schema](#catalog-and-schema)
 
 ## Key Features
 
@@ -24,7 +27,8 @@ The Unity Catalog Target Connector writes your pipeline data to Delta Lake table
 - An Azure Blob Storage account with an existing container for the Delta data.
 - A Databricks workspace with Unity Catalog enabled.
 - An existing Unity Catalog **catalog** and **schema** — the connector registers tables but does not create the catalog or schema.
-- A Databricks **Service Principal** with an OAuth secret and the required privileges on the target catalog and schema (at minimum: `USE CATALOG`, `USE SCHEMA`, `CREATE TABLE`, `MODIFY`).
+- **External Data Access** enabled on the metastore (per-metastore, admin-only). See [External Data Access](#external-data-access).
+- A Databricks **Service Principal** with an OAuth secret and the required privileges on the target catalog and schema. Because the connector registers **external** tables, those are `USE CATALOG`, `USE SCHEMA`, `CREATE EXTERNAL TABLE` and `EXTERNAL USE SCHEMA`.
 
 ## Storage Authentication
 
@@ -61,13 +65,40 @@ The connector authenticates to Databricks via **OAuth Machine-to-Machine (M2M)**
 
 1. In your Databricks workspace, open **Settings → Identity and access → Service principals** and create a new Service Principal (or pick an existing one).
 2. Under the Service Principal, generate an **OAuth secret**. Copy the displayed **client ID** and **secret** — the secret is shown only once.
-3. Grant the Service Principal the required Unity Catalog privileges on the target catalog and schema: `USE CATALOG`, `USE SCHEMA`, `CREATE TABLE`, `MODIFY`.
+3. Grant the Service Principal the Unity Catalog privileges needed to register **external** tables on the target catalog and schema:
+
+```sql
+GRANT USE CATALOG ON CATALOG <catalog_name> TO `<service_principal>`;
+GRANT USE SCHEMA ON SCHEMA <catalog_name>.<schema_name> TO `<service_principal>`;
+GRANT CREATE EXTERNAL TABLE ON SCHEMA <catalog_name>.<schema_name> TO `<service_principal>`;
+GRANT EXTERNAL USE SCHEMA ON SCHEMA <catalog_name>.<schema_name> TO `<service_principal>`;
+```
+
+`USE CATALOG` / `USE SCHEMA` make the catalog and schema visible; `CREATE EXTERNAL TABLE` allows registering externally-written Delta files; `EXTERNAL USE SCHEMA` lets a non-Databricks engine operate on the schema's tables. Popsink's credential check verifies these at configuration time when the Service Principal can read its own effective permissions.
 
 | Field | Description |
 |---|---|
 | **Workspace URL** | Base URL of your Databricks workspace (e.g. `https://adb-1234567890123456.7.azuredatabricks.net`) |
 | **Databricks Client ID** | The Service Principal's application ID (UUID) |
 | **Databricks Client Secret** | The OAuth secret generated for the Service Principal |
+
+## External Data Access
+
+The worker writes Delta files directly to your storage container and registers them as **external** tables via the Unity Catalog REST API. Because the write happens outside Databricks compute, the metastore must have the **External Data Access** flag enabled. It is a **per-metastore** setting that only a **metastore admin** can change. When it is disabled, table registration fails with a `403 PERMISSION_DENIED` (`EXTERNAL_ACCESS_DISABLED_ON_METASTORE`).
+
+Enable it one of two ways:
+
+- **UI:** Catalog → Metastore details → *External data access* → enable.
+- **API:**
+
+```bash
+PATCH /api/2.1/unity-catalog/metastores/{metastore_id}
+{ "external_access_enabled": true }
+```
+
+<Note>
+Popsink's credential check fails fast at configuration time if External Data Access is disabled or the external-table grants are missing, so you can fix these before the connector goes live rather than discovering them at runtime.
+</Note>
 
 ## Catalog and Schema
 
