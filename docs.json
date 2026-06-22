@@ -180,6 +180,18 @@
               {
                 "group": "Data Plane",
                 "pages": [
+                  "changelog/data-plane/alpha-94",
+                  "changelog/data-plane/alpha-93",
+                  "changelog/data-plane/alpha-92",
+                  "changelog/data-plane/alpha-91",
+                  "changelog/data-plane/alpha-90",
+                  "changelog/data-plane/alpha-89",
+                  "changelog/data-plane/alpha-88",
+                  "changelog/data-plane/alpha-87",
+                  "changelog/data-plane/alpha-86",
+                  "changelog/data-plane/alpha-85",
+                  "changelog/data-plane/alpha-84",
+                  "changelog/data-plane/alpha-83",
                   "changelog/data-plane/alpha-82",
                   "changelog/data-plane/alpha-81",
                   "changelog/data-plane/alpha-80",
