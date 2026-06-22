@@ -53,7 +53,7 @@
           {
             "group": "Deployment",
             "icon": "server",
-            "pages": ["deployment/deployment", "deployment/singlevm","deployment/installation", "deployment/selfhosted", "deployment/partners"]
+            "pages": ["deployment/deployment", "deployment/singlevm","deployment/installation", "deployment/selfhosted", "deployment/partners", "deployment/karapace-to-kora"]
           },
           {
             "group": "Source Connectors",
