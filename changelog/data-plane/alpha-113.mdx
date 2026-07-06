@@ -1,0 +1,31 @@
+---
+title: "v0.1.0-alpha.113 06/07/2026"
+---
+
+---
+
+**Description**: Authenticate notification &amp; kafka-stream WebSockets.
+
+### Changes
+
+- Authenticate notification &amp; kafka-stream WebSockets (#2946).
+- Extract user profile into service + composable (#2930).
+- [#2979][DP] Batch tables under 10k rows into a single blocking snapshot (#3001).
+- [#2981][DP] Gate Backfill banner on DB sync state, not worker WS status (#3002).
+- Oracle support for the metadata DB (#2826) (#2928).
+- Design system - New bulk action data table (#2953).
+- [FRONT] Part 1 of #3005: extract team creation into service + composable (#3008).
+- [#2947][DP] Connectors: scope reads to caller's team + redact inline credentials (#2984).
+- Move connector check DTOs out of presentation into application (#2929).
+- Cover ConnectorAuthorizationDomainService permission branches (#2958).
+- Cover GET /error-table/error-tables listing endpoint (#3011).
+- [SEC] Part 1 of #3006: require authentication on connector pre-flight endpoints (#3012).
+- Subscription form: disable Apply + show loader during POST /subscriptions/sync (#2998).
+- Connector detail: subscriptions list shows the target logo in the Source column (#2994).
+- Normalise error_table target_id UUID across DB dialects (#3017).
+- Move PasswordHasherPort to domains/ports (#2982) (#2983).
+- [#2985][DP] Enforce cross-team object-level authorization on connector/datamodel/subscription/error-table writes (#2986).
+- [ARCH] Part 1 of #3007: pass user_id to domain stream services (drop infra User import) (#3009).
+- Sync queue: drag-drop reorder + move to top/bottom for queued tables (#2999).
+- Wipe shared Oracle schema on a fresh `inv dp.install --db oracle` (#3020).
+- [FRONT] Part 2 of #3005: extract env join-requests into service + composable (#3014).
