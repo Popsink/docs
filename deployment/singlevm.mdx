@@ -25,9 +25,9 @@ The VM is distributed as a pre-built image (`.qcow2` for KVM/QEMU, `.ova` for VM
 | **Base image** | Ubuntu Server Cloud Image (`noble-server-cloudimg-amd64.img`) |
 | **Container runtime** | k3s v1.35.5+k3s1 (single-node Kubernetes) |
 | **Disk format** | qcow2 (KVM/QEMU) / OVA (VMware vSphere) |
-| **Disk size** | 20 GiB (sparse — actual usage is much lower at rest) |
+| **Disk size** | 30 GiB (sparse — actual usage is much lower at rest) |
 
-The VM does not require internet access after first boot, but it does need to reach the external dependencies listed below.
+All container images — k3s's own runtime images and the Popsink data-plane images alike — are bundled in the VM image. The VM never needs internet access to pull images, at first boot or afterwards. It does, however, need to reach the external dependencies listed below.
 
 ---
 
@@ -39,7 +39,7 @@ The VM does not require internet access after first boot, but it does need to re
 |---|---|
 | CPU | 4 vCPU |
 | RAM | 16 GB |
-| Disk | ~25 GB |
+| Disk | ~30 GB |
 
 > Hypervisors that pre-allocate the full sparse image size require significantly more datastore space. Confirm the allocation behaviour of your target hypervisor before import.
 
@@ -105,13 +105,13 @@ Open port 80 from your internal network to the VM. TLS termination and HTTPS are
 
 ### Outbound
 
-| Destination | Required | Effect if unreachable |
-|---|---|---|
-| Your database instance (PostgreSQL or Oracle) | **Hard** | VM fails to start |
-| Your S3-compatible object store | **Hard** | VM fails to start |
-| Popsink authentication backend (HTTPS) | Soft | Pipelines run normally; UI logins fail |
+| Destination | Port | Required | Effect if unreachable |
+|---|---|---|---|
+| Your database instance (PostgreSQL or Oracle) | Your DB port (default 5432, or 1521 for Oracle) | **Hard** | VM fails to start |
+| Your S3-compatible object store | TCP 443 (HTTPS) | **Hard** | VM fails to start |
+| Popsink control-plane (`control-plane-api.popsink.com`) | TCP 443 (HTTPS) | Soft | Pipelines run normally; UI logins fail |
 
-Ensure the hard requirements are in place before booting the VM. The soft dependency (authentication backend) only affects UI logins — pipelines are unaffected.
+Ensure the hard requirements are in place before booting the VM. The soft dependency (the Popsink control-plane) only affects UI logins — pipelines are unaffected.
 
 ### Outbound Proxy
 
@@ -149,7 +149,7 @@ If your network enforces an outbound proxy, set `HTTP_PROXY`, `HTTPS_PROXY`, and
 
 3. Follow the wizard:
    - At the **Select networks** step, map the VM's network adapter to a port group that satisfies the inbound and outbound requirements listed above.
-   - Confirm the hardware summary: 4 vCPU, 16 GB RAM, 20 GiB disk.
+   - Confirm the hardware summary: 4 vCPU, 16 GB RAM, 30 GiB disk.
    - At the **Select storage** step, choose thin provisioning unless thick is required by your policy.
 
 4. After the deploy task completes, **do not boot the VM yet**. Upload `seed.iso` to your vSphere datastore:
@@ -530,7 +530,7 @@ journalctl -u popsink-boot-check.service
 | `popsink-configure.service` shows a database error | `DB_HOST` unreachable, wrong port, or bad credentials | Test connectivity from the VM console: `nc -zv <DB_HOST> <DB_PORT>`; for PostgreSQL verify `pg_hba.conf` allows the VM's IP; for Oracle check listener and firewall rules |
 | `popsink-configure.service` shows an S3 error | Wrong `S3_BUCKET` format or unreachable endpoint | `S3_BUCKET` must be a full URL — `s3://bucket/prefix/` not just `bucket` |
 | VM booted but appears unconfigured | `seed.iso` not attached, or wrong volume label | Check `journalctl -u popsink-boot-check.service`; verify the ISO was generated with `-volid cidata`; re-deliver and re-run (see [Re-applying Configuration](#re-applying-configuration)) |
-| UI loads but all logins fail | Popsink authentication backend unreachable | Verify outbound HTTPS from the VM to the Popsink auth backend; check proxy settings if applicable |
+| UI loads but all logins fail | Popsink control-plane unreachable | Verify outbound HTTPS (tcp/443) from the VM to `control-plane-api.popsink.com`; check proxy settings if applicable |
 | Port 80 unreachable from another host, but the VM is healthy | Network firewall blocking inbound port 80 | Open TCP port 80 from your internal network to the VM's IP |
 
 ---
