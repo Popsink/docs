@@ -18,7 +18,9 @@ The Snowflake Target Connector is a robust tool designed to facilitate the seaml
 - A Snowflake account where you wish to sync your data.
 - A **role** with the required permissions on the target database and schema:
   - `USAGE` on the database and schema
+  - `USAGE` on the warehouse used to run the connector
   - `CREATE TABLE` on the schema
+  - `CREATE DYNAMIC TABLE` on the schema
   - `INSERT`, `UPDATE`, `DELETE` on target tables
 - A **key pair** (no passphrase) for authentication. To set it up:
 
