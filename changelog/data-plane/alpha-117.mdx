@@ -1,0 +1,40 @@
+---
+title: "v0.1.0-alpha.117 16/07/2026"
+---
+
+---
+
+**Description**: [FRONT] Part 2 of #3068: extract connector list into service + composable.
+
+### Changes
+
+- [FRONT] Part 2 of #3068: extract connector list into service + composable (#3105).
+- Surface each deployment's running data-plane version in the admin (#3114).
+- Dashboard shows "Pipelines" stat card when pipeline mode is off (#3112).
+- [FRONT] Part 3 of #3068: extract error-table-config-drawer into services + composable (#3116).
+- OTel phase 4 — browser trace-context propagation (data-plane #3090 + control-plane) (#3110).
+- [TESTS] Part 2 of #3050: cover member-deletion authorization branches (#3103).
+- OTel phase 4 — Tansu broker OTLP metrics export (#3089) (#3094).
+- [TESTCLEAN] De-flake worker reconciliation error-recovery tests (#3104).
+- OpenTelemetry OTLP phase 4 — native Rust worker (#3039) (#3093).
+- IBM i auto-recovers from a pruned journal (earliest) + bump popsink_connect images (#3126).
+- Sync orchestration floods ERROR tracebacks when a worker is transiently unavailable (no running pod / 5xx) (#3118).
+- Allow W3C trace-context headers through Traefik CORS middleware (#3132).
+- [ARCH] Part 3 of #3007: move get_user_logs to a UserLog read port (#3102).
+- Add SALESFORCE_SOURCE to connector credential inventory (#3101).
+- Sync history: persist & expose past sync runs (back + front) (#3040).
+- Allow editing a subscription's name (backend already supports it) (#3133).
+- Cover is_config_ready completion gate branches (#3148).
+- [ARCH] Part 1 of #3144: relocate PipelineState enum into the domain layer (#3146).
+- [FRONT] Part 1 of #3143: extract notifications drawer into service + composable (#3145).
+- [SEC] Part 3 of #3067: Redact sensitive headers in /healthchecks/debug reflection (#3142).
+- Harden over-mocked sync tests to assert observable behavior (#3147).
+- Upgrade a SaaS deployment to the latest version from the CP admin (#3115).
+- DP: cache license verdict from heartbeat (grace window) (#3157).
+- DP: soft-gate get_current_active_user on license (+ kill-switch) (#3159).
+- Add pop-access-denied (on pop-empty-state) and unify the CP + DP gate (#3156).
+- [SEC] Part 1 of #3153: Close cross-tenant IDOR on worker state & heartbeat endpoints (#3174).
+- [ARCH] Part 2 of #3144: raise domain exceptions from env_request domain service (#3176).
+- [TESTCLEAN] Harden can't-fail assertions in connector-types credential/fetch tests (#3172).
+- Sql_database relational sources (Postgres, MySQL, SQL Server, Oracle) (#3158).
+- Bump 15 07 2026 (#3170).
