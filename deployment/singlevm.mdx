@@ -233,6 +233,8 @@ write_files:
       ADMIN_PANEL_PASSWORD=REPLACE_WITH_SECRET
 
       JWT_SECRET=REPLACE_WITH_SECRET
+      # Must be a 32-byte secret key encoded in URL-safe base64 format (a Fernet
+      # key). Generate one with: openssl rand -base64 32 | tr '+/' '-_'
       CONNECTOR_CONFIG_ENCRYPTION_KEY=REPLACE_WITH_SECRET
 ```
 
@@ -463,7 +465,7 @@ Kora is Popsink's internal schema registry — it tracks the structure of the da
 | Parameter | Required | Description |
 |---|---|---|
 | `JWT_SECRET` | Yes | JWT signing secret. Changing this invalidates all active sessions. |
-| `CONNECTOR_CONFIG_ENCRYPTION_KEY` | Yes | Encryption key for connector configurations. **Back this up before going live.** If lost, all connector configurations become permanently unreadable — Popsink cannot recover this key. |
+| `CONNECTOR_CONFIG_ENCRYPTION_KEY` | Yes | Encryption key for connector configurations. Must be a 32-byte secret key encoded in URL-safe base64 format (a Fernet key). Generate one with `openssl rand -base64 32 \| tr '+/' '-_'`. **Back this up before going live.** If lost, all connector configurations become permanently unreadable — Popsink cannot recover this key. |
 
 #### Outbound Proxy (optional)
 
