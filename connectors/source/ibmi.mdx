@@ -47,6 +47,26 @@ The connector combines two mechanisms:
 - The tables you want to ingest must be journaled. [See Enabling Journaling](#enabling-journaling)
 - You will need a user with the necessary permissions. [See Granting User Permissions](#granting-user-permissions)
 - For incremental load support, a signal table must be created and journaled. [See Enabling Incremental Load](#enabling-incremental-load)
+- Network access from Popsink to the IBM i host on the ports listed below. [See Network Access](#network-access)
+
+### Network Access
+
+The connector reaches the IBM i system over JT400, which uses the DB2 for i (DRDA/DDM) listener and the IBM i host servers. Allow outbound TCP traffic from Popsink to the source host on the following ports:
+
+| Port | Service | Purpose |
+|---|---|---|
+| `446` | DRDA / DDM | DB2 for i over TCP/IP — used for JDBC snapshots |
+| `449` | Server mapper (`as-svrmap`) | Resolves the host server ports the client must connect to |
+| `8471` | Database server (`as-database`) | SQL and catalog access |
+| `8473` | File server (`as-file`) | Access to journal receiver objects |
+| `8475` | Remote command server (`as-rmtcmd`) | Runs the journal retrieval program calls |
+| `8476` | Sign-on server (`as-signon`) | User profile authentication |
+
+<Note>
+  If the system is configured for TLS, use `448` for the secure DDM/DRDA listener and the `947x` range (`9471`, `9473`, `9475`, `9476`) instead of `847x` for the host servers.
+</Note>
+
+If the IBM i system is only reachable through a bastion host, see [Connecting through an SSH Tunnel](#connecting-through-an-ssh-tunnel).
 
 ## Configuration
 
