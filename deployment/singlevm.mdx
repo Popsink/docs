@@ -49,26 +49,10 @@ The VM requires two external services to be reachable before it can start. These
 
 | Service | Requirement |
 |---|---|
-| **Database (PostgreSQL or Oracle)** | A database instance accessible from the VM. The VM will not start if unreachable. |
+| **Database (PostgreSQL)** | A database instance accessible from the VM. The VM will not start if unreachable. |
 | **S3-compatible object store** | A bucket accessible from the VM (AWS S3, MinIO, or equivalent). The VM will not start if unreachable. |
 
 Ensure outbound connectivity from the VM to both services before deployment.
-
-### Oracle Database Setup
-
-If using Oracle as the database backend for the data-plane, Kora, or both, complete the following before deployment.
-
-**Tested version:** Oracle Standard Edition Two 21c. Earlier versions are not guaranteed to work.
-
-**Service name:** `DB_DATABASE` and `KORA_DB_DATABASE` must be an Oracle service name (not an instance name), typically the name of a PDB — for example `FREEPDB1` or `ORCL`.
-
-**Required grant for the data-plane database user:** the data-plane uses advisory locks for leader election (worker reconciliation, heartbeat, metrics sync). `DBMS_LOCK` is owned by `SYS` and not publicly accessible by default — grant execute to your `DB_USER` before deployment:
-
-```sql
-GRANT EXECUTE ON SYS.DBMS_LOCK TO <DB_USER>;
-```
-
-This grant is only required for the data-plane user (`DB_USER`). The Kora user (`KORA_DB_USER`) does not need it.
 
 ### Supported Hypervisors
 
@@ -107,7 +91,7 @@ Open port 80 from your internal network to the VM. TLS termination and HTTPS are
 
 | Destination | Port | Required | Effect if unreachable |
 |---|---|---|---|
-| Your database instance (PostgreSQL or Oracle) | Your DB port (default 5432, or 1521 for Oracle) | **Hard** | VM fails to start |
+| Your database instance (PostgreSQL) | Your DB port (default 5432) | **Hard** | VM fails to start |
 | Your S3-compatible object store | TCP 443 (HTTPS) | **Hard** | VM fails to start |
 | Popsink control-plane (`control-plane-api.popsink.com`) | TCP 443 (HTTPS) | Soft | Pipelines run normally; UI logins fail |
 
@@ -251,34 +235,6 @@ See [Parameter Reference](#parameter-reference) for the description and constrai
 >
 > Without this, the VM is only accessible via the hypervisor console.
 
-**Oracle example:** if using Oracle, replace the database section with the following. `DB_DATABASE` and `KORA_DB_DATABASE` are service names, and the default port is `1521`. All other parameters (`S3_*`, `DEPLOYMENT_*`, etc.) are identical to the PostgreSQL example above.
-
-```yaml
-#cloud-config
-write_files:
-  - path: /etc/popsink/config.env
-    owner: root:root
-    permissions: '0600'
-    content: |
-      DB_BACKEND=oracle
-      DB_HOST=oracle.example.com
-      DB_PORT=1521
-      DB_DATABASE=FREEPDB1
-      DB_USER=popsink
-      DB_PASSWORD=REPLACE_WITH_SECRET
-
-      KORA_DB_BACKEND=oracle
-      KORA_DB_HOST=oracle.example.com
-      KORA_DB_PORT=1521
-      KORA_DB_DATABASE=FREEPDB1
-      KORA_DB_USER=kora
-      KORA_DB_PASSWORD=REPLACE_WITH_SECRET
-
-      # S3, platform, admin, and security key parameters — same as above
-```
-
-> The data-plane and Kora backends are independent. You can run the data-plane on PostgreSQL and Kora on Oracle (or vice versa), and they can point at different hosts.
-
 #### Static IP (optional)
 
 By default the VM uses DHCP. If your environment requires a fixed IP address, create a third file named `network-config` in the same directory as `meta-data` and `user-data`:
@@ -415,23 +371,23 @@ After a successful first run, the configure service creates a marker file `/etc/
 
 | Parameter | Required | Default | Description |
 |---|---|---|---|
-| `DB_BACKEND` | Yes | — | Database backend: `postgres` or `oracle`. No default — must be set. |
+| `DB_BACKEND` | Yes | — | Database backend: `postgres`. No default — must be set. |
 | `DB_HOST` | Yes | — | Database host (FQDN or IP) |
-| `DB_PORT` | No | `5432` (`1521` for Oracle) | Database port |
-| `DB_DATABASE` | Yes | — | Database name. For Oracle, this is the service name (e.g. `ORCL`). |
+| `DB_PORT` | No | `5432` | Database port |
+| `DB_DATABASE` | Yes | — | Database name. |
 | `DB_USER` | Yes | — | Database username |
 | `DB_PASSWORD` | Yes | — | Database password |
 
 #### Kora Schema Registry Database (required)
 
-Kora is Popsink's internal schema registry — it tracks the structure of the data flowing through your pipelines. It requires its own database (PostgreSQL or Oracle), configured independently from the data-plane via `KORA_DB_BACKEND` — the two backends do not need to match. It can share the same database instance as the data-plane, using a separate database name (e.g. `kora`).
+Kora is Popsink's internal schema registry — it tracks the structure of the data flowing through your pipelines. It requires its own database (PostgreSQL), configured independently from the data-plane via `KORA_DB_BACKEND` — the two backends do not need to match. It can share the same database instance as the data-plane, using a separate database name (e.g. `kora`).
 
 | Parameter | Required | Default | Description |
 |---|---|---|---|
-| `KORA_DB_BACKEND` | Yes | — | Database backend: `postgres` or `oracle`. No default — must be set. |
+| `KORA_DB_BACKEND` | Yes | — | Database backend: `postgres` or. No default — must be set. |
 | `KORA_DB_HOST` | Yes | — | Kora database host (FQDN or IP) |
-| `KORA_DB_PORT` | No | `5432` (`1521` for Oracle) | Port |
-| `KORA_DB_DATABASE` | Yes | — | Database name. For Oracle, this is the service name (e.g. `ORCL`). |
+| `KORA_DB_PORT` | No | `5432` | Port |
+| `KORA_DB_DATABASE` | Yes | — | Database name. |
 | `KORA_DB_USER` | Yes | — | Username |
 | `KORA_DB_PASSWORD` | Yes | — | Password |
 
@@ -529,7 +485,7 @@ journalctl -u popsink-boot-check.service
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `curl /api/readyz` — no response or connection refused | Configuration service failed, or k3s still starting | Check Layer 3 then Layer 2 in Health Verification above |
-| `popsink-configure.service` shows a database error | `DB_HOST` unreachable, wrong port, or bad credentials | Test connectivity from the VM console: `nc -zv <DB_HOST> <DB_PORT>`; for PostgreSQL verify `pg_hba.conf` allows the VM's IP; for Oracle check listener and firewall rules |
+| `popsink-configure.service` shows a database error | `DB_HOST` unreachable, wrong port, or bad credentials | Test connectivity from the VM console: `nc -zv <DB_HOST> <DB_PORT>`; for PostgreSQL verify `pg_hba.conf` allows the VM's IP; |
 | `popsink-configure.service` shows an S3 error | Wrong `S3_BUCKET` format or unreachable endpoint | `S3_BUCKET` must be a full URL — `s3://bucket/prefix/` not just `bucket` |
 | VM booted but appears unconfigured | `seed.iso` not attached, or wrong volume label | Check `journalctl -u popsink-boot-check.service`; verify the ISO was generated with `-volid cidata`; re-deliver and re-run (see [Re-applying Configuration](#re-applying-configuration)) |
 | UI loads but all logins fail | Popsink control-plane unreachable | Verify outbound HTTPS (tcp/443) from the VM to `control-plane-api.popsink.com`; check proxy settings if applicable |
