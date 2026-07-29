@@ -6,6 +6,17 @@ import SshTunnel from '/snippets/ssh-tunnel.mdx';
 
 The Postgres Source Connector is a powerful and efficient solution designed to facilitate seamless data integration between your PostgreSQL databases and Popsink. This connector helps you synchronize with PostgreSQL in real-time, ensuring that your target systems remain updated with the latest information in real-time, driving business intelligence, analytics, and operational efficiency.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **PostgreSQL** | 14, 15, 16, 17, 18 |
+| **Logical decoding plugin** | `pgoutput` — built into PostgreSQL, nothing to install |
+| **Managed services** | Amazon RDS & Aurora PostgreSQL, Google Cloud SQL, Azure Database for PostgreSQL |
+| **CDC engine** | Debezium 3.5 |
+
+<Note>PostgreSQL 13 and earlier are outside the tested matrix and are not supported. On managed services, use the provider's own replication role rather than a superuser.</Note>
+
 ## Prerequisites
 
 - Your Postgres should be in `logical` mode (use `SHOW wal_level`).

@@ -6,6 +6,14 @@ import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
 
 The Pipedrive Source Connector ingests CRM data from Pipedrive — deals, persons, organizations, activities, and more — into Popsink pipelines. It runs on a configurable schedule and performs incremental synchronization, so only records updated since the last run are delivered downstream. Use it to feed sales analytics, forecasting models, and revenue dashboards with up-to-date pipeline data.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Pipedrive API** | API v1 |
+| **Authentication** | API token |
+| **Protocol** | REST over HTTPS |
+
 ## Key Features
 
 - **Incremental synchronization:** the connector tracks each resource's `update_time` cursor across runs and only delivers new or updated records.

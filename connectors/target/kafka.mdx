@@ -6,10 +6,21 @@ The Kafka Target Connector defines the Apache Kafka cluster where your pipelines
 
 ## Table of Contents
 
-1. [Key Features](#key-features)
-2. [Prerequisites](#prerequisites)
-3. [Configuration](#configuration)
-4. [Security Protocols](#security-protocols)
+1. [Compatible versions](#compatible-versions)
+2. [Key Features](#key-features)
+3. [Prerequisites](#prerequisites)
+4. [Configuration](#configuration)
+5. [Security Protocols](#security-protocols)
+
+## Compatible versions
+
+| | |
+|---|---|
+| **Apache Kafka** | 2.1 and later, including 3.x and 4.x |
+| **Compatible platforms** | Confluent Platform & Confluent Cloud, Amazon MSK, Aiven for Apache Kafka, Redpanda, Azure Event Hubs (Kafka endpoint, Standard tier or higher) |
+| **Protocol** | Kafka wire protocol over `PLAINTEXT`, `SSL`, `SASL_PLAINTEXT`, or `SASL_SSL` |
+
+<Note>Brokers older than 2.1 are not supported — the client negotiates API versions with the cluster and no longer implements the pre-2.1 protocol.</Note>
 
 ## Key Features
 

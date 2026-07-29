@@ -3,3 +3,12 @@ title: Application Source
 ---
 
 The Application Source Connector allows you to directly send data to Popsink using Python, Node, Go, Java or other programming languages. It is the most efficient way to build a direct integration between your application and Popsink. Start by creating a connector then you will be able to register the topics you wish to send data to.
+
+## Compatible versions
+
+| | |
+|---|---|
+| **Protocol** | Kafka wire protocol — any client library (Python, Node.js, Go, Java, …) |
+| **Client requirement** | Kafka client supporting `SASL_SSL` and API version negotiation (Kafka 2.1 protocol or later) |
+| **Schema registry** | Confluent-compatible Schema Registry API |
+| **Transport** | TLS 1.2 or later |

@@ -6,6 +6,16 @@ import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
 
 The Google Ads Source Connector ingests advertising data from the Google Ads API into Popsink pipelines. It retrieves campaign and performance data on a configurable schedule, enabling marketing analytics, spend monitoring, and cross-channel attribution with fresh advertising data.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Google Ads API** | v20 |
+| **Authentication** | OAuth 2.0 with a developer token |
+| **Accounts** | Manager (MCC) and standard accounts |
+
+<Note>The API version is pinned by the connector and rolled forward as Google retires older versions.</Note>
+
 ## Key Features
 
 - **Campaign data by default:** retrieves campaign attributes out of the box; queries can be customized using GAQL (Google Ads Query Language).

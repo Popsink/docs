@@ -4,6 +4,17 @@ title: Snowflake Target
 
 The Snowflake Target Connector is a robust tool designed to facilitate the seamless integration of Change Data Capture (CDC) updates into Snowflake data warehouses. Leveraging Snowpipe streaming functionality, this connector efficiently streams CDC updates into Snowflake, where they are written as inserts. Subsequently, a dynamic table is employed to construct a copy of the source table, ensuring real-time data replication.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Snowflake** | Managed service — Standard edition or higher |
+| **Required features** | Snowpipe Streaming and dynamic tables |
+| **Authentication** | Key-pair (RSA 2048) — password authentication is not supported |
+| **Driver** | Snowflake JDBC 4.3, Snowpipe Streaming SDK 1.6 |
+
+<Note>Dynamic tables require a running warehouse for their refresh; size it for your change volume.</Note>
+
 ## Key Features
 
 - **CDC Streaming:** utilizes Snowpipe streaming to deliver real-time changes from the source system.

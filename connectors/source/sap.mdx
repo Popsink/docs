@@ -7,6 +7,17 @@ The **SAP Source Connector** enables continuous ingestion of changes from SAP op
 
 ---
 
+## Compatible versions
+
+| | |
+|---|---|
+| **SAP systems** | Any system exposing Operational Data Provisioning (ODP) through SAP Gateway |
+| **Extraction** | ODP with the Delta Queue (ODQ) — SAPI extractors and CDS views |
+| **Protocol** | OData over HTTPS (port `443`) |
+| **Compatibility** | Confirmed per deployment |
+
+<Note>ODP availability depends on your SAP release, add-on level, and SAP Gateway (`SAP_GWFND`) version, so compatibility is validated with you during onboarding.</Note>
+
 ## Prerequisites
 
 Before configuring this connector, ensure the following are in place:

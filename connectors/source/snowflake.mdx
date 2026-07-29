@@ -4,6 +4,17 @@ title: Snowflake Source
 
 The Snowflake Source Connector streams changes from Snowflake tables into Popsink pipelines using the native `CHANGES` clause together with Time Travel. It performs an initial full load of each selected table, then polls for incremental changes (inserts, updates, and deletes) every 10 minutes, making your warehouse data available downstream without manual exports.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Snowflake** | Managed service — Standard edition or higher |
+| **Required features** | Change tracking (`CHANGES`) and Time Travel |
+| **Time Travel retention** | At least 1 day — the Standard default of 24 hours is sufficient |
+| **Authentication** | Key-pair (RSA 2048) — password authentication is not supported |
+
+<Note>If the connector stays offline for more than 12 hours it falls back to a full reload, because the Time Travel window may no longer cover the last processed position.</Note>
+
 ## Key Features
 
 - **Native change tracking:** uses Snowflake's `CHANGES (INFORMATION => DEFAULT)` clause with Time Travel — no triggers or staging objects in your account.

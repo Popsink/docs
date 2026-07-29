@@ -3,3 +3,13 @@ title: Eventhub Source
 ---
 
 The EventHub Source Connector integrates with Azure Event Hubs, a highly scalable, real-time data streaming and event ingestion Platform-as-a-Service (PaaS) offered by Microsoft Azure. It provides a distributed, fault-tolerant, and highly available messaging service that can handle millions of events per second, making it suitable for big data, analytics, and real-time processing scenarios.
+
+## Compatible versions
+
+| | |
+|---|---|
+| **Azure Event Hubs** | Standard, Premium, and Dedicated tiers |
+| **Protocol** | Kafka wire protocol endpoint (port `9093`, `SASL_SSL`) |
+| **Authentication** | SAS connection string or Microsoft Entra ID |
+
+<Note>The Basic tier does not expose the Kafka endpoint and cannot be used.</Note>

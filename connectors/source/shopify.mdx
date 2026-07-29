@@ -6,6 +6,16 @@ import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
 
 The Shopify Source Connector ingests commerce data from your Shopify store — orders, products, and customers — into Popsink pipelines through the Shopify Admin API. It runs on a configurable schedule, making your storefront data available for revenue analytics, inventory monitoring, and customer insights.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Shopify Admin API** | REST Admin API, version `2024-01` |
+| **Authentication** | Custom app access token |
+| **Plans** | Any plan that allows custom apps |
+
+<Note>The API version is pinned by the connector. Shopify keeps each REST Admin API version supported for at least 12 months, and Popsink rolls it forward as part of connector upgrades.</Note>
+
 ## Key Features
 
 - **Core commerce resources:** ingests **orders**, **products**, and **customers** by default; the resource list can be customized.

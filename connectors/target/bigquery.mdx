@@ -4,6 +4,14 @@ title: BigQuery Target
 
 The BigQuery Target Connector enables seamless integration with Google BigQuery, a fully-managed, serverless data warehouse that enables super-fast SQL queries using the processing power of Google's infrastructure. This connector streams data from Popsink directly into BigQuery, automatically handling schema mapping, data type conversion, and table creation. It is particularly useful for organizations looking to perform large-scale analytics or combine streaming data with historical data for comprehensive business intelligence.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Google BigQuery** | Managed service — no version to pin |
+| **API** | BigQuery API v2 with the Storage Write API |
+| **Location** | The target dataset must already exist — Popsink creates tables, not datasets |
+
 ## Key Features
 
 - **Automatic table management:** tables are created automatically inside your dataset; schema evolution is handled as the source schema changes.

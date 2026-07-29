@@ -4,6 +4,17 @@ title: BigQuery Source
 
 The BigQuery Source Connector streams changes from Google BigQuery tables into Popsink pipelines using the native `CHANGES()` function. It performs an initial full load of each selected table, then polls for incremental changes (inserts, updates, and deletes) every 10 minutes, making your warehouse data available downstream without manual exports.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Google BigQuery** | Managed service — no version to pin |
+| **Required feature** | Table change history (`CHANGES()`) on GoogleSQL standard tables |
+| **Table types** | Standard tables only — views, materialized views, and external tables are not supported |
+| **API** | BigQuery API v2 |
+
+<Note>Change history must be enabled per table (`enable_change_history = TRUE`) and is retained for up to 7 days by default.</Note>
+
 ## Key Features
 
 - **Native change history:** uses BigQuery's `CHANGES()` function — no extra infrastructure in your GCP project.

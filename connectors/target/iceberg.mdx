@@ -4,6 +4,15 @@ title: Iceberg Target
 
 The Iceberg Target Connector writes your pipeline data to Apache Iceberg tables stored in Azure Blob Storage. Apache Iceberg is an open table format designed for huge analytic datasets, providing ACID transactions, time travel queries, partition evolution, and schema evolution without affecting concurrent reads. This connector streams change events from Popsink directly into your data lake in Iceberg format, making it ideal for lakehouse architectures, large-scale analytics, and machine learning pipelines.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Apache Iceberg** | Table format specification v2 |
+| **Writer** | PyIceberg 0.11 |
+| **Storage** | Azure Blob Storage / ADLS Gen2 |
+| **Readers** | Any engine that reads Iceberg v2 tables — Spark, Trino, Snowflake, Databricks, DuckDB, … |
+
 ## Key Features
 
 - **Iceberg open table format:** full ACID compliance, time travel, and schema evolution on your data lake.

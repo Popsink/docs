@@ -6,6 +6,17 @@ The IBM Z Source Connector ingests data from IBM Z systems using a **split archi
 
 ---
 
+## Compatible versions
+
+| | |
+|---|---|
+| **IBM Z / z/OS** | Confirmed per deployment |
+| **Db2 for z/OS** | Log capture through the Instrumentation Facility Interface (IFI) |
+| **Z Host Agent runtime** | z/OS UNIX System Services (USS) |
+| **Deployment** | Popsink Self-Hosted only |
+
+<Note>This connector runs an agent inside your mainframe environment, so supported z/OS and Db2 for z/OS levels are validated with you during onboarding. Get in touch with your release levels before planning a deployment.</Note>
+
 ## Overview
 
 This connector enables reliable, secure extraction of dataset/log events from IBM Z with:

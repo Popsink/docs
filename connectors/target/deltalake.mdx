@@ -8,12 +8,24 @@ Because the worker writes Delta files directly to Azure Blob Storage (outside Da
 
 ## Table of Contents
 
-1. [Key Features](#key-features)
-2. [Prerequisites](#prerequisites)
-3. [Storage Authentication](#storage-authentication)
-4. [Databricks Authentication](#databricks-authentication)
-5. [External Data Access](#external-data-access)
-6. [Catalog and Schema](#catalog-and-schema)
+1. [Compatible versions](#compatible-versions)
+2. [Key Features](#key-features)
+3. [Prerequisites](#prerequisites)
+4. [Storage Authentication](#storage-authentication)
+5. [Databricks Authentication](#databricks-authentication)
+6. [External Data Access](#external-data-access)
+7. [Catalog and Schema](#catalog-and-schema)
+
+## Compatible versions
+
+| | |
+|---|---|
+| **Delta Lake** | Tables written with delta-rs 0.22 |
+| **Databricks** | Any workspace with Unity Catalog enabled |
+| **Unity Catalog API** | REST API 2.1, with External Data Access enabled on the metastore |
+| **Storage** | Azure Blob Storage / ADLS Gen2 |
+
+<Note>No Spark cluster or SQL warehouse is needed in the write path — the worker writes Delta files directly and registers external tables.</Note>
 
 ## Key Features
 
