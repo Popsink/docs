@@ -8,16 +8,29 @@ The IBMi (AS/400) Source Connector integrates with IBM i, formerly known as IBM 
 
 ## Table of Contents
 
-1. [Key Features](#key-features)
-2. [How It Works](#how-it-works)
-3. [Core Concepts](#core-concepts)
-4. [Prerequisites](#prerequisites)
-5. [Configuration](#configuration)
-6. [Enabling Journaling](#enabling-journaling)
-7. [Granting User Permissions](#granting-user-permissions)
-8. [Enabling Incremental Load](#enabling-incremental-load)
-9. [Estimating Change Volume](#estimating-change-volume)
-10. [Housekeeping](#housekeeping)
+1. [Compatible versions](#compatible-versions)
+2. [Key Features](#key-features)
+3. [How It Works](#how-it-works)
+4. [Core Concepts](#core-concepts)
+5. [Prerequisites](#prerequisites)
+6. [Configuration](#configuration)
+7. [Enabling Journaling](#enabling-journaling)
+8. [Granting User Permissions](#granting-user-permissions)
+9. [Enabling Incremental Load](#enabling-incremental-load)
+10. [Estimating Change Volume](#estimating-change-volume)
+11. [Housekeeping](#housekeeping)
+
+## Compatible versions
+
+| | |
+|---|---|
+| **IBM i (OS/400)** | 7.3, 7.4, 7.5, 7.6 |
+| **Database** | Db2 for i, as shipped with the OS release |
+| **Connectivity** | JTOpen (JT400) 21.0.4 over the IBM i host servers — nothing installed on the partition |
+| **Journals** | Journaled physical files with `*BOTH` images |
+| **CDC engine** | Debezium 3.5, Popsink build of the Db2 for i connector |
+
+<Note>IBM i 7.2 and earlier are out of IBM support and are not covered. Date and time columns are decoded from `QSYS2.SYSCOLUMNS2`, whose DDS format columns were added in IBM i 7.3 TR11 / 7.4 TR5; below those Technology Refresh levels the decoder assumes the `*ISO` format, so files using `*MDY`, `*EUR` or another DDS format need a TR at or above those levels.</Note>
 
 ## Key Features
 

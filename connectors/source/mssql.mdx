@@ -8,13 +8,26 @@ The MSSQL Source Connector is a powerful and efficient solution designed to faci
 
 ## Table of Contents
 
-1. [Key Features](#key-features)
-2. [Security](#security)
-3. [Prerequisites](#prerequisites)
-4. [Configuration](#configuration)
-5. [Creating a Dedicated Role](#creating-a-dedicated-role)
-6. [Enabling CDC](#enabling-cdc)
-7. [Housekeeping Scripts](#housekeeping-scripts)
+1. [Compatible versions](#compatible-versions)
+2. [Key Features](#key-features)
+3. [Security](#security)
+4. [Prerequisites](#prerequisites)
+5. [Configuration](#configuration)
+6. [Creating a Dedicated Role](#creating-a-dedicated-role)
+7. [Enabling CDC](#enabling-cdc)
+8. [Housekeeping Scripts](#housekeeping-scripts)
+
+## Compatible versions
+
+| | |
+|---|---|
+| **SQL Server** | 2017, 2019, 2022 |
+| **Editions** | Standard, Enterprise, Developer — CDC is available on Standard from SQL Server 2016 SP1 onwards |
+| **Managed services** | Azure SQL Database, Azure SQL Managed Instance, Amazon RDS for SQL Server |
+| **Requirements** | SQL Server Agent running, CDC enabled per database and per table |
+| **CDC engine** | Debezium 3.5 |
+
+<Note>SQL Server 2016 is outside the tested matrix and works on a best-effort basis. SQL Server 2025 has not been validated yet — get in touch before planning an upgrade.</Note>
 
 ## Key Features
 

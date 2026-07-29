@@ -6,6 +6,18 @@ import SshTunnel from '/snippets/ssh-tunnel.mdx';
 
 The Oracle Source Connector is an advanced tool designed to synchronize Oracle databases with Popsink efficiently and in real-time. It enables the real-time transfer of data, ensuring that the latest database changes are mirrored to the target systems. This capability is crucial for maintaining up-to-date business intelligence, enabling real-time analytics, and enhancing operational workflows.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Oracle Database** | 19c, 21c, 23ai, 26ai |
+| **Capture method** | LogMiner, reading the online redo and archived redo logs |
+| **Deployments** | Single instance and RAC; multitenant (CDB/PDB) and non-CDB |
+| **Managed services** | Amazon RDS for Oracle, Oracle Base Database Service (OCI) |
+| **CDC engine** | Debezium 3.5 |
+
+<Note>Oracle 12c and 11g are not supported. On 23ai and 26ai, capture is available through LogMiner only.</Note>
+
 ## **Prerequisites**
 
 Before deploying the Oracle Source Connector, certain prerequisites must be met to ensure a smooth integration process:

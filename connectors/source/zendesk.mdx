@@ -6,6 +6,14 @@ import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
 
 The Zendesk Source Connector ingests support data from your Zendesk instance — tickets, users, organizations, and any other standard resource — into Popsink pipelines. It runs on a configurable schedule and performs incremental synchronization, so only records updated since the last run are delivered downstream. This is ideal for powering support analytics, SLA dashboards, and customer 360 initiatives with fresh helpdesk data.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Zendesk API** | Support API v2 |
+| **Products** | Zendesk Suite and Zendesk Support |
+| **Protocol** | REST over HTTPS |
+
 ## Key Features
 
 - **Incremental synchronization:** the connector tracks each resource's `updated_at` cursor across runs and only delivers new or updated records.

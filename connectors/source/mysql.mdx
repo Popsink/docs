@@ -6,6 +6,18 @@ import SshTunnel from '/snippets/ssh-tunnel.mdx';
 
 The MySQL Source Connector is a powerful and efficient solution designed to facilitate seamless data integration between your MySQL databases and Popsink. This connector helps you synchronize with MySQL in real-time, ensuring that your target systems remain updated with the latest information in real-time, driving business intelligence, analytics, and operational efficiency.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **MySQL** | 8.0, 8.4, 9.0, 9.1 |
+| **Storage engine** | InnoDB only |
+| **Binary log** | Row-based — `binlog_format=ROW`, `binlog_row_image=FULL` |
+| **Managed services** | Amazon RDS & Aurora MySQL, Google Cloud SQL, Azure Database for MySQL |
+| **CDC engine** | Debezium 3.5 |
+
+<Note>MySQL 5.7 has reached end of life and is not supported. MariaDB is a separate product and is not covered by this connector.</Note>
+
 ## Prerequisites
 
 - Binary logging enabled with **row-based format**. [See](https://debezium.io/documentation/reference/stable/connectors/mysql.html#enable-mysql-binlog):

@@ -6,6 +6,16 @@ import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
 
 The REST API Source Connector lets you ingest data from **any REST API** into Popsink pipelines by providing a declarative JSON configuration. It is the generic counterpart to the dedicated API connectors (Zendesk, Shopify, Pipedrive, …): if a SaaS platform doesn't have its own connector yet, you can usually integrate it in minutes with this one. The configuration follows the [dlt `rest_api_source` schema](https://dlthub.com/docs/dlt-ecosystem/verified-sources/rest_api), describing the API client (base URL, authentication, pagination) and the resources (endpoints) to ingest.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Any REST API** | HTTP/1.1 or HTTP/2 over TLS, JSON responses |
+| **Authentication** | Bearer token, API key (header or query), HTTP basic, OAuth 2.0 client credentials |
+| **Configuration schema** | dlt `rest_api_source`, dlt 1.24 |
+
+<Note>The configuration follows the dlt `rest_api_source` schema. When Popsink upgrades dlt, existing configurations keep working — the schema is backwards compatible within the 1.x line.</Note>
+
 ## Key Features
 
 - **Connect to any REST API:** base URL, authentication, pagination, and endpoints are all declared in a single JSON configuration.

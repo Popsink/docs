@@ -5,10 +5,18 @@ description: Deploying the Teradata target connector to load analytical volumes 
 
 The Teradata target connector powers your analytical environments by leveraging Teradata's MPP parallelization and optimization features.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Teradata Vantage** | 17.x and later |
+| **Protocol** | Teradata SQL over port `1025` with TLS enabled |
+| **Deployments** | VantageCloud and on-premises |
+
 ## Prerequisites
 
 - **Accounts and roles:** a Teradata user with `CREATE TABLE`, `INSERT`, `UPDATE`, `DELETE` privileges and access to the TPT utility when used.
-- **Infrastructure:** network connectivity between Popsink and the Teradata port (`1025` by default) with TLS encryption enabled; supported versions are Vantage 17.x and later.
+- **Infrastructure:** network connectivity between Popsink and the Teradata port (`1025` by default) with TLS encryption enabled. See [Compatible versions](#compatible-versions) for the supported Vantage releases.
 - **Capacity and quotas:** sufficient `AMP` allocation to absorb write spikes, session limits sized for Popsink jobs, and appropriately dimensioned permanent/swap space.
 - **Monitoring:** access to the `DBC.ResUsage*` views and `DBC.QryLog` to collect performance and error metrics.
 

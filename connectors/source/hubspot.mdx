@@ -6,6 +6,16 @@ import ApiSourceScheduling from '/snippets/api-source-scheduling.mdx';
 
 The HubSpot Source Connector ingests CRM data from HubSpot — contacts, companies, deals, tickets, and custom objects — into Popsink pipelines. It runs on a configurable schedule and performs incremental synchronization, so only records updated since the last run are delivered downstream. This is particularly valuable for consolidating customer data, building comprehensive customer profiles, and powering data-driven marketing and sales analytics.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **HubSpot API** | CRM API v3 |
+| **Authentication** | Private app access token |
+| **Objects** | Standard and custom CRM objects exposed by the v3 object endpoints |
+
+<Note>OAuth apps and the legacy API-key authentication are not supported — create a private app instead.</Note>
+
 ## Key Features
 
 - **Incremental synchronization:** the connector tracks each object's `hs_lastmodifieddate` cursor across runs and only delivers new or updated records.

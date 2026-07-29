@@ -4,6 +4,15 @@ title: ClickHouse Target
 
 Welcome to the ClickHouse Target Connector documentation. This guide is designed to help you effectively integrate and utilize ClickHouse as a data sink for your CDC (Change Data Capture) data pipelines. The ClickHouse Target Connector allows you to seamlessly transfer data from your tools, applications and services to a ClickHouse database, leveraging its high performance for analytics and large-scale data storage.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **ClickHouse** | ClickHouse Cloud and self-managed servers |
+| **Table engine** | `ReplacingMergeTree` for incremental updates and deletes |
+| **Protocol** | HTTPS interface — port `8443` on ClickHouse Cloud |
+| **Compatibility** | Confirmed per deployment |
+
 ### Overview
 
 ClickHouse is an open-source columnar database management system that is optimized for OLAP (Online Analytical Processing) scenarios. It is designed to process billions of rows and gigabytes of data per second with low latency. Using the ClickHouse Target Connector, you can push data from various sources into your ClickHouse instance, making it available for analysis and reporting.

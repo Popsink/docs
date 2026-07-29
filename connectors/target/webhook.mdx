@@ -4,6 +4,14 @@ title: Webhook Target
 
 The Webhook Target Connector delivers data from Popsink to any HTTP endpoint via webhook. It is the most efficient way to build a direct integration between Popsink and a downstream service: select existing streams from your Popsink catalog, and each event is forwarded as an HTTP request to your configured URL.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **Protocol** | HTTP/1.1 over TLS 1.2 or later |
+| **Payload** | JSON |
+| **Endpoint** | Any HTTPS endpoint reachable from Popsink |
+
 ## Key Features
 
 - **Push delivery:** events are forwarded to your endpoint as they flow through the pipeline — no polling required.

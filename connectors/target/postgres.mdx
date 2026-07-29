@@ -5,10 +5,20 @@ description: Operational guide for connecting Popsink to a PostgreSQL database i
 
 The Popsink Postgres target connector consolidates transactional and analytical data in a PostgreSQL database while honoring your organization's security and governance requirements.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **PostgreSQL** | 13, 14, 15, 16, 17, 18 |
+| **Managed services** | Amazon RDS & Aurora PostgreSQL, Google Cloud SQL, Azure Database for PostgreSQL |
+| **Driver** | PostgreSQL JDBC 42.7 |
+
+<Note>PostgreSQL 12 still works but has reached end of life upstream and is no longer covered.</Note>
+
 ## Prerequisites
 
 - **Roles and permissions:** a PostgreSQL role with `CREATE`, `INSERT`, `UPDATE`, `DELETE`, and `ALTER` rights on the target schema, plus permission to execute functions required for `COPY` or `INSERT` operations.
-- **Infrastructure settings:** outbound network access from Popsink to port 5432 (or your custom port) with TLS enabled, root certificates imported, and PostgreSQL version 12 or later.
+- **Infrastructure settings:** outbound network access from Popsink to port 5432 (or your custom port) with TLS enabled and root certificates imported. See [Compatible versions](#compatible-versions) for the supported PostgreSQL releases.
 - **Quotas and limits:** provision disk capacity for at least 150% of the expected daily volume and verify concurrent connection limits (`max_connections`) to accommodate Popsink workers.
 - **Monitoring and audits:** enable `pg_stat_statements` and error logging to trace connector activity.
 

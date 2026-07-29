@@ -4,6 +4,17 @@ title: MongoDB Source
 
 The MongoDB Source Connector is a powerful and efficient solution designed to facilitate seamless data integration between your MongoDB databases and Popsink. This connector helps you synchronize with MongoDB in real-time, ensuring that your target systems remain updated with the latest information in real-time, driving business intelligence, analytics, and operational efficiency.
 
+## Compatible versions
+
+| | |
+|---|---|
+| **MongoDB** | 6.0, 7.0, 8.0 |
+| **Topology** | Replica set or sharded cluster — change streams are unavailable on standalone servers |
+| **Managed services** | MongoDB Atlas |
+| **CDC engine** | Debezium 3.5 |
+
+<Note>MongoDB 5.0 and earlier are outside the tested matrix. Splitting change events larger than the 16 MB BSON limit requires MongoDB 6.0.9 or later.</Note>
+
 ## Prerequisites
 
 - A `Replica Set` name: a replication set is a group of MongoDB instances sharing the same data and is defined in `replication.replSetName` for each instance in their respective configuration files ([see here](https://www.mongodb.com/docs/manual/replication/#replication-in-mongodb)).
