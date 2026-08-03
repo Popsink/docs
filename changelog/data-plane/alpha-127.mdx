@@ -1,0 +1,33 @@
+---
+title: "v0.1.0-alpha.127 30/07/2026"
+---
+
+---
+
+**Description**: Filesystem source (S3, GCS, Azure ADLS, SFTP, local).
+
+### Changes
+
+- Filesystem source (S3, GCS, Azure ADLS, SFTP, local) (#3214).
+- Add source offset & partition as record headers on kafka-to-kafka (#3265).
+- BigQuery target: remove the streaming-write throughput ceiling (Storage Write API) (#3315).
+- Security - Fix all open Dependabot CVEs across lockfiles (#3340).
+- [SEC] Part 1 of #3345: redact Unity Catalog target credentials on read (#3347).
+- [TESTS] Part 2 of #3322: WorkerHeartbeatRequest legacy packed-state parsing (#3348).
+- [FRONT] Part 3 of #3218: extract broker BYOK check into service + composable (#3320).
+- [TESTCLEAN] Part 3 of #3291: remove redundant kafka-source accessibility probe (#3349).
+- BigQuery target: BigQuery-specific target-table-name sanitization (override the Snowflake default) (#3254).
+- Serve data-plane front from a dedicated dev container via Traefik (#3335).
+- Serve the control-plane front from a dedicated dev container (#3339).
+- Kafka->HubSpot delivery worker (Part 3 of #3160) (#3255).
+- Record refresh_token in the credential inventory + OAuth-target pattern (#3160) (#3354).
+- Remove log filtering for java workers => logs were stopping at the first stacktrace (#3226).
+- Expose the connector's char-field trim mode as an advanced option (#3332) (#3362).
+- [ARCH] Part 1 of #3288: stop schema domain service importing SchemaRead DTO (#3363).
+- [SEC] Add SSRF guard to Unity Catalog target credential check (#3366).
+- Cover POST /brokers/ normalization + error swallowing (#3367).
+- [TESTCLEAN] Part 1 of #3368: remove zero-assertion kube_api tests (#3369).
+- [FRONT] Part 1 of #3364: extract team-card into service + composable (#3365).
+- DP - CDC events experience (#3319).
+- DataModel detail: Consumers list shows the source logo instead of the target (#3353).
+- Introduce networkpolicies in data plane chart (#3376).
