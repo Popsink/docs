@@ -1,0 +1,20 @@
+---
+title: "v0.1.0-alpha.152 12/08/2026"
+---
+
+---
+
+**Description**: In target panel, under "ingest data", it's not possible to select multi sources despite the checkboxes.
+
+### Changes
+
+- In target panel, under "ingest data", it's not possible to select multi sources despite the checkboxes (#3504).
+- Mapper: build the default mapping from the source Avro schema, not the last Kafka message (#3510).
+- Self-hosted login: a data-plane reached at a bare IP takes the dead SSO round-trip instead of the paste-token page (#3516).
+- [DP] Pipeline latency - target consumer-lag from kotatsu, not the Tansu broker (#3515).
+- Popsink connect - bastion-only sources stream through an autossh sidecar (#3481).
+- Dependencies - clear the critical + high CVEs across npm, python and rust (#3517).
+- Give each CDC source its own Debezium offset topic (#3508).
+- Re-add ssh sidecars (#3525).
+- Connector stop - a sticky stopping state, so the heartbeat and k8s reconciliation stop flipping it back to live (#3520).
+- In popsink_connect, only report a stalled snapshot after receiving at least one sign of activity - this skips the schema stage (#3530).
