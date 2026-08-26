@@ -88,8 +88,16 @@ After generating the configuration, follow the provided commands.
 ### Install Command
 
 ```bash
-helm install release-name oci://ghcr.io/popsink/charts/data-plane --version 0.1.0-alpha.8
+helm install release-name oci://ghcr.io/popsink/charts/data-plane \
+  --version <version> -f values.yaml
 ````
+
+<Warning>
+Use the command **the wizard shows you**, not a copy of one. It carries the chart
+version this control plane supports, and `-f values.yaml` — Helm resolves values
+at install time, so without it the command installs pure chart defaults and
+ignores everything the wizard generated.
+</Warning>
 
 ---
 
@@ -112,6 +120,14 @@ Set the following values **exactly as provided by Popsink** to allow the data-pl
 * `controlPlaneFrontendUrl`
 * `deploymentId`
 * `deploymentJwtToken`
+
+<Warning>
+Two values are **not** generated for you and the install cannot start without
+them: `imagePullSecret.token` (the registry token Popsink issued you) and
+`kora.database.*` (the schema registry's own PostgreSQL role and database, which
+you have to create). See
+[Install Popsink with Helm for partners](https://docs.popsink.com/deployment/partners#schema-registry-database-kora).
+</Warning>
 
 ---
 

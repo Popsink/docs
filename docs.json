@@ -53,7 +53,7 @@
           {
             "group": "Deployment",
             "icon": "server",
-            "pages": ["deployment/deployment", "deployment/singlevm","deployment/installation", "deployment/selfhosted", "deployment/partners"]
+            "pages": ["deployment/deployment", "deployment/topology", "deployment/singlevm","deployment/installation", "deployment/selfhosted", "deployment/partners"]
           },
           {
             "group": "Source Connectors",
@@ -180,6 +180,9 @@
               {
                 "group": "Data Plane",
                 "pages": [
+                  "changelog/data-plane/alpha-158",
+                  "changelog/data-plane/alpha-157",
+                  "changelog/data-plane/alpha-156",
                   "changelog/data-plane/alpha-155",
                   "changelog/data-plane/alpha-154",
                   "changelog/data-plane/alpha-152",
