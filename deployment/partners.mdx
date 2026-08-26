@@ -42,9 +42,10 @@ Two components that appeared in earlier versions of this page — `karapace` and
 </Note>
 
 <Warning>
-The chart does **not** manage ingress. You must set up your own ingress
-controller (Traefik, NGINX, Istio…) and point a DNS record to it.
-See [Ingress](#ingress) below.
+The chart **can** render an `Ingress` (`ingress.enabled`, off by default), but it
+never installs an ingress controller: you still need your own (Traefik, NGINX,
+Istio…) and a DNS record pointing at it. Both options — chart-rendered or
+bring-your-own — are covered under [Ingress](#ingress) below.
 </Warning>
 
 ## Prerequisites
