@@ -1,0 +1,102 @@
+---
+title: "Deployments and environments"
+description: "How to map Popsink deployments onto your regions, networks and staging tiers."
+---
+
+Popsink has two levels of grouping, and the difference between them is a network
+boundary, not a naming convention. Getting the mapping right up front is much
+cheaper than moving pipelines later.
+
+## The two levels
+
+<CardGroup cols={2}>
+  <Card title="Deployment" icon="server">
+    One **running data plane**: one Helm release, one URL, one Kubernetes
+    cluster, one network. The connector workers that read your sources run
+    inside it, as pods in its namespace.
+  </Card>
+  <Card title="Environment" icon="layer-group">
+    A **scope inside a deployment**: its own broker and retention configuration,
+    its own teams and members, its own pipelines. Not a separate runtime — it
+    shares the deployment's cluster, network and URL.
+  </Card>
+</CardGroup>
+
+Everything else hangs off an environment:
+
+```
+Deployment  (one data plane, one cluster, one URL)
+└── Environment  (broker + retention config)
+    └── Team
+        └── Pipeline
+            ├── Connectors  (each with its own worker pod)
+            ├── Datamodels
+            └── Subscriptions
+```
+
+The control plane sits above all of it and manages your whole fleet of
+deployments from a single organization, with one user and billing view.
+
+## The rule
+
+<Note>
+**One deployment per isolated network.**
+</Note>
+
+Environments split a *single reachable* network into separate scopes. They do not
+span networks, VPCs or regions — every environment of a deployment is served by
+the same pods, in the same cluster, reachable at the same URL.
+
+So a fleet like "Staging London", "Production London", "Production Sydney" maps
+to **three deployments**, each with a single environment:
+
+| Your instance      | Popsink deployment            | Environments |
+| ------------------ | ----------------------------- | ------------ |
+| Staging London     | `staging-london` (eu-west-2)  | one          |
+| Production London  | `prod-london` (eu-west-2)     | one          |
+| Production Sydney  | `prod-sydney` (ap-southeast-2)| one          |
+
+The alternative — a "London" deployment holding "Staging" and "Production"
+environments — only works if both tiers are reachable from the same cluster. If
+they sit in isolated networks, a pipeline in the Sydney environment of a London
+deployment would have no worker in Sydney to run its connector.
+
+## When a second environment *is* the right answer
+
+Use additional environments inside one deployment when the network is the same
+and only the scope differs:
+
+- separate teams that must not see each other's pipelines;
+- a different broker retention policy for one class of workload;
+- a sandbox tier that shares the cluster with production but not the data.
+
+## Per-deployment isolation
+
+Each deployment is registered separately in the control plane and must keep its
+own:
+
+| Resource                            | Why it cannot be shared                                                                                              |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `deploymentId` / `deploymentJwtToken` | Issued per deployment by the control plane; they are its identity                                                    |
+| Database                            | Environments are keyed by UUID; two deployments sharing a database collide on the environment name uniqueness constraint |
+| Object-store bucket / prefix        | Two brokers writing the same prefix corrupt each other's segments                                                    |
+| `connectorConfigEncryptionKey.key`  | Encrypts that deployment's connector credentials at rest. Never share it, and **never rotate it**                    |
+
+Everything else — images, chart version, ingress class, IAM patterns — can and
+should be identical across deployments. A single `values.yaml` template with the
+per-deployment values substituted is the usual shape.
+
+## Upgrading a fleet
+
+Deployments upgrade independently: `helm upgrade` one at a time, with the version
+the control plane reports as supported. Roll a staging deployment first, confirm
+its status flips back to **Connected** in the control plane, then move through
+the production ones.
+
+<Card
+  title="Install a deployment"
+  icon="cloud-arrow-up"
+  href="https://docs.popsink.com/deployment/partners"
+>
+  The Helm chart, component by component.
+</Card>
