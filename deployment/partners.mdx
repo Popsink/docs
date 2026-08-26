@@ -13,20 +13,33 @@ your own) which orchestrates and monitors the deployment.
 
 The chart deploys the following components:
 
-| Component          | Purpose                                                          | Default     |
-| ------------------ | ---------------------------------------------------------------- | ----------- |
-| `data-plane`       | Main API + UI. Talks to the control plane, manages connectors    | **enabled** |
-| `tansu`            | Stateless Kafka-compatible broker, S3-backed                     | **enabled** |
-| `karapace`         | Schema Registry (Avro / JSON Schema) for Tansu                   | **enabled** |
-| `metrics-exporter` | Exports pipeline & connector metrics to the control plane        | **enabled** |
-| `kafka-ui`         | Web UI for Kafka inspection                                      | **enabled** |
-| `postgresql`       | Bitnami sub-chart, in-cluster Postgres for the data-plane DB     | **enabled** |
+| Component    | Purpose                                                                            | Default      |
+| ------------ | ---------------------------------------------------------------------------------- | ------------ |
+| `data-plane` | Main API + UI. Talks to the control plane, launches connector workers as pods      | **enabled**  |
+| `kodansu`    | Stateless Kafka-compatible broker, object-store backed                             | **enabled**  |
+| `kora`       | Confluent-compatible Schema Registry. **Needs its own PostgreSQL — see below**     | **enabled**  |
+| `kotatsu`    | Optional topic / schema browser, reads the broker's S3 objects                     | **disabled** |
+| `postgresql` | Bitnami sub-chart, in-cluster Postgres for the data-plane DB                       | **enabled**  |
+
+Connector workers are not part of the chart: the data-plane creates them as pods
+in its own namespace at runtime.
 
 You can disable any sub-component and bring your own:
 
-- **External Kafka** — `tansu.enabled=false`, configure `defaultKafka.*`
-- **External Schema Registry** — `karapace.enabled=false`, configure `schemaRegistry.*`
+- **External Kafka** — `kodansu.enabled=false`, configure `defaultKafka.*`
+- **External Schema Registry** — `kora.enabled=false`, configure `schemaRegistry.*`
 - **External PostgreSQL** — `postgresql.enabled=false`, configure `externalDatabase.*`
+
+<Note>
+`kodansu` was previously called `tansu`, and the chart still reads a `tansu:`
+block for backwards compatibility (anything under `kodansu:` wins). New values
+files should use `kodansu:`.
+
+Two components that appeared in earlier versions of this page — `karapace` and
+`kafka-ui` — no longer exist in the chart. They were replaced by `kora` and
+`kotatsu` respectively. A `values.yaml` that still sets `karapace.*` or
+`kafkaUi.*` is silently ignored.
+</Note>
 
 <Warning>
 The chart does **not** manage ingress. You must set up your own ingress
@@ -46,7 +59,7 @@ See [Ingress](#ingress) below.
 | Per-node          | 4 vCPU, 16 GB RAM                                          |
 | Persistent volume | SSD-backed StorageClass, ≥ 200 GB available                |
 | Ingress           | Traefik / NGINX / Istio (or any IngressClass-compatible)   |
-| Object storage    | S3-compatible bucket (recommended for Tansu)               |
+| Object storage    | S3-compatible bucket (recommended for the broker)          |
 
 ### Access to Popsink images
 
@@ -138,30 +151,151 @@ locally:
 These four secrets encrypt connector credentials, sign user sessions and
 protect the admin login. **Lose them and you lose access to your stored
 connector configs**. Back them up in your secret manager.
+
+`connectorConfigEncryptionKey.key` must **never be rotated**: every stored
+connector configuration is encrypted with it and becomes unreadable if it
+changes. Each deployment gets its own — never share one across deployments.
 </Warning>
 
 If you prefer to manage secrets out of band (Vault, Sealed Secrets, External
 Secrets Operator…), set the corresponding `existingSecret` field instead.
 
-## Tansu storage (S3)
+## Schema registry database (Kora)
 
-Tansu is a stateless Kafka broker that stores log segments in S3. You must
-provide an S3-compatible bucket and a way to authenticate.
+Kora is Popsink's schema registry: every connector registers the structure of
+what it reads there, and every target resolves schemas from it. It is enabled by
+default and it **requires its own PostgreSQL role and database, which the chart
+does not create for you**.
+
+<Warning>
+This is the step most first installs miss. The bundled PostgreSQL provisions the
+data-plane's own role and database (`postgresql.auth.*`) and nothing else, so
+leaving `kora.database` unset points Kora at a role that exists nowhere. From
+chart `0.1.0-alpha.162` the install aborts with the instructions below; on
+earlier charts it installs a pod that crash-loops on:
+
+```
+failed to connect to database: Backend("error returned from database:
+password authentication failed for user \"kora\"")
+```
+</Warning>
+
+<Tabs>
+  <Tab title="Dedicated database (recommended)">
+    Run once against your PostgreSQL instance — managed services such as RDS or
+    Cloud SQL included:
+
+    ```sql
+    CREATE ROLE kora LOGIN PASSWORD 'a-strong-password';
+    CREATE DATABASE kora OWNER kora;
+    ```
+
+    ```yaml
+    kora:
+      database:
+        host: "popsink.abc123.eu-west-2.rds.amazonaws.com"   # bundled: "<release>-postgresql"
+        port: 5432
+        user: "kora"
+        database: "kora"
+        password: "a-strong-password"
+    ```
+  </Tab>
+  <Tab title="Share the data-plane database">
+    No SQL to run — point Kora at the same role and database as the data-plane.
+    This keeps a self-hosted install to a single database to operate, and is what
+    the control-plane wizard generates.
+
+    ```yaml
+    kora:
+      database:
+        host: "<same as externalDatabase.host, or <release>-postgresql>"
+        port: 5432
+        user: "popsink"      # same as externalDatabase.user / postgresql.auth.username
+        database: "popsink"  # same as externalDatabase.database / postgresql.auth.database
+        password: "<same password>"
+    ```
+  </Tab>
+  <Tab title="Bring your own registry">
+    If you already operate a Confluent-compatible schema registry:
+
+    ```yaml
+    kora:
+      enabled: false
+
+    schemaRegistry:
+      url: "https://schema-registry.example.com"
+      username: "popsink"
+      password: "<secret>"
+      # or: existingSecret + secretKeys.{username,password}
+    ```
+  </Tab>
+</Tabs>
+
+Credentials can also come from a secret rather than a literal — use
+`kora.database.existingSecret` with `secretKeys.password`, or `secretKeys.url`
+for a full connection URL. The three sources are mutually exclusive: an
+`existingSecret` combined with a literal `password` or `url` is rejected at
+render time.
+
+Kora also supports an Oracle backend: `kora.database.backend: oracle`, port
+`1521`, and `database` set to the service name (e.g. `FREEPDB1`). The chart
+selects the matching image automatically.
+
+## Stream browser (Kotatsu)
+
+Kotatsu is **optional and disabled by default**. It is a read-only browser over
+the objects the broker wrote to S3, and it backs two things in the UI:
+
+- search, pagination and the timestamp column on the datamodel **Stream** tab;
+- the per-subscription **target lag** rows on the pipeline latency view.
+
+Without it, the Stream tab falls back to a live Kafka read (no search, no
+pagination) and the target-lag rows are simply absent. Pipelines, connectors,
+subscriptions and delivery are unaffected — it is safe to leave disabled in
+production.
+
+Because it reads the bucket the broker writes, it only means anything with S3
+retention. To enable it:
+
+```yaml
+kotatsu:
+  enabled: true
+```
+
+That is the entire configuration. Bucket, cluster id, region, endpoint and
+credentials all default to the broker's own (`kodansu.storage.*`,
+`kodansu.clusterId`) — the only combination that can work, since the two read and
+write the same objects. Set `kotatsu.s3.*` only to point Kotatsu at a replica of
+the bucket or at a separate read-only credential. On EKS with IRSA, leave the
+keys empty and annotate `kotatsu.serviceAccount.annotations` with the role ARN.
+
+<Note>
+On charts before `0.1.0-alpha.162` Kotatsu defaulted to **enabled**, so an
+install that had not opted into S3 aborted with
+`kotatsu.s3.bucket must be provided when kotatsu is enabled`. Setting
+`kotatsu.enabled: false` is the correct workaround on those versions.
+</Note>
+
+## Broker storage (S3)
+
+Kodansu is a stateless Kafka broker that stores log segments in an object store.
+`kodansu.storage.engine` decides where records live, and both it and
+`kodansu.storage.aws.region` are required by the chart.
 
 <CodeGroup>
 
 ```yaml AWS — IRSA (recommended on EKS)
-tansu:
+kodansu:
   storage:
     engine: "s3://my-popsink-bucket/kafka/"
     aws:
       region: eu-west-1
-      irsaRoleArn:    arn:aws:iam::123456789012:role/popsink-tansu
-      assumedRoleArn: arn:aws:iam::123456789012:role/popsink-tansu
+      irsaRoleArn:    arn:aws:iam::123456789012:role/popsink-kodansu
+      assumedRoleArn: arn:aws:iam::123456789012:role/popsink-kodansu
 ```
 
 ```yaml AWS — static credentials
-tansu:
+kodansu:
   storage:
     engine: "s3://my-popsink-bucket/kafka/"
     aws:
@@ -171,7 +305,7 @@ tansu:
 ```
 
 ```yaml MinIO / non-AWS S3
-tansu:
+kodansu:
   storage:
     engine: "s3://my-popsink-bucket/kafka/"
     aws:
@@ -182,18 +316,39 @@ tansu:
       secretAccessKey: minio123
 ```
 
+```yaml PostgreSQL retention
+kodansu:
+  storage:
+    engine: "postgres://user:password@db.example.com:5432/database"
+    aws:
+      # Required by the chart even here, and never read on this path.
+      region: us-east-1
+```
+
 </CodeGroup>
 
 The bucket must exist, be writable by the configured identity, and ideally
 have **object versioning** enabled.
 
+<Warning>
+Before bumping the broker image on an existing bucket, read the upgrade notes on
+`tansu.image.tag` in the chart's `values.yaml`. Two of the tags cross an
+object-layout boundary and need a quiesce-and-flip rather than a rolling
+upgrade.
+</Warning>
+
 <Note>
-If you don't want Tansu, set `tansu.enabled=false` and `karapace.enabled=false`,
-then point the data plane at your existing Kafka:
+PostgreSQL retention is simpler to operate but does not scale the same way, and
+rules out Kotatsu (there is no bucket to browse).
+</Note>
+
+<Note>
+If you don't want the in-cluster broker, set `kodansu.enabled=false` and
+`kora.enabled=false`, then point the data plane at your existing Kafka:
 
 ```yaml
-tansu:    { enabled: false }
-karapace: { enabled: false }
+kodansu: { enabled: false }
+kora:    { enabled: false }
 
 defaultKafka:
   bootstrapServer: kafka.example.com:9093
@@ -301,19 +456,51 @@ postgresql:
       size: 50Gi
       storageClass: <your-ssd-class>
 
-# ───── Tansu + S3 ─────
-tansu:
-  enabled: true
+# ───── Schema registry database — NOT created by the chart ─────
+# Run once:  CREATE ROLE kora LOGIN PASSWORD '<kora-password>';
+#            CREATE DATABASE kora OWNER kora;
+kora:
+  database:
+    host: <release>-postgresql        # or your RDS / Cloud SQL endpoint
+    port: 5432
+    user: kora
+    database: kora
+    password: <kora-password>
+
+# ───── Broker + S3 ─────
+kodansu:
   storage:
     engine: "s3://my-popsink-bucket/kafka/"
     aws:
       region: eu-west-1
-      irsaRoleArn:    arn:aws:iam::123:role/popsink-tansu
-      assumedRoleArn: arn:aws:iam::123:role/popsink-tansu
+      irsaRoleArn:    arn:aws:iam::123:role/popsink-kodansu
+      assumedRoleArn: arn:aws:iam::123:role/popsink-kodansu
 
-karapace:
+# ───── Optional stream browser (S3 retention only) ─────
+kotatsu:
   enabled: true
 ```
+
+<Tip>
+For production, swap the in-cluster Postgres for a managed one:
+
+```yaml
+postgresql:
+  enabled: false
+
+externalDatabase:
+  host: popsink.abc123.eu-west-2.rds.amazonaws.com
+  port: 5432
+  user: popsink
+  database: popsink
+  password: <strong-password>
+```
+
+`externalDatabase.user` and `externalDatabase.database` are **not** guarded by
+the chart: left empty they render, install, and the data plane then crash-loops
+on an empty `DB_USER`. The database must exist before the install — the data
+plane runs its own migrations on startup.
+</Tip>
 
 ## Install
 
@@ -355,7 +542,7 @@ a minute. Open `ingressUrl` and log in with the `adminCredentials` you set.
     - Use **external** PostgreSQL (`postgresql.enabled=false`,
       `externalDatabase.*`) backed by managed snapshots, not the in-cluster
       Bitnami chart.
-    - Use **external** S3 with versioning + lifecycle policy for Tansu.
+    - Use **external** S3 with versioning + lifecycle policy for the broker.
   </Accordion>
   <Accordion title="Resources & availability">
     - Set explicit `resources.requests/limits` on every component (defaults
@@ -404,7 +591,7 @@ helm uninstall popsink -n popsink
 ```
 
 <Warning>
-By default the **PostgreSQL PVC and Tansu/S3 data are kept**
+By default the **PostgreSQL PVC and the broker's S3 data are kept**
 (`postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted=Retain`,
 S3 buckets are external). Delete them manually if you want a clean slate:
 
@@ -418,12 +605,18 @@ aws s3 rm s3://my-popsink-bucket/kafka/ --recursive   # ⚠ destroys all topics
 
 | Symptom                                                              | Likely cause                                                                                                |
 | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `helm install` aborts on the Kora database message                   | `kora.database` not configured — see [Schema registry database](#schema-registry-database-kora)              |
+| `kora` pod: `password authentication failed for user "kora"`         | The `kora` role / database does not exist. Create them, or point Kora at the data-plane database             |
+| `kotatsu.s3.bucket must be provided when kotatsu is enabled`         | Kotatsu enabled with a non-S3 retention engine — set `kotatsu.enabled: false`                                |
+| `Kora must be enabled, or schemaRegistry.url must be provided`       | `kora.enabled: false` with no external registry configured                                                   |
+| `data-plane` pods crash-loop on an empty `DB_USER`                   | `externalDatabase.user` / `.database` left empty                                                             |
+| Stream tab has no search bar                                         | Kotatsu is disabled — expected, the tab falls back to a live Kafka read                                      |
 | Control plane stays on "Awaiting connection…"                        | Wrong `controlPlaneUrl` / `deploymentId` / `deploymentJwtToken`, or egress to the control plane is blocked  |
 | `data-plane` pods crash-loop on `connector-config-encryption-key`    | Fernet key is not a valid URL-safe base64-encoded 32-byte string                                            |
-| `tansu` pods `CrashLoopBackOff` with S3 errors                       | `storage.engine`, `region`, or IAM role/credentials are wrong; bucket missing                               |
+| Broker pods `CrashLoopBackOff` with S3 errors                        | `kodansu.storage.engine`, `region`, or IAM role/credentials are wrong; bucket missing                        |
 | `ImagePullBackOff` on every pod                                      | `imagePullSecret.token` not set / not a valid GAR service-account JSON                                      |
 | Login at `ingressUrl` fails with redirect loop                       | `ingressUrl` doesn't match the public URL fronted by your ingress                                           |
-| Workers (connectors) never become `LIVE`                             | The data-plane pod cannot reach Tansu / Karapace inside the cluster — check `NetworkPolicy`                 |
+| Workers (connectors) never become `LIVE`                             | The data-plane pod cannot reach the broker or Kora inside the cluster — check `NetworkPolicy`                |
 | Ingress 502 on `/api/livez`                                          | Service name in your `Ingress` doesn't match `<release>-data-plane`                                         |
 
 For deeper logs:
@@ -431,7 +624,8 @@ For deeper logs:
 ```bash
 kubectl -n popsink logs -l app.kubernetes.io/component=data-plane --tail=200
 kubectl -n popsink logs -l app.kubernetes.io/component=tansu       --tail=200
-kubectl -n popsink logs -l app.kubernetes.io/component=karapace    --tail=200
+kubectl -n popsink logs -l app.kubernetes.io/name=kora             --tail=200
+kubectl -n popsink logs -l app.kubernetes.io/component=kotatsu     --tail=200
 ```
 
 ## Reference — most useful values
@@ -451,11 +645,11 @@ common knobs are:
 | `adminCredentials.*`                            | First admin login                                         |
 | `jwt.secret`                                    | Signs user session tokens                                 |
 | `connectorConfigEncryptionKey.key`              | Encrypts connector credentials at rest                    |
-| `tansu.enabled`, `tansu.storage.*`              | In-cluster Kafka or BYO; S3 backend                       |
-| `karapace.enabled` / `schemaRegistry.*`         | In-cluster Schema Registry or BYO                         |
+| `kodansu.enabled`, `kodansu.storage.*`          | In-cluster broker or BYO Kafka; object-store backend      |
+| `kora.enabled` / `schemaRegistry.*`             | In-cluster Schema Registry or BYO                         |
+| `kora.database.*`                               | **Required.** Kora's own PostgreSQL role and database     |
+| `kotatsu.enabled`                               | Optional stream browser (default `false`)                 |
 | `postgresql.enabled` / `externalDatabase.*`     | In-cluster Postgres or BYO                                |
-| `metricsExporter.*`                             | Pushes metrics to the control plane                       |
-| `kafkaUi.*`                                     | Optional Kafka inspection UI                              |
 | `pdb.create`                                    | PodDisruptionBudget (default `true`)                      |
 | `autoscaling.hpa.*`, `autoscaling.vpa.*`        | HPA / VPA — disabled by default                           |
 
@@ -475,5 +669,12 @@ common knobs are:
     href="https://docs.popsink.com/deployment/selfhosted"
   >
     The control-plane wizard that issues your `deploymentId` and JWT token.
+  </Card>
+  <Card
+    title="Deployments and environments"
+    icon="sitemap"
+    href="https://docs.popsink.com/deployment/topology"
+  >
+    How to map deployments onto your regions, networks and staging tiers.
   </Card>
 </CardGroup>
