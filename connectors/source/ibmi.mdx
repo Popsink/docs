@@ -16,9 +16,8 @@ The IBMi (AS/400) Source Connector integrates with IBM i, formerly known as IBM 
 6. [Configuration](#configuration)
 7. [Enabling Journaling](#enabling-journaling)
 8. [Granting User Permissions](#granting-user-permissions)
-9. [Enabling Incremental Load](#enabling-incremental-load)
-10. [Estimating Change Volume](#estimating-change-volume)
-11. [Housekeeping](#housekeeping)
+9. [Estimating Change Volume](#estimating-change-volume)
+10. [Housekeeping](#housekeeping)
 
 ## Compatible versions
 
@@ -59,7 +58,6 @@ The connector combines two mechanisms:
 
 - The tables you want to ingest must be journaled. [See Enabling Journaling](#enabling-journaling)
 - You will need a user with the necessary permissions. [See Granting User Permissions](#granting-user-permissions)
-- For incremental load support, a signal table must be created and journaled. [See Enabling Incremental Load](#enabling-incremental-load)
 - Network access from Popsink to the IBM i host on the ports listed below. [See Network Access](#network-access)
 
 ### Network Access
@@ -98,7 +96,7 @@ If the IBM i system is only reachable through a bastion host, see [Connecting th
 | **Poll Interval (ms)** | `2000` | How often the connector polls for new journal activity |
 | **Unicode Escape** | `false` | Apply Unicode escape handling for special characters in field names |
 | **Transaction Buffered** | `false` | Buffer transactions and emit changes only after commit, avoiding partial or uncommitted rows downstream |
-| **Incremental Load** | `false` | Enable incremental load via the signal table — see [Enabling Incremental Load](#enabling-incremental-load) |
+| **Incremental Load** | `false` | Legacy option, kept while the switch is still present in the form. Leave it disabled: snapshots run in blocking mode and are orchestrated by Popsink, with nothing required on the IBM i side. |
 
 <SshTunnel />
 
@@ -149,25 +147,7 @@ In summary, the user requires:
 - **\*USE** and **\*OBJEXIST** authority on the journal object
 - **\*USE** authority on the journal receivers
 
-## Enabling Incremental Load
-
-To enable incremental load, the connector uses a signal table:
-
-1. **Create the signal table:**
-   ```sql
-   CREATE TABLE SCHEMA.POP_SIGNAL (
-     ID VARCHAR(128) NOT NULL,
-     TYPE VARCHAR(32) NOT NULL,
-     DATA VARCHAR(2048)
-   )
-   ```
-
-2. **Journal this table in the same journal as the tracked tables:**
-   ```
-   STRJRNPF <FILE_LIB>/POP_SIGNAL <JOURNAL_LIB>/<JOURNAL_NAME>
-   ```
-
-3. **Grant the user write permissions on this table** (this table only — no write access is needed anywhere else).
+No write authority is required anywhere: the connector reads journal receivers and runs SQL snapshots, and creates no object on the source system.
 
 ## Estimating Change Volume
 
