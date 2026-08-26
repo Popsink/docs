@@ -1,195 +1,391 @@
 ---
 title: "Popsink Kubernetes Deployment"
-description: Step-by-step guide to creating, configuring, and connecting a self-hosted deployment.
+description: Create a self-hosted deployment in the control plane, then install the data plane on your cluster with Helm.
 ---
+
+This page is the **wizard-driven** install: you create a self-hosted deployment
+in the Popsink control plane, it hands you a complete `values.yaml` and a
+`helm install` command, and you run them against your cluster.
+
+If you install without the wizard — or you want the full reference for every
+value the chart exposes — use
+[Install Popsink with Helm for partners](/deployment/partners) instead. The two
+pages describe the same chart.
 
 ## Prerequisites
 
-Ensure your infrastructure meets the following requirements before starting:
+| Requirement       | Minimum                                                  |
+| ----------------- | -------------------------------------------------------- |
+| Kubernetes        | `1.23+`                                                  |
+| Helm              | `3.8.0+`                                                 |
+| Worker nodes      | 2 nodes, `amd64`, 4 vCPU + 16 GB RAM each                |
+| Persistent volume | SSD-backed StorageClass, ≥ 200 GB available              |
+| Ingress           | Traefik / NGINX / Istio (or any IngressClass-compatible) |
+| Object storage    | S3-compatible bucket — recommended for the broker        |
 
-- **Kubernetes 1.23+**
-- **Helm 3.8.0+**
-- Support for a **Persistent Volume (PV) provisioner**
+See [Kubernetes requirements](/deployment/installation) for the full list.
+
+You also need two things from Popsink before you start:
+
+- a **registry token** (a Google Artifact Registry service-account JSON) — every
+  Popsink image is pulled from a private registry;
+- an account on the control plane you will attach this deployment to
+  (`https://control-plane.popsink.com`, or your own).
+
+Decide up front where the data plane will be reachable — you will be asked for
+it in step 2, and it cannot be left blank:
+
+<Note>
+**URL, not TLD, not FQDN.** For a data plane served at
+`popsink.example-company.com`, the *TLD* is `.com`, the *FQDN* is
+`popsink.example-company.com`, and the *URL* is
+`https://popsink.example-company.com`.
+
+The chart value is `ingressUrl` and it takes the **URL**. The wizard's
+**Fully qualified domain name** field accepts the host on its own and prefixes
+`https://` for you; type a scheme yourself and it is kept as-is (an on-prem data
+plane may legitimately sit behind plain HTTP).
+</Note>
 
 ---
 
-## 1. Create a New Deployment
+## 1. Create the deployment
 
-1. Navigate to **Deployments** from the sidebar.
+1. Open **Deployments** in the control-plane sidebar.
 2. Click **New Deployment**.
 
-![image](/images/sh-tuto1.png)
+![Deployments list in the control plane](/images/sh-tuto1.png)
 
-### Deployment Settings
+Then fill in:
 
-Provide the required information:
+- **Deployment name** — a recognizable name for this environment. It also
+  becomes the Helm release name (slugified), so keep it short and DNS-friendly.
+- **Deployment URL** — generated from the name.
+- **Deployment method** — **Self-hosted**.
 
-- **Deployment name** – Choose a recognizable name for your environment.
-- **Deployment URL** – Automatically generated from your deployment name.
-- **Deployment method** – Select **Self-hosted**.
-
-Click **Configure Self-Hosted** to continue.
+Click **Configure Self-Hosted**.
 
 > 💡 You can request a new region or provider if your preferred option is not listed.
 
-![image](/images/sh-tuto2.png)
+![Create a new deployment form](/images/sh-tuto2.png)
 
 ---
 
-## 2. Configure the Deployment
+## 2. Configure
 
-This step bootstraps your deployment on a Kubernetes cluster using Helm.
+Everything on this step exists to generate your `values.yaml`. Nothing here is
+stored by Popsink — you can also skip the step and write the values yourself.
 
-> **Note:** The information entered here is only used to pre-fill your YAML in the next step and is not permanently stored. You can skip this step and manually edit the YAML if preferred.
+| Section                  | What it asks                                                | What it generates                                             |
+| ------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------- |
+| **PostgreSQL Database**  | Off = use the in-cluster Postgres. On = your own instance    | `postgresql.*`, or `postgresql.enabled: false` + `externalDatabase.*` |
+| **Retention**            | **S3 Compat** (recommended) or **PostgreSQL Database**       | `kodansu.storage.engine` + `kodansu.storage.aws.*`, `kotatsu.*` |
+| **TLD**                  | Fully qualified domain name, e.g. `popsink.example.com`      | `ingressUrl: https://popsink.example.com`                     |
 
-### Optional Database Setup
+<Note>
+The **PostgreSQL Database** toggle means *"I bring my own"*. Left off, the chart
+installs the bundled Postgres sub-chart and points both the data plane and the
+schema registry (Kora) at it.
+</Note>
 
-You may enable a **PostgreSQL database** during setup if required by your deployment.
+<Warning>
+Pick **S3 Compat** retention unless you have a reason not to. PostgreSQL
+retention is simpler to operate but does not scale the same way, and it rules
+out the stream browser (Kotatsu) — there is no bucket to browse, so the wizard
+sets `kotatsu.enabled: false` for you.
+</Warning>
+
+Click **Create Chart**.
 
 ---
 
-## 3. Select a Retention Strategy
+## 3. Save the generated `values.yaml`
 
-Choose how your data will be stored:
+The **Chart** step shows your `values.yaml` **first**, then the install command
+that reads it. That order matters: Helm resolves values at install time, so a
+`helm install` without `-f values.yaml` installs pure chart defaults and ignores
+everything the wizard generated.
 
-- **S3-Compatible Storage** – Recommended for scalable object storage.
-- **PostgreSQL Database** – Suitable for structured retention needs.
+The generated file is complete — it covers every value the chart marks
+`required`, plus three secrets minted **in your browser** and never sent to
+Popsink:
 
----
+```yaml values.yaml (generated — abridged)
+controlPlaneUrl: https://control-plane-api.popsink.com/api
+controlPlaneFrontendUrl: https://control-plane.popsink.com
+ingressUrl: https://popsink.example-company.com
+deploymentId: <uuid>
+deploymentJwtToken:
+  token: <jwt>
 
-## 4. Configure the TLD (FQDN)
+adminCredentials:
+  username: admin
+  password: <generated>
+jwt:
+  secret: <generated>
+connectorConfigEncryptionKey:
+  key: <generated Fernet key>
 
-Provide the **Fully Qualified Domain Name (FQDN)** used to generate your Helm values.
+imagePullSecret:
+  create: true
+  registry: europe-west1-docker.pkg.dev/popsink-common-438615/onprem
+  token: ""            # ← you paste the token Popsink issued you
 
-> ⚠️ The chart does **not** manage ingress configuration. You must configure it separately.
+kodansu:
+  storage:
+    engine: s3://my-popsink-bucket/
+    aws:
+      region: eu-west-1
+      accessKeyId: <key>
+      secretAccessKey: <secret>
 
-**Example:**
+kora:
+  database:            # the schema registry shares the data-plane database
+    host: my-deployment-postgresql
+    port: 5432
+    user: popsink
+    database: popsink
+    password: <generated>
 
+postgresql:
+  auth:
+    password: <generated>
+
+kotatsu:
+  s3:
+    bucket: my-popsink-bucket
+    cluster: tansu
+    region: eu-west-1
+    forcePathStyle: false
+    accessKey: <key>
+    secretKey: <secret>
 ```
 
-demo-popsink.tld
+<Warning>
+`adminCredentials.password`, `jwt.secret` and `connectorConfigEncryptionKey.key`
+are generated in the browser and stored nowhere else. **Save this file in your
+secret manager before leaving the page.**
 
-````
+`connectorConfigEncryptionKey.key` must never be rotated: every stored connector
+configuration is encrypted with it and becomes unreadable if it changes.
+</Warning>
 
-Make sure to set the `ingressurl` field in your `values.yaml` to this FQDN.
+`deploymentJwtToken` is an **object**, not a string — `token:` nested underneath.
+A flat `deploymentJwtToken: <jwt>` fails to render.
 
-Click **Create Chart** when ready.
+### Fill in what the wizard cannot
 
-![image](/images/sh-tuto3.png)
+The wizard flags any value it left empty under **"Fill these in before
+installing"**. Two of them always need your attention:
+
+<Steps>
+  <Step title="imagePullSecret.token">
+    Paste the registry token Popsink issued you (the GAR service-account JSON, raw
+    or base64-encoded). The control plane holds no registry credential, so it
+    cannot fill this for you.
+
+    ```yaml
+    imagePullSecret:
+      create: true
+      registry: europe-west1-docker.pkg.dev/popsink-common-438615/onprem
+      token: <gar-service-account-json>
+    ```
+  </Step>
+  <Step title="global.imagePullSecrets">
+    Add this by hand — `imagePullSecret.create: true` is **not sufficient today**.
+    The chart creates the secret as `<release-name>-regcred` but does not attach
+    it to any pod, so every image fails with `ImagePullBackOff`. Reference it
+    explicitly:
+
+    ```yaml
+    global:
+      imagePullSecrets:
+        - my-deployment-regcred      # <release-name>-regcred
+    ```
+
+    Or skip `imagePullSecret` entirely and create the secret yourself:
+
+    ```bash
+    kubectl create secret docker-registry popsink-registry \
+      --docker-server=europe-west1-docker.pkg.dev \
+      --docker-username=_json_key \
+      --docker-password="$(cat key.json)" \
+      -n popsink
+    ```
+
+    ```yaml
+    global:
+      imagePullSecrets:
+        - popsink-registry
+    ```
+
+    <Note>This extra step is a known chart defect and will go away — until then,
+    both values are required.</Note>
+  </Step>
+  <Step title="externalDatabase.user / .database (only if you brought your own Postgres)">
+    These two are **not** guarded by the chart: left empty they render, install,
+    and the data plane then crash-loops on an empty `DB_USER`. The database must
+    exist before the install — the data plane runs its own migrations on startup.
+  </Step>
+</Steps>
 
 ---
 
-## 5. Install the Helm Chart
+## 4. Configure ingress
 
-After generating the configuration, follow the provided commands.
+The chart **can** render the `Ingress` for you, and it can also stay out of the
+way. Pick one — but either way, `ingressUrl` must match the public URL your
+users actually reach, or the control-plane login redirect loops.
 
-![image](/images/sh-tuto4.png)
+<Tabs>
+  <Tab title="Let the chart render it">
+    ```yaml
+    ingressUrl: https://popsink.example-company.com
 
-### Install Command
+    ingress:
+      enabled: true
+      hostname: popsink.example-company.com
+      ingressClassName: nginx
+      tls: true
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+    ```
+
+    `ingress.extraHosts`, `ingress.extraTls`, `ingress.path` and
+    `ingress.existingSecret` are available too — see the chart reference values
+    linked from the wizard.
+  </Tab>
+  <Tab title="Bring your own Ingress">
+    Leave `ingress.enabled: false` (the default) and point your own resource at
+    the data-plane service — `<release>-data-plane`, port `80`:
+
+    ```yaml
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: popsink
+      namespace: popsink
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+    spec:
+      ingressClassName: nginx
+      tls:
+        - hosts: [popsink.example-company.com]
+          secretName: popsink-tls
+      rules:
+        - host: popsink.example-company.com
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: <release>-data-plane
+                    port: { number: 80 }
+    ```
+
+    This is the better option when ingress in your organisation needs specific
+    annotations — WAF, allow-lists, a company cert issuer.
+  </Tab>
+</Tabs>
+
+---
+
+## 5. Install
+
+Run the command **the wizard shows you**, from the directory holding your
+`values.yaml`:
 
 ```bash
-helm install release-name oci://ghcr.io/popsink/charts/data-plane \
-  --version <version> -f values.yaml
-````
+kubectl create namespace popsink
+
+helm install <release-name> oci://ghcr.io/popsink/charts/data-plane \
+  --version <version> \
+  -n popsink \
+  -f values.yaml
+```
 
 <Warning>
-Use the command **the wizard shows you**, not a copy of one. It carries the chart
-version this control plane supports, and `-f values.yaml` — Helm resolves values
-at install time, so without it the command installs pure chart defaults and
-ignores everything the wizard generated.
+Do not copy a version from a document — including this one. The chart version is
+served by the control plane and tracks the published chart; a literal pinned in
+a guide rots. An install from a six-month-old chart fails in ways that look like
+product bugs but are pure version skew.
 </Warning>
 
----
+Watch the rollout:
 
-## 6. Review and Customize Helm Values
-
-A default configuration file is generated containing:
-
-* Global FQDN
-* PostgreSQL enablement flag
-* Retention type
-* Deployment metadata
-
-Download or copy the configuration and adjust it as needed before applying it to your cluster.
-
-### Required Helm Values
-
-Set the following values **exactly as provided by Popsink** to allow the data-plane to register and communicate with the control-plane:
-
-* `controlPlaneUrl`
-* `controlPlaneFrontendUrl`
-* `deploymentId`
-* `deploymentJwtToken`
-
-<Warning>
-Two values are **not** generated for you and the install cannot start without
-them: `imagePullSecret.token` (the registry token Popsink issued you) and
-`kora.database.*` (the schema registry's own PostgreSQL role and database, which
-you have to create). See
-[Install Popsink with Helm for partners](https://docs.popsink.com/deployment/partners#schema-registry-database-kora).
-</Warning>
+```bash
+kubectl -n popsink get pods -w
+```
 
 ---
 
-## Managing Secrets
+## 6. Await connection
 
-Sensitive values (such as tokens or credentials) can be provided in two ways:
+Once the pods are `Ready`, the control plane switches from
+**Awaiting connection…** to **Connected**, usually within a minute.
 
-1. **Directly in `values.yaml`**
-   Simple to configure, but ensure proper access control and avoid committing secrets to Git.
+![Awaiting connection screen](/images/sh-tuto5.png)
 
-2. **Reference an existing Kubernetes Secret (Recommended for production)**
-   Keeps sensitive data out of Helm files and aligns with Kubernetes best practices.
+Then open your `ingressUrl` and log in with `adminCredentials`.
 
----
+### If it stays on "Awaiting connection…"
 
-## Image Registry Authentication
+| Check                                                             | Why                                                                    |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `helm install` completed without an error                         | A `required` value aborts the render; nothing reaches the cluster       |
+| Every pod is `Running`, not `ImagePullBackOff`                    | `imagePullSecret.token` and `global.imagePullSecrets` — see step 3      |
+| `controlPlaneUrl` / `deploymentId` / `deploymentJwtToken.token`   | Used verbatim from the wizard, `token` nested                           |
+| Outbound access from the cluster to the control plane             | The data plane registers itself; egress must be open                    |
+| DNS resolves `ingressUrl` to your ingress controller              | Also what the post-login redirect uses                                  |
 
-Popsink distributes container images through a private registry.
-To pull these images, you must configure authentication using an imagePullSecret.
+```bash
+kubectl -n popsink logs -l app.kubernetes.io/component=data-plane --tail=200
+```
 
-Popsink will provide a registry token that you must add to your Helm configuration.
-
-When finished, click **Mark as Complete**.
-
----
-
-## 7. Await Connection
-
-After installation, the platform waits for your self-hosted deployment to connect.
-You will see an **"Awaiting connection…"** status until the cluster successfully registers.
-
-![image](/images/sh-tuto5.png)
-
-### Troubleshooting
-
-If the connection is not established:
-
-* Verify that the Helm installation completed successfully.
-* Confirm your ingress and DNS are correctly configured.
-* Ensure the cluster has outbound network access.
+The full symptom-to-cause table lives on the partners page —
+[Troubleshooting](/deployment/partners#troubleshooting).
 
 ---
 
-## Production Recommendations
+## Managing secrets
 
-For most production deployments, Popsink recommends:
+Sensitive values can be provided two ways:
 
-* **Using S3-compatible object storage** for retention (scalable and durable).
-* **Providing an external PostgreSQL database** instead of running Postgres inside the cluster.
+1. **Directly in `values.yaml`** — simple, but keep the file out of Git and
+   under access control.
+2. **From an existing Kubernetes Secret** (recommended for production) — set the
+   matching `existingSecret` field instead of the literal. Available for
+   `deploymentJwtToken`, `jwt`, `connectorConfigEncryptionKey`,
+   `adminCredentials`, `kora.database`, `kodansu.storage.aws` and the database
+   blocks, and it works with Vault, Sealed Secrets or the External Secrets
+   Operator.
 
-These practices generally improve reliability, scalability, and operational simplicity.
+## Production recommendations
 
----
+- **External PostgreSQL** (`postgresql.enabled: false` + `externalDatabase.*`)
+  backed by managed snapshots, rather than the bundled sub-chart.
+- **S3-compatible object storage** for retention, with versioning and a
+  lifecycle policy on the bucket.
+- **Pin the chart version** (`--version`) and the image tag (`image.tag`) for
+  reproducible upgrades — never deploy `latest`.
+- **TLS-only ingress**, with source ranges restricted if the data plane is
+  internet-exposed.
+- Keep `allowDesignLogin: false` and `pipelineMode: false` — dev-only switches.
+- Back up the four secrets (admin credentials, JWT secret, Fernet key, database
+  password) in your secret manager.
 
-## Advanced Configuration
+## Advanced configuration
 
-### Custom JWT Secrets (Data-Plane)
+Every value the chart exposes — component-level resources, replica counts, HPA
+and VPA, network policies, bringing your own Kafka or schema registry, Oracle as
+the Kora backend — is documented in
+[Install Popsink with Helm for partners](/deployment/partners), and in the
+**Full chart reference values** file linked from the wizard's Chart step.
 
-For enhanced security and compliance, you can configure the deployment to **use your own JWT secrets** instead of the defaults.
+### Custom JWT secrets
 
-This approach provides tighter control over:
-
-* Token signing and rotation policies
-* Secret ownership
-* Security posture
+You can supply your own `jwt.secret` instead of the generated one, for tighter
+control over token signing and rotation policy, secret ownership, and to keep
+signing material inside your own secret manager. Set `jwt.existingSecret` rather
+than a literal if the value is managed out of band.
