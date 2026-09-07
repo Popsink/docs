@@ -1,0 +1,22 @@
+---
+title: "v0.1.0-alpha.169 03/09/2026"
+---
+
+---
+
+**Description**: Tests - cover POST /subscriptions/subscribe-all, and unbreak its derived name.
+
+### Changes
+
+- Tests - cover POST /subscriptions/subscribe-all, and unbreak its derived name (#3753).
+- [SEC] Part 2 of #3720: scope the user-log audit trail to the caller's environments (#3752).
+- [FRONT] Part 1 of #3750: extract the datamodel catalog into useDatamodelCatalog + services (#3751).
+- Snowflake - set the merged table's freshness per subscription (#3745).
+- DP - Recover from a broken Kafka source instead of retrying it as a bad message (#3708).
+- DP - Keep the Iceberg worker responsive during storage commits (#3658).
+- Sample the stalled threads before a task-start timeout reports nothing (#3736).
+- Keep the mapper TEST button enabled and say why it cannot run (#3737).
+- DP - Stop the subscription edit page from renaming a subscription (#3773).
+- DP - Report a stalled backfill instead of holding it forever in silence (#3711).
+- Resolve a Snowflake target's primary keys without a Schema Registry read (#3763) (#3776).
+- Bump versions of all kafka_to_jdbc + data-plane (#3771).

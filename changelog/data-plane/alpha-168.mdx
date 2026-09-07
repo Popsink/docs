@@ -1,0 +1,23 @@
+---
+title: "v0.1.0-alpha.168 02/09/2026"
+---
+
+---
+
+**Description**: DP - Add the environment-scoped read-only reader role.
+
+### Changes
+
+- DP - Add the environment-scoped read-only reader role (#3660).
+- Unbreak environment switching and the control-plane front dev server (#3714).
+- In popsink_connect, rely on OS-tuned TCP socket buffers for Kafka clients (#3732).
+- [FRONT] Extract the shared logs panel's stream into useConnectorLogs (#3719).
+- DP - Authorize the environment id the caller asks to read (#3721).
+- Tests - lock the cross-environment guard on pipeline creation (#3722).
+- Tests - stop asserting the @mockit stub on Oracle, harden Kafka source route checks (#3723).
+- In popsink_connect, bulk-tuned Kafka producer for snapshot phases (#3733).
+- ARCH - env_request use cases depend on the domain permission gate (#3749).
+- [TESTCLEAN] harden the over-mocked error-table assertion in update_subscription (#3755).
+- UC worker - stop treating a deterministic failure like a transient one (#3741).
+- Worker - keep column-name case in the Unity Catalog MERGE (#3762).
+- Release - cut data-plane 2026.09.02 / chart 0.1.0-alpha.168 (#3760).
