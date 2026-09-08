@@ -1,0 +1,19 @@
+---
+title: "v0.1.0-alpha.164 31/08/2026"
+---
+
+---
+
+**Description**: Worker image drift inside one deployment: four source-image versions in one namespace, and every broken connector is broken by an already-fixed bug.
+
+### Changes
+
+- Worker image drift inside one deployment: four source-image versions in one namespace, and every broken connector is broken by an already-fixed bug (#3641).
+- KubeApi.cancel_snapshot/trigger_snapshot have no HTTP-failure handling - unhandled 500 on sync cancel/abort (#3654).
+- [ARCH] Part 1 of #3669: map NotFoundError/PermissionDeniedError globally (#3670).
+- [FRONT] Extract DLT-family source list-tables into service + shared composable (#3673).
+- [SEC] Part 2 of #3413: enforce absolute admin session expiry (#3674).
+- Lock the reason-clearing and launch-generation transition invariants (#3675).
+- [TESTCLEAN] Part 1 of #3676: retire Kafka tests that exercise the @mockit stub (#3677).
+- Attach the created imagePullSecret to every pod (#3511).
+- DP - Make a default self-hosted Helm install actually start (#3652).

@@ -1,0 +1,26 @@
+---
+title: "v0.1.0-alpha.166 31/08/2026"
+---
+
+---
+
+**Description**: QA: Kodansu Kafka API conformance — measured matrix + 6 ranked gaps.
+
+### Changes
+
+- QA: Kodansu Kafka API conformance — measured matrix + 6 ranked gaps (#3643).
+- Team use cases depend on the domain permission service (#3690).
+- Stop a config-less PATCH /pipelines from double-encrypting connector configs (#3699).
+- Retry a Unity Catalog 429 instead of quarantining the table (#3624) (#3687).
+- [LEAK] #3620: fix the per-worker backend heap leak, instrument the heap in place, and stop the pod OOMKilling (#3689).
+- [FRONT] Part 2 of #3671: extract the domain detail page into useTeamDetail + services (#3691).
+- [SEC] Part 3 of #3413: mark the admin session cookie Secure (#3692).
+- Lock the password-reset token contract (#3694).
+- Retire the @mockit-stub tests, cover get_table_schema for real (#3695).
+- DP - Ship the worker exit fixes to the Python targets, and drop the prefetch buffer on close (#3663).
+- Let the invalidation watcher settle before popsink-source declares its credentials valid (#3661).
+- UC worker - a not-yet-created topic no longer kills startup (#3668).
+- DP - A subscription is identified by its target table, and restore the rows the old key deleted (#3701).
+- DP - Say what actually failed when a worker cannot deliver a row (#3664).
+- DP - Say what config drift actually is, and stop re-syncing forever (#3685).
+- DP - Move self-hosted installs off a broker that loses records (#3705).
