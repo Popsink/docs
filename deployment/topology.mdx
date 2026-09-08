@@ -35,7 +35,9 @@ Deployment  (one data plane, one cluster, one URL)
 ```
 
 The control plane sits above all of it and manages your whole fleet of
-deployments from a single organization, with one user and billing view.
+deployments from a single organization, with one user and billing view. What
+travels between the two is documented in
+[Control plane and data plane](/deployment/control-data-plane).
 
 ## The rule
 
@@ -90,7 +92,7 @@ per-deployment values substituted is the usual shape.
 
 Deployments upgrade independently: `helm upgrade` one at a time, with the version
 the control plane reports as supported. Roll a staging deployment first, confirm
-its status flips back to **Connected** in the control plane, then move through
+its status flips back to **Live** in the control plane, then move through
 the production ones.
 
 <Card

@@ -322,14 +322,17 @@ kubectl -n popsink get pods -w
 
 ## 6. Await connection
 
-Once the pods are `Ready`, the control plane switches from
-**Awaiting connection…** to **Connected**, usually within a minute.
+Once the pods are `Ready`, the control plane leaves **Awaiting connections…** and
+the deployment flips to **Live**, usually within a minute. That flip is driven by
+the data plane's first
+[heartbeat](/deployment/control-data-plane#the-heartbeat) — the control plane
+never probes your cluster.
 
 ![Awaiting connection screen](/images/sh-tuto5.png)
 
 Then open your `ingressUrl` and log in with `adminCredentials`.
 
-### If it stays on "Awaiting connection…"
+### If it stays on "Awaiting connections…"
 
 | Check                                                             | Why                                                                    |
 | ----------------------------------------------------------------- | ---------------------------------------------------------------------- |
