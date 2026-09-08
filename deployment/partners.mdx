@@ -7,7 +7,9 @@ This page is intended for **integrators** who install Popsink in their own
 Kubernetes cluster. The chart deploys a self-hosted **Popsink data plane** —
 the runtime that moves data from your sources to your targets. It connects to
 a **control plane** (managed by Popsink at `control-plane.popsink.com`, or
-your own) which orchestrates and monitors the deployment.
+your own) which orchestrates and monitors the deployment. See
+[Control plane and data plane](/deployment/control-data-plane) for the exact
+metadata exchanged between the two, and the network rules it implies.
 
 ## Architecture overview
 
@@ -130,9 +132,9 @@ Before installing the chart, you need a **deployment ID** and a
     plane against the control plane.
   </Step>
   <Step title="Wait for connection">
-    Keep the wizard open. After `helm install`, the control plane will switch
-    from **Awaiting connection…** to **Connected** once the data plane
-    registers.
+    Keep the wizard open. After `helm install`, the wizard leaves
+    **Awaiting connections…** and the deployment flips to **Live** on the data
+    plane's first heartbeat.
   </Step>
 </Steps>
 
@@ -529,8 +531,8 @@ kubectl -n popsink get pods -w
 ```
 
 When all pods are `Ready`, head back to the control-plane deployment page —
-the status should flip from **Awaiting connection…** to **Connected** within
-a minute. Open `ingressUrl` and log in with the `adminCredentials` you set.
+the status should flip from **Offline** to **Live** within a minute. Open
+`ingressUrl` and log in with the `adminCredentials` you set.
 
 ## Production checklist
 
@@ -612,7 +614,7 @@ aws s3 rm s3://my-popsink-bucket/kafka/ --recursive   # ⚠ destroys all topics
 | `Kora must be enabled, or schemaRegistry.url must be provided`       | `kora.enabled: false` with no external registry configured                                                   |
 | `data-plane` pods crash-loop on an empty `DB_USER`                   | `externalDatabase.user` / `.database` left empty                                                             |
 | Stream tab has no search bar                                         | Kotatsu is disabled — expected, the tab falls back to a live Kafka read                                      |
-| Control plane stays on "Awaiting connection…"                        | Wrong `controlPlaneUrl` / `deploymentId` / `deploymentJwtToken`, or egress to the control plane is blocked  |
+| Deployment stays **Offline** / "Awaiting connections…"               | Wrong `controlPlaneUrl` / `deploymentId` / `deploymentJwtToken`, or egress to the control plane is blocked  |
 | `data-plane` pods crash-loop on `connector-config-encryption-key`    | Fernet key is not a valid URL-safe base64-encoded 32-byte string                                            |
 | Broker pods `CrashLoopBackOff` with S3 errors                        | `kodansu.storage.engine`, `region`, or IAM role/credentials are wrong; bucket missing                        |
 | `ImagePullBackOff` on every pod                                      | `imagePullSecret.token` not set / not a valid GAR service-account JSON                                      |

@@ -1,0 +1,428 @@
+---
+title: "Control plane and data plane"
+description: "What each plane owns, and exactly which metadata crosses between them."
+---
+
+Every Popsink installation is two halves. The **data plane** is the runtime that
+moves your data; the **control plane** is the fleet manager that knows your
+deployments, users and entitlements. In SaaS both are operated by Popsink. In
+self-hosted, BYOC and on-prem, you run the data plane and it attaches to a
+control plane — ours at `control-plane.popsink.com`, or your own.
+
+The interesting question for a security review is not the diagram, it is the
+wire: **what actually crosses between them**. This page answers it field by
+field.
+
+## Who owns what
+
+<CardGroup cols={2}>
+  <Card title="Control plane" icon="sliders">
+    Organizations, users, environment memberships, deployment registry,
+    licensing, usage and billing. It is the **source of truth for identity** —
+    accounts and roles are defined here, never in the data plane.
+  </Card>
+  <Card title="Data plane" icon="server">
+    Pipelines, connectors, datamodels, subscriptions, the broker, the schema
+    registry and every connector worker pod. It is the **only place your
+    records exist** — the control plane never sees them.
+  </Card>
+</CardGroup>
+
+## Direction of travel
+
+<Note>
+**The data plane always initiates. The control plane never calls in.**
+</Note>
+
+There is no webhook, callback or polling API that the control plane invokes on a
+data plane. Everything the control plane wants to say travels back as the
+*response* to a call the data plane made. This is what makes the network
+requirement one-directional:
+
+| Direction                     | Required                                                         |
+| ----------------------------- | ---------------------------------------------------------------- |
+| Data plane → control plane    | **Yes** — outbound HTTPS (TCP 443) to `controlPlaneUrl`           |
+| Control plane → data plane    | **No** — no inbound rule, no public endpoint, no VPN needed       |
+| User's browser → data plane   | Yes — your own ingress, on `ingressUrl`                           |
+
+The only apparent exception is the browser: the control plane issues HTTP 302
+redirects that send *the user's browser* to your `ingressUrl` (login return,
+connector OAuth callbacks). That is a redirect the browser follows, not a
+connection the control plane opens.
+
+## The channels
+
+Five distinct exchanges, all authenticated with the deployment JWT:
+
+| Exchange                                            | Method & path                                          | When                                |
+| --------------------------------------------------- | ------------------------------------------------------ | ----------------------------------- |
+| [Heartbeat](#the-heartbeat)                         | `POST /deployment/{deploymentId}/heartbeat`             | every **10 min**                    |
+| [Config sync](#config-sync)                         | `GET /deployment/{deploymentId}/config`                 | on drift, on SSO login, on healthcheck |
+| [Usage metrics](#usage-metrics)                     | `POST /deployment/{deploymentId}/worker-metrics`        | every **30 s**                      |
+| [Identity](#identity-and-login)                     | `/auth/jwt/verify`, `/auth/api-keys/verify`, `/deployment-users/*` | per login / per user change |
+| [Connector OAuth](#connector-oauth-brokering)       | `POST /oauth/{provider}/{start,exchange,refresh}`       | per OAuth grant / token refresh     |
+
+Only one data-plane replica performs the periodic ones — a PostgreSQL advisory
+lock elects the sender, so scaling `replicaCount` does not multiply heartbeats.
+
+### Authentication
+
+The `deploymentJwtToken` from the onboarding wizard is sent verbatim as
+`Authorization: Bearer <jwt>` on every call above. It is an HS256 token whose
+claims are just the deployment's identity:
+
+```json
+{
+  "sub": "<deploymentId>",
+  "aud": "popsink:deployment",
+  "deployment_id": "<deploymentId>",
+  "iat": 1760000000
+}
+```
+
+<Warning>
+The deployment JWT **has no `exp` claim and is never rotated automatically** —
+it represents long-lived infrastructure. Rotating it means updating the
+Kubernetes secret and restarting the data-plane pods. Treat it as a credential
+of the same weight as a database password.
+</Warning>
+
+The control plane resolves the deployment from the token and rejects the request
+with `403` if the `deploymentId` in the path does not match — a stolen token
+cannot be pointed at someone else's deployment.
+
+## The heartbeat
+
+The heartbeat is the main channel. It is a status report *and* the trigger for
+config reconciliation, in a single round trip every ten minutes.
+
+### What the data plane sends
+
+| Field                 | Content                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| `status`              | `"live"` — the data plane is up and serving                                          |
+| `config_hash`         | SHA-256 of the locally rebuilt environment/member config                             |
+| `timestamp`           | ISO-8601 UTC                                                                         |
+| `data_plane_version`  | The running version (`Chart.AppVersion`), so the control plane can flag stale installs |
+| `ingress_url`         | Your public URL. The control plane stores it (overwriting what the wizard recorded) and uses it to build browser redirects back to you |
+| `user_versions`       | Map of `user_id` → integer version. **IDs and integers only — no emails**            |
+| `supported_env_roles` | Roles this data plane understands, e.g. `["admin", "user", "reader"]`                 |
+| `worker_images`       | Worker image drift report — see below                                                |
+| `entity_snapshot`     | Inventory of pipelines — see below                                                   |
+
+`worker_images` reports which connector images your workers actually run, so the
+control plane can tell you a worker is behind the chart:
+
+```json
+{
+  "total_workers": 33,
+  "distinct_tags": 5,
+  "oldest_tag": "2026.07.16.1",
+  "oldest_tag_age_days": 41,
+  "superseded_workers": 8,
+  "images": [
+    { "image": "popsink-connect-ibmi-source:2026.07.16.1",
+      "workers": 7, "declared": "popsink-connect-ibmi-source:2026.08.24",
+      "age_days": 41 }
+  ]
+}
+```
+
+If the data plane cannot inventory its workers, the field is **omitted** rather
+than sent empty. This holds for `worker_images`, `data_plane_version` and
+`supported_env_roles` alike: an omitting heartbeat never clears what the control
+plane already stored, so a transient read failure cannot look like a regression.
+
+<Note>
+`supported_env_roles` is a capability declaration. A deployment that has never
+reported it is assumed to understand only `admin` and `user` — which is why
+assigning the `reader` role to someone on an older data plane silently grants
+write access instead. Upgrade the data plane before relying on `reader`.
+</Note>
+
+`entity_snapshot` is a flat inventory of your pipelines, stored against the
+deployment and used by the Snowflake marketplace integration. Per object it
+carries identifiers, the user-chosen name and a state — and nothing else:
+
+| Object          | Fields                                                                                                                      |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Connectors      | `id`, `name`, `connector_type`, `way`, `worker_state`, `team_id`, `team_name`, `env_id`, `env_name`                          |
+| Datamodels      | `id`, `name`, `source_topic`, `enabled`, `status`, `source_connector_id`, `team_id`, `team_name`, `env_id`, `env_name`       |
+| Subscriptions   | `id`, `name`, `datamodel_id`, `datamodel_name`, `target_connector_id`, `target_connector_name`, `enabled`, `status`, team/env |
+
+Note what is *absent*: no connector configuration, no host, no credentials, no
+schema, no column list, no transform code.
+
+### What the control plane answers
+
+| Field                   | Meaning                                                                  |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `received`              | Acknowledgement                                                          |
+| `config_hash`           | The control plane's own hash of the same config                          |
+| `config_sync_required`  | `true` when the two hashes differ — the data plane then fetches the config |
+| `user_sync_info`        | `users_to_update[]` (with emails and flags) and `users_to_delete[]`       |
+| `organization_name`     | Display name, shown in the data-plane UI                                 |
+| `deployment_name`       | Display name, shown in the data-plane UI                                 |
+| `license_active`        | Whether the organization holds an active license                         |
+| `license_expires_at`    | Absolute expiry, for display and grace-period reasoning                  |
+
+### Licensing
+
+The control plane computes the verdict; **the data plane enforces it.** The
+control plane never blocks anything itself.
+
+The verdict is cached in the data-plane database so every replica shares it, and
+it defaults to `false` — an older or misbehaving control plane can never *imply*
+"licensed". Enforcement is deliberately forgiving:
+
+| Situation                                     | Data-plane behaviour                                  |
+| --------------------------------------------- | ----------------------------------------------------- |
+| `license_active: true`                        | Never blocks                                          |
+| No verdict cached yet (cold start)            | Never blocks — fails **open**                          |
+| Expired                                       | Blocks only once past a **7-day grace period**         |
+| Affirmatively unlicensed                      | Blocks                                                 |
+
+When it blocks, the data plane answers `403` with `{"code": "license_inactive"}`.
+The grace period is `LICENSE_GRACE_PERIOD_SECONDS`, and enforcement ships dark
+unless `LICENSE_ENFORCEMENT_ENABLED` is on.
+
+<Note>
+The practical reading for an operator: a control plane you cannot reach does not
+take your pipelines down. Heartbeats fail, the deployment shows `offline`, config
+stops reconciling and **new SSO logins fail** — but data keeps moving, and the
+cached license verdict holds for a week.
+</Note>
+
+## Deployment status
+
+The control plane derives your deployment's status entirely from heartbeat
+arrival. There is no probe.
+
+| Status     | Badge     | Meaning                                                                                |
+| ---------- | --------- | -------------------------------------------------------------------------------------- |
+| `building` | Building  | SaaS only — the control plane is provisioning. Flips to `live` on the first heartbeat   |
+| `live`     | Live      | A heartbeat arrived within the staleness window                                        |
+| `offline`  | Offline   | No heartbeat yet, or none recently                                                     |
+
+A **self-hosted deployment starts `offline`**: the control plane provisions
+nothing and can only wait for you to run `helm install`. That is why the
+self-hosted wizard sits on *Awaiting connections…* until the first heartbeat
+lands, then flips the deployment to **Live**.
+
+<Note>
+Heartbeats go out every **10 minutes**. The control plane sweeps every
+**5 minutes** and marks a deployment `offline` when the last heartbeat is older
+than **13 minutes** — so a single missed heartbeat is tolerated, two are not.
+</Note>
+
+The practical consequence for upgrades: after `helm upgrade`, allow up to a
+minute for the status to return to **Live**, and expect a brief `offline` window
+if a rollout takes longer than 13 minutes.
+
+Because the heartbeat reports `data_plane_version`, the control plane can compare
+what you run against the chart version it publishes as supported — which is why
+the install wizard never hardcodes a chart version and you should not pin one
+either. See [Upgrading a fleet](/deployment/topology#upgrading-a-fleet).
+
+## Config sync
+
+Environments, members and users flow **control plane → data plane**, never the
+other way. The control plane owns them; the data plane holds a replica.
+
+Reconciliation is hash-based rather than push-based:
+
+<Steps>
+  <Step title="Both sides hash the same structure">
+    The data plane rebuilds its local environment/member config and hashes it.
+    The control plane hashes its own. The two builders are deliberately
+    identical — same field names, same role vocabulary — so the hashes converge.
+  </Step>
+  <Step title="The heartbeat compares them">
+    The data plane sends its `config_hash`; the response carries the control
+    plane's and `config_sync_required`.
+  </Step>
+  <Step title="On drift, the data plane pulls">
+    `GET /deployment/{deploymentId}/config` returns the full environment list
+    with members and nested user records. The data plane applies it and deletes
+    environments the control plane no longer lists.
+  </Step>
+  <Step title="Persistent drift backs off">
+    If the same hash pair repeats, the re-sync is skipped for a few ticks rather
+    than looping every cycle. Any change to either hash resumes it immediately.
+  </Step>
+</Steps>
+
+<Warning>
+The config payload **contains member email addresses**. Both planes explicitly
+refuse to log it in full; if you ship data-plane logs to a SIEM, this is the one
+control-plane payload that carries PII, and it is never written out.
+</Warning>
+
+## Usage metrics
+
+Every **30 seconds** the data plane pushes aggregated CDC counters, which is
+what the control plane's Usage tab and billing are computed from:
+
+```json
+{
+  "metrics": [
+    { "id": "9f1c…", "from_ts": 1764590400000, "to_ts": 1764590430000,
+      "topic": "d1a2b3c4d5.e6f7a8b9c0.c1d2e3f4a5.public.customers",
+      "events": { "total": 1420, "r": 1200, "c": 180, "u": 35, "d": 5 },
+      "created_at": "2026-09-08T10:00:30Z" }
+  ]
+}
+```
+
+`from_ts` / `to_ts` are epoch milliseconds, and `events` are **counts per
+operation code** — read (snapshot), create, update, delete — emitted sparsely,
+so a key absent means zero. Row contents are not part of the payload, and there
+is no field that could carry one. The `id` is generated by the data plane and
+reused as the primary key on ingest, so a retried batch is idempotent rather
+than double-counted.
+
+This is the sole input to the control plane's Usage tab and to billing; there is
+no second metering channel.
+
+<Note>
+There is no infrastructure telemetry in this channel: no CPU, memory or disk
+metrics, no log shipping, no stack traces, no per-request tracing. If you want
+OpenTelemetry, it is a separate opt-in export to a collector **you** configure
+via `OTEL_EXPORTER_OTLP_ENDPOINT` — it does not go to the control plane.
+</Note>
+
+## Identity and login
+
+In self-hosted mode the control plane is the identity provider. This is a design
+choice worth understanding before an install, because it means **user login
+depends on control-plane reachability**.
+
+| Flow                | Path                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| SSO login           | Data-plane UI redirects the browser to the control plane, which returns a token; the data plane verifies it via `GET /auth/jwt/verify`, then reconciles memberships |
+| API-key login       | `POST /auth/api-keys/verify` returns the organization and the caller's per-environment roles      |
+| User created/edited | The data plane proxies to `PATCH /deployment-users/{id}` — it is not authoritative and answers `503` if the control plane is down |
+| User lookup         | `GET /deployment-users/{id}` or `POST /deployment-users/search` on a local cache miss             |
+| Deployment switch   | `GET …/navigation` and `POST …/generate-switch-token` let a user hop between deployments in one org |
+
+These three calls are the only ones that carry a **user email outbound**
+(`navigation`, `generate-switch-token`, `PATCH /deployment-users`). Emails flow
+predominantly *inbound*, because the control plane is where accounts live.
+
+Do not confuse the two tokens involved:
+
+| Token                    | Audience                     | Represents        | Lifetime                  |
+| ------------------------ | ---------------------------- | ----------------- | ------------------------- |
+| `deploymentJwtToken`     | `popsink:deployment`         | The deployment    | **Never expires**          |
+| User access token        | `popsink:dataplane-access`   | A single user     | **8 hours**                |
+
+The user access token is what the control plane hands the browser after SSO; the
+data plane verifies it and exchanges it for its own session. It carries the
+user's id, email, target `deployment_id` and whether they are an org admin.
+
+<Tip>
+If your data plane is reachable only on an IP literal or a `kubectl port-forward`
+address, the SSO redirect cannot come back to it. Use the paste-token page at
+`/auth/token-login`, and keep the chart's `adminCredentials` account as the
+break-glass local login.
+</Tip>
+
+## Connector OAuth brokering
+
+For OAuth-based connectors (HubSpot, Google Ads, Salesforce…), the control plane
+holds the provider `client_secret` and the registered `redirect_uri`. Your data
+plane never registers an app with the provider and never holds the provider
+secret.
+
+The cost of that arrangement is explicit: the connector's **OAuth refresh token
+transits the control plane on every refresh**, because the control plane is the
+only party that can exchange it. The refresh token originated at the control
+plane in the first place — it is handed to the data plane at grant time, and
+posted back to `/oauth/{provider}/refresh` to obtain a short-lived access token.
+
+## What never leaves the data plane
+
+Verified against every outbound payload builder:
+
+| Never transmitted                          | Where it stays                                                        |
+| ------------------------------------------ | --------------------------------------------------------------------- |
+| Source rows, message payloads              | Your broker and your target, inside your network                      |
+| Schemas, column names, data types          | Your schema registry (Kora) and the datamodel definition              |
+| Transform / SMT definitions                | The data-plane database                                               |
+| Connector connection credentials           | The data-plane database, encrypted at rest with `connectorConfigEncryptionKey` |
+| Error tables, dead-letter contents         | Your broker                                                           |
+
+Two caveats we would rather state than have you discover in an audit:
+
+<Warning>
+**1. Kafka topic names embed the source `schema.table`.** Topic names are
+`{hashed-prefix}.{schema}.{table}` — the prefix is a SHA-1 digest of the
+deployment/environment/connector IDs, but the trailing segment is plaintext.
+Topic names appear in both `entity_snapshot` and the usage metrics, so **your
+table and schema names are visible to the control plane**.
+
+**2. User-chosen names are visible too** — connector, datamodel, subscription,
+team and environment names, since they are what the control-plane UI displays.
+</Warning>
+
+If either is unacceptable for your data classification, name your tables,
+schemas and pipelines accordingly, or run in standalone mode.
+
+## Standalone: no control plane at all
+
+Every exchange on this page is gated on `deploymentMode: SELF_HOSTED`. With
+`deploymentMode: STANDALONE`, the data plane makes **zero calls to any control
+plane** — the heartbeat and metrics tasks return immediately at startup, and no
+`deploymentJwtToken` is required. This is the mode behind air-gapped
+installations.
+
+The trade-offs are real and worth naming:
+
+| Aspect        | `SELF_HOSTED`                                | `STANDALONE`                                      |
+| ------------- | -------------------------------------------- | ------------------------------------------------- |
+| Egress        | Outbound 443 to the control plane            | None                                              |
+| Identity      | Control-plane SSO, central users             | Local accounts only                               |
+| Fleet view    | All deployments in one control-plane UI      | Each install is an island                         |
+| Usage/billing | Reported automatically                       | Offline reporting                                 |
+| Connectors    | Full catalogue                               | A restricted subset                                |
+| Upgrades      | Version compliance visible in the control plane | Fully manual, via signed offline bundles       |
+
+<Card
+  title="Air-gapped deployments"
+  icon="shield-halved"
+  href="/deployment/deployment"
+>
+  How offline, signed update bundles work.
+</Card>
+
+## Network requirements checklist
+
+| Requirement                                                              | Why                                                             |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| Outbound HTTPS from the cluster to `controlPlaneUrl`                     | Heartbeat, config sync, metrics, login verification              |
+| No inbound rule from the control plane                                   | It never initiates a connection                                 |
+| `ingressUrl` matches the public URL your users actually reach            | It is what login redirects and OAuth callbacks return to        |
+| DNS for `ingressUrl` resolves to your ingress controller                 | Otherwise the post-login redirect fails                         |
+| Egress allowed for the whole namespace, not just the API pod             | Workers of OAuth connectors refresh their own tokens            |
+
+If the deployment stays `offline`, the cause is almost always one of the first
+two rows plus a wrong `deploymentId` / `deploymentJwtToken` — the full
+symptom-to-cause table is on the
+[partners page](/deployment/partners#troubleshooting).
+
+## Further reading
+
+<CardGroup cols={2}>
+  <Card title="Deployments and environments" icon="layer-group" href="/deployment/topology">
+    How to map deployments onto your regions and networks.
+  </Card>
+  <Card title="Install a deployment" icon="cloud-arrow-up" href="/deployment/selfhosted">
+    Create the deployment in the control plane, then install the chart.
+  </Card>
+  <Card title="Deployment options" icon="server" href="/deployment/deployment">
+    SaaS, BYOC, on-prem and air-gapped compared.
+  </Card>
+  <Card title="Security & compliance" icon="lock" href="/securityandcompliance">
+    Encryption, audit logging, certifications.
+  </Card>
+</CardGroup>
