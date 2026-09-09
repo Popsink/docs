@@ -48,7 +48,7 @@
           {
             "group": "Platform Overview",
             "icon": "sparkles",
-            "pages": ["alerting", "roadmap"]
+            "pages": ["limits", "alerting", "roadmap"]
           },
           {
             "group": "Deployment",
