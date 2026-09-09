@@ -1,0 +1,140 @@
+---
+title: "Sizing and limits"
+description: "The dimensions of a Popsink deployment that have a practical ceiling, what happens when you cross one, and how to split before you do."
+---
+
+Every object in Popsink scales, but not indefinitely. This page lists the
+dimensions that have a practical ceiling, the mechanism that puts it there, and
+the way to split the design before you reach it.
+
+<Note>
+The magnitudes below are **orders of magnitude, not tested maxima**. Each one is
+a property of the current implementation — the runtime that reads your source,
+the shape of a worker pod, an API limit in the source platform — and each moves
+as those change. Read the mechanism, not the number: "past this point the
+source-side filter is dropped and the connector reads the whole journal" stays
+true across releases in a way an integer does not.
+</Note>
+
+## The ceilings at a glance
+
+| Dimension | Magnitude | Why there is a ceiling |
+| --- | --- | --- |
+| [Tables per source connector](#tables-per-source-connector) | hundreds; **300 is a hard limit on IBM i** | the capture list is pushed down to the source as a filter, and the filter has a bounded size |
+| [Subscriptions per target](#subscriptions-per-target) | hundreds are comfortable; low thousands need sharding | one worker pod runs one consumer per subscription, so fan-out costs threads and memory in a single process |
+| [Subscriptions per pipeline](#subscriptions-per-pipeline) | thousands | the whole subscription set travels to the worker inside its pod definition, which is itself size-bounded |
+| [Connectors per deployment](#connectors-per-deployment) | as many as the cluster has room for | one worker pod per connector, so node capacity is the limit |
+| [Time to add a subscription](#time-to-add-a-subscription) | grows with the number already attached | each change restarts the target worker with the full set and re-runs provisioning for every table |
+| [Events per second per source](#events-per-second-per-source) | set by you, as a quota | throttling protects the source database, not Popsink |
+
+## Tables per source connector
+
+Popsink does not read a source's whole transaction log and discard what you did
+not ask for. The set of captured tables is pushed down to the source as a filter,
+so the source only produces change records for tables the connector wants — and
+that filter is a fixed-size structure on the source side.
+
+On **IBM i** the bound is explicit and low: the journal-retrieval API accepts at
+most **300 files** in its filter. A connector configured with more than 300 tables
+cannot express its capture list, so the filter is dropped entirely and the
+connector falls back to reading *every* entry in the journal, discarding
+non-matching records after the fact. Nothing fails, and nothing in the pipeline's
+output changes — but the connector is now reading the full journal volume rather
+than a slice of it, which is a completely different performance profile, and one
+that gets worse as unrelated activity on the system grows.
+
+**What to do instead:** split the tables across several source connectors on the
+same source, each under the limit. They read the same journal or log
+independently, and each keeps its own filter.
+
+## Subscriptions per target
+
+A target connector runs as a **single worker pod**, and inside it one consumer per
+subscription. Fan-out therefore costs threads, memory and per-table bookkeeping in
+one process, and the cost is roughly linear in the number of subscriptions.
+
+Hundreds of subscriptions on one target are routine. Past roughly a thousand,
+Popsink already places the worker on its largest resource tier automatically,
+because per-table work at that fan-out saturates the cores a smaller tier would
+give it. Beyond that, two symptoms show up before anything crashes:
+
+- **Throughput per table collapses.** The pod is CPU-bound on per-table work, so
+  aggregate throughput stops rising with the table count and then falls.
+- **Rebalances stop converging.** With a consumer per subscription in one group,
+  a single dropped connection at that scale can leave the group churning rather
+  than settling.
+
+**What to do instead:** run several target connectors against the same database
+and schema, each carrying a slice of the subscriptions. The targets are
+independent workers, they write to the same place, and nothing downstream can
+tell the difference.
+
+## Subscriptions per pipeline
+
+The worker needs its full subscription set at start time, so that set is compiled
+and shipped to the pod as part of its definition rather than fetched at runtime.
+It is compressed on the way, which buys a lot of headroom, but a pod definition
+has a size ceiling of its own — so a pipeline whose subscription set is large
+enough eventually cannot be handed to a worker at all.
+
+This ceiling sits well above the point where [subscriptions per
+target](#subscriptions-per-target) has already made you shard, so in practice you
+will hit the runtime cost first. The two are fixed the same way.
+
+**What to do instead:** shard across pipelines and targets, as above.
+
+## Connectors per deployment
+
+Each connector — source or target — gets **its own worker pod** in the
+deployment's namespace (see [Deployments and
+environments](/deployment/topology)). There is no per-deployment counter to
+exhaust: the limit is the CPU and memory your cluster can schedule, plus the
+per-connector resource tier Popsink picks.
+
+**What to do instead:** add nodes to the cluster, or stand up a
+[second deployment](/deployment/topology#per-deployment-isolation) — which is the
+right answer anyway when the new connectors live in a different network.
+
+## Time to add a subscription
+
+Adding a subscription to a target is not a constant-time operation. The worker
+boots from the complete subscription set, so a change restarts it with the new
+set, and on start the target re-runs its provisioning checks for **every** table
+it serves — table exists, columns match, current-state view is current. Those
+checks are cheap individually and idempotent, but there is one per table, so the
+cost of adding the thousandth subscription is paid across a thousand tables.
+
+**What to do instead:** add subscriptions in **batches** rather than one at a
+time, so the restart and the provisioning sweep are paid once per batch. When
+you are standing up a large new set of tables, a fresh target connector starts
+faster than an addition to a busy one — and leaves you sharded, which is where
+you wanted to be.
+
+## Events per second per source
+
+This one is a ceiling you set, not one you discover. Source connectors accept an
+**events-per-second quota** with adaptive throttling, so capture can be kept
+inside what the source database can spare while preserving Popsink's recovery
+guarantees. Set it on the connector when the binding constraint is the source's
+own capacity rather than the pipeline's — a busy OLTP database you are not
+allowed to slow down. See [Source connectors](/connectors/source/overview) for
+the rest of a source connector's configuration.
+
+## Reading this page before you build
+
+Two of these ceilings are avoided at design time and expensive to fix later:
+
+<CardGroup cols={2}>
+  <Card title="Split wide sources up front" icon="scissors">
+    A source with more than a few hundred tables wants several connectors from
+    the start. Splitting later means re-establishing capture positions.
+  </Card>
+  <Card title="Shard wide targets up front" icon="layer-group">
+    Plan a target per few hundred subscriptions. Moving a subscription between
+    targets later means reloading its table.
+  </Card>
+</CardGroup>
+
+Sizing the cluster underneath them is a separate question, covered in
+[Self-hosted deployment](/deployment/selfhosted) and
+[Single-VM deployment](/deployment/singlevm).

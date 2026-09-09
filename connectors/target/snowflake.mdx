@@ -11,7 +11,7 @@ The Snowflake Target Connector is a robust tool designed to facilitate the seaml
 | **Snowflake** | Managed service — Standard edition or higher |
 | **Required features** | Snowpipe Streaming and dynamic tables |
 | **Authentication** | Key-pair (RSA 2048) — password authentication is not supported |
-| **Driver** | Snowflake JDBC 4.3, Snowpipe Streaming SDK 1.6 |
+| **Driver** | Snowflake JDBC 4.3, Snowpipe Streaming SDK 1.7 |
 
 <Note>Dynamic tables require a running warehouse for their refresh; size it for your change volume.</Note>
 
@@ -27,12 +27,7 @@ The Snowflake Target Connector is a robust tool designed to facilitate the seaml
 ## Prerequisites
 
 - A Snowflake account where you wish to sync your data.
-- A **role** with the required permissions on the target database and schema:
-  - `USAGE` on the database and schema
-  - `USAGE` on the warehouse used to run the connector
-  - `CREATE TABLE` on the schema
-  - `CREATE DYNAMIC TABLE` on the schema
-  - `INSERT`, `UPDATE`, `DELETE` on target tables
+- A **role** with the privileges listed under [Role privileges](#role-privileges) below.
 - A **key pair** (no passphrase) for authentication. To set it up:
 
   1. Generate the key pair:
@@ -49,6 +44,44 @@ The Snowflake Target Connector is a robust tool designed to facilitate the seaml
      -----BEGIN PRIVATE KEY-----
      -----END PRIVATE KEY-----
      ```
+
+### Role privileges
+
+Run these as a role that can grant on the target database — `ACCOUNTADMIN`, or the
+owner of the database and schema:
+
+```sql
+GRANT USAGE ON DATABASE <database> TO ROLE <role>;
+GRANT USAGE ON SCHEMA <database>.<schema> TO ROLE <role>;
+GRANT USAGE ON WAREHOUSE <warehouse> TO ROLE <role>;
+GRANT CREATE TABLE ON SCHEMA <database>.<schema> TO ROLE <role>;
+GRANT CREATE PIPE ON SCHEMA <database>.<schema> TO ROLE <role>;
+GRANT CREATE DYNAMIC TABLE ON SCHEMA <database>.<schema> TO ROLE <role>;
+```
+
+`USAGE` on the database and schema makes them visible to the role. `USAGE` on the
+warehouse is what lets it create the dynamic table and run that table's refreshes —
+the only part of provisioning that needs a running warehouse; the rest is
+cloud-services DDL. `CREATE TABLE` covers the append-only changelog table the
+connector creates per subscription. `CREATE PIPE` covers the Snowpipe Streaming
+pipe it creates alongside each of those tables (`<table>_STREAMING`), which is the
+object streamed rows actually arrive through — without it, provisioning fails
+before the first row lands. `CREATE DYNAMIC TABLE` covers the current-state table
+built over the changelog.
+
+No `INSERT`, `UPDATE` or `DELETE` grant is needed: the connector creates the tables
+it writes to and therefore owns them, and rows reach them through the pipe rather
+than through SQL DML. If instead you point the connector at a schema whose tables
+already exist and are owned by another role, that owner has to grant write and
+schema-evolution rights on each one, or new source columns will fail to land:
+
+```sql
+GRANT INSERT, EVOLVE SCHEMA ON TABLE <database>.<schema>.<table> TO ROLE <role>;
+```
+
+<Note>If a subscription writes its dynamic table to a different schema than the
+connector's, repeat the `USAGE` and `CREATE DYNAMIC TABLE` grants on that schema
+too.</Note>
 
 ## Configuration
 
