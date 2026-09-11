@@ -8,3 +8,8 @@ If the database is only reachable through a bastion host, enable **SSH Tunnel** 
 | **SSH Port** | Yes | SSH port (default `22`) |
 | **SSH User** | Yes | User to authenticate as on the bastion |
 | **SSH Private Key** | Yes | **Base64-encoded** private key for the SSH user |
+
+The **Host** and **Port** above stay as the database is addressed *from the
+bastion*. For key generation, bastion hardening and the other connectivity
+options (IPsec VPN, Tailscale, ngrok), see
+[Tunnels and private connectivity](/deployment/tunnels).

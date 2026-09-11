@@ -1,0 +1,391 @@
+---
+title: "Tunnels and private connectivity"
+description: "Reaching a source that is not on the data plane's network — IPsec VPN, SSH tunnel, and overlay networks such as Tailscale or ngrok."
+---
+
+Popsink connectors are **always the client**. A connector worker pod opens an
+outbound TCP connection to your database and keeps it open; nothing in Popsink
+ever listens for a connection coming *from* your source. So the only networking
+question that ever matters is:
+
+<Note>
+**Can a pod in the Popsink namespace open a TCP socket to the source host and
+port?**
+</Note>
+
+If the answer is yes, there is nothing to configure. If the answer is no —
+because the database lives in a data centre, behind a corporate firewall, or in
+a VPC that is not the cluster's — you need a tunnel. This page covers the three
+shapes we see in practice.
+
+This is a *data plane* concern only. The control plane never reaches into your
+network at all; see
+[Control plane and data plane](/deployment/control-data-plane) for why.
+
+## Choosing a shape
+
+| | **IPsec site-to-site** | **SSH tunnel** | **Overlay network** |
+| --- | --- | --- | --- |
+| Configured in | Your network infrastructure | The Popsink connector form | Your network infrastructure |
+| Scope | Every pod, every connector, whole subnets | One connector, one TCP port | Every pod on the tailnet |
+| Operated by | Your network team | Whoever creates the connector | Platform / infra team |
+| Source stays private | Yes | Yes | Yes (Tailscale) / **No** (ngrok) |
+| Typical time to set up | Days — change control, two teams | Minutes | Hours |
+| Good for | Production, many sources, on-prem data centres | A single database behind an existing bastion | Cloud-to-cloud, PoCs, networks you cannot re-architect |
+
+A rule of thumb: **IPsec if the source is a data centre, SSH if the source is a
+single database with a bastion already in front of it, an overlay if you need
+something working this afternoon.** They also compose — an IPsec tunnel to the
+data centre plus an SSH tunnel to one stubborn host inside it is a perfectly
+normal end state.
+
+Whichever you pick, the tunnel only has to carry the **database port**. Popsink
+needs no inbound path, no reverse tunnel and no callback.
+
+---
+
+## IPsec site-to-site VPN
+
+The classic enterprise answer: a permanent encrypted tunnel between the network
+the Popsink data plane runs in and the network the source lives in, terminated
+by a gateway on each side. Once it is up, the source is simply *routable* and
+connectors are configured with its private address as if it were local.
+
+```
+┌───────────────────────────┐                      ┌──────────────────────────┐
+│  Popsink data plane       │                      │  Your data centre        │
+│  VPC / cluster            │   IKEv2 + ESP        │                          │
+│  10.20.0.0/16             │◄════════════════════►│  10.90.0.0/16            │
+│    connector worker pods  │   UDP 500 / 4500     │    db.internal:1521      │
+└───────────────────────────┘                      └──────────────────────────┘
+```
+
+### What to agree on before anything is built
+
+IPsec fails at the first mismatched parameter, and the error messages are
+famously unhelpful. Fill this table in with your counterpart *before* touching a
+gateway.
+
+| Parameter | Notes |
+| --- | --- |
+| Peer public IPs | One per side, static. Dynamic IPs need IKEv2 with a FQDN identity |
+| IKE version | **IKEv2**. Only use IKEv1 if the remote appliance genuinely cannot do v2 |
+| Phase 1 (IKE) proposal | e.g. `aes256gcm16-prfsha384-ecp384`; a common conservative fallback is `aes256-sha256-modp2048` |
+| Phase 2 (ESP) proposal | e.g. `aes256gcm16-ecp384`; enable **PFS** |
+| Lifetimes | Phase 1 typically 8 h, phase 2 typically 1 h. They must match, or you get periodic silent drops |
+| Authentication | Pre-shared key or certificates. If PSK, exchange it out of band, never in a ticket |
+| Local traffic selector | The CIDR Popsink egresses from — see [the routing gotcha](#the-routing-gotcha) |
+| Remote traffic selector | The source subnet, or a single `/32` if the remote team prefers to scope tightly |
+| DPD | Dead Peer Detection on, `restart` action, so the tunnel re-establishes itself |
+
+Keep the traffic selectors as narrow as both sides can live with. A `/32` on the
+remote side and a single egress address on ours is a much easier security review
+than two `/16`s.
+
+### The routing gotcha
+
+This is the step that goes wrong on almost every first attempt. Connector
+workers are **pods**, so their source address is a pod IP from the cluster's CNI
+range — not a node IP and not something the remote side has ever heard of. Two
+consequences:
+
+1. If you declare the pod CIDR as the local traffic selector, the remote
+   firewall team has to accept a range that means nothing to them, and
+   overlapping RFC 1918 space becomes likely.
+2. If you declare the node or subnet CIDR instead, traffic must be **SNAT'd** to
+   that address on the way out, or it will leave with a pod IP that the tunnel's
+   policy drops.
+
+The clean answer on managed Kubernetes is to give the cluster a stable egress
+address and present *that* to the tunnel:
+
+<Tabs>
+  <Tab title="AWS">
+    Put the node group in private subnets whose route table sends `0.0.0.0/0` at
+    a **NAT gateway** with a fixed Elastic IP, and attach the Site-to-Site VPN to
+    the same VPC. The remote selector is then the NAT gateway's EIP or the
+    private subnet CIDR, and traffic is SNAT'd for you.
+  </Tab>
+  <Tab title="Azure">
+    Use a **NAT Gateway** with a static public IP on the AKS node subnet, or the
+    `userAssignedNATGateway` outbound type, then terminate the connection on a
+    **VPN Gateway** in the same VNet.
+  </Tab>
+  <Tab title="GCP">
+    Use **Cloud NAT** on the subnet holding the GKE nodes and **HA VPN** for the
+    tunnel. With VPC-native (alias IP) clusters the pod range is a secondary
+    range of the subnet and can be advertised over BGP instead, if you prefer
+    routing to NAT.
+  </Tab>
+  <Tab title="Self-managed (strongSwan)">
+    Run strongSwan on a dedicated gateway VM in the same network as the cluster,
+    route the source subnet at it, and `MASQUERADE` on the way out:
+
+    ```bash
+    iptables -t nat -A POSTROUTING -s <pod-cidr> -d 10.90.0.0/16 \
+      -j SNAT --to-source <gateway-private-ip>
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+**Check for CIDR overlap first.** If your data centre and the cluster VPC both
+use `10.0.0.0/16`, no amount of IPsec configuration will fix it — one side has
+to renumber or you have to NAT the remote subnet into a spare range. Confirm
+this on day one, not after the change window.
+</Warning>
+
+### MTU
+
+ESP encapsulation adds overhead, and a database connection that completes its
+handshake then hangs on the first large result set is almost always a
+fragmentation problem. Clamp TCP MSS on the gateway:
+
+```bash
+iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN \
+  -j TCPMSS --clamp-mss-to-pmtu
+```
+
+Cloud-managed gateways do this themselves; self-managed strongSwan does not.
+
+### Verifying
+
+From inside the cluster, before you create the connector:
+
+```bash
+kubectl -n popsink run nettest --rm -it --restart=Never \
+  --image=nicolaka/netshoot -- \
+  nc -vz db.internal 1521
+```
+
+A `succeeded` here means every connector in that namespace will be able to
+connect. A timeout means routing or firewall; a `connection refused` means the
+tunnel is fine and the database is not listening where you think it is.
+
+---
+
+## SSH tunnel
+
+The only pattern Popsink implements itself. When the source sits behind a
+bastion (jump host) that you already expose, the connector opens an SSH session
+to the bastion and forwards the database port through it — no change to your
+network, no gateway, no ticket to the network team.
+
+It is configured per connector, in the connector form, and is supported by:
+
+<CardGroup cols={3}>
+  <Card title="PostgreSQL" href="/connectors/source/postgres" icon="database" />
+  <Card title="MySQL" href="/connectors/source/mysql" icon="database" />
+  <Card title="Oracle" href="/connectors/source/oracle" icon="database" />
+  <Card title="SQL Server" href="/connectors/source/mssql" icon="database" />
+  <Card title="IBM i (DB2)" href="/connectors/source/ibmi" icon="server" />
+</CardGroup>
+
+### Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **SSH Host** | Yes | Hostname or IP of the bastion host |
+| **SSH Port** | Yes | SSH port (default `22`) |
+| **SSH User** | Yes | User to authenticate as on the bastion |
+| **SSH Private Key** | Yes | **Base64-encoded** private key for the SSH user |
+
+The **Host** and **Port** of the connector itself stay as the database sees
+them *from the bastion* — usually a private address such as `10.90.4.12` or
+`db.internal`, not something resolvable from the cluster.
+
+### Preparing the key
+
+Generate a key pair dedicated to Popsink — never reuse an operator's personal
+key — and leave it **without a passphrase**, since no one is present to type one
+when a connector restarts.
+
+```bash
+# 1. Dedicated key pair, no passphrase
+ssh-keygen -t ed25519 -N "" -C "popsink-connector" -f ./popsink_tunnel
+
+# 2. Install the public key on the bastion
+ssh-copy-id -i ./popsink_tunnel.pub popsink@bastion.example.com
+
+# 3. Base64-encode the private key for the connector form
+base64 -w0 ./popsink_tunnel        # Linux
+base64 -i  ./popsink_tunnel        # macOS
+```
+
+Paste the single-line output of step 3 into **SSH Private Key**. It is stored
+encrypted at rest with your deployment's
+`connectorConfigEncryptionKey`, like every other connector credential.
+
+### Hardening the bastion account
+
+The Popsink account needs to forward one port and nothing else. Express that in
+`authorized_keys` rather than trusting it to behave — this account cannot then
+open a shell, forward anything but the database, or be used to pivot:
+
+```
+restrict,port-forwarding,permitopen="10.90.4.12:1521",from="203.0.113.7" ssh-ed25519 AAAA... popsink-connector
+```
+
+- `restrict` turns everything off — PTY, agent forwarding, X11, `~/.ssh/rc`,
+  and all port forwarding — and keeps doing so for any option OpenSSH adds
+  later;
+- `port-forwarding` puts back *only* forwarding, which `restrict` had just
+  removed. Omitting it is the usual mistake: `permitopen` narrows forwarding,
+  it does not re-enable it, so the tunnel fails with `administratively
+  prohibited`;
+- `permitopen` then narrows that forwarding to exactly one destination;
+- `from` pins the cluster's egress address (see the NAT gateway discussion
+  above — you need a stable egress IP for this to be usable).
+
+Give the account no shell either (`/usr/sbin/nologin`) so the key is good for
+the forward and nothing else.
+
+### Limitations
+
+<AccordionGroup>
+  <Accordion title="One connector, one tunnel">
+    Each connector establishes its own SSH session. Ten connectors behind the
+    same bastion means ten concurrent sessions from the same account — make sure
+    `MaxSessions` and `MaxStartups` in `sshd_config` are not set low enough to
+    start refusing them.
+  </Accordion>
+  <Accordion title="Single hop only">
+    The connector forwards through one bastion. A chain of two jump hosts is not
+    expressible in the form; put a `ProxyJump` on the bastion side, or use an
+    IPsec tunnel instead.
+  </Accordion>
+  <Accordion title="Passphrase-protected keys do not work">
+    Connector workers restart unattended — on upgrade, on node drain, on
+    failure. A key that needs a human is a connector that stops replicating at
+    3 a.m.
+  </Accordion>
+  <Accordion title="Key rotation is a connector edit">
+    Rotating the key pair means updating the connector configuration. Plan for a
+    short pause on that connector; replication resumes from its last offset, so
+    nothing is lost.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Overlay networks — Tailscale and ngrok
+
+Overlays sidestep the network team entirely: both ends dial *out* to a
+coordination service and get a private, routable address on a virtual network.
+No inbound firewall rule, no gateway, no static IP. That makes them excellent
+for proofs of concept and for networks nobody is willing to re-architect for a
+pilot.
+
+### Tailscale (WireGuard mesh)
+
+The usable pattern is a **subnet router**: one host inside the source network
+advertises the database subnet to the tailnet, and the Popsink cluster joins the
+same tailnet and accepts those routes.
+
+<Steps>
+  <Step title="Advertise the source subnet">
+    On a small Linux host inside the source network:
+
+    ```bash
+    tailscale up \
+      --advertise-routes=10.90.0.0/16 \
+      --advertise-tags=tag:db-subnet-router \
+      --authkey="${TS_AUTHKEY}"
+    ```
+
+    Approve the advertised route in the Tailscale admin console, or set
+    `autoApprovers` in the ACL so it does not need a human.
+  </Step>
+  <Step title="Join the cluster to the tailnet">
+    Install the Tailscale Kubernetes operator in the cluster and expose the
+    source as a `Service` that connectors resolve normally. An ephemeral,
+    tagged auth key is the right credential here — not a personal one, which
+    disappears when its owner leaves.
+  </Step>
+  <Step title="Lock it down with ACLs">
+    The default tailnet policy is allow-all. Replace it so the Popsink tag can
+    reach the database port and nothing else:
+
+    ```json
+    {
+      "acls": [
+        {
+          "action": "accept",
+          "src":    ["tag:popsink"],
+          "dst":    ["10.90.4.12:1521"]
+        }
+      ]
+    }
+    ```
+  </Step>
+  <Step title="Point the connector at the private address">
+    `10.90.4.12:1521` — the same address the subnet router sees. Verify with the
+    `netshoot` pod from the IPsec section before creating the connector.
+  </Step>
+</Steps>
+
+<Note>
+Tailscale keys expire. A node whose key expires drops off the tailnet and every
+connector through it stalls. Use tagged nodes (whose keys do not expire by
+default) or put the renewal in your calendar.
+</Note>
+
+### ngrok
+
+ngrok publishes a **TCP endpoint** on ngrok's own infrastructure and forwards it
+to a local port:
+
+```bash
+ngrok tcp 1521
+# → Forwarding tcp://1.tcp.eu.ngrok.io:19284 -> localhost:1521
+```
+
+The connector is then configured with the `1.tcp.eu.ngrok.io` host and the
+assigned port.
+
+<Warning>
+**This puts your database on the public internet.** The endpoint is reachable by
+anyone who learns the hostname and port, and on free plans that address changes
+on every restart, which silently breaks the connector. ngrok TCP endpoints carry
+no authentication of their own — the database's own credentials and TLS are the
+only thing standing in front of it.
+
+Use it for a demo or a same-day test against non-production data. Do not use it
+for production replication.
+</Warning>
+
+If you do use it, at minimum: reserve a static TCP address so the connector
+config stays valid, enable IP restrictions on the endpoint pinned to the
+cluster's egress IP, and point it at a read-only account on a replica.
+
+---
+
+## Firewall rules, by pattern
+
+| Pattern | Direction | Rule |
+| --- | --- | --- |
+| IPsec | Popsink ↔ peer gateway | UDP 500 (IKE), UDP 4500 (NAT-T), ESP (IP protocol 50) |
+| IPsec | Pod → source | Database port only, over the tunnel |
+| SSH tunnel | Cluster egress → bastion | TCP 22 (or your SSH port), from the cluster's egress IP |
+| SSH tunnel | Bastion → database | Database port |
+| Tailscale | Both ends → internet | TCP 443 to `controlplane.tailscale.com`, UDP 41641 outbound for direct connections |
+| ngrok | Agent → internet | TCP 443 to `connect.ngrok-agent.com` |
+
+In every row, the data plane still needs its own outbound HTTPS to the control
+plane — that requirement is unchanged and independent of the tunnel.
+
+## Troubleshooting
+
+| Symptom | Usual cause |
+| --- | --- |
+| Credential check times out | No route. Test with the `netshoot` pod; if that times out too, it is the tunnel, not Popsink |
+| `connection refused` | Route works; the database is not listening on that address/port, or is bound to `127.0.0.1` |
+| Works, then stalls on large tables | MTU / MSS clamping on the IPsec gateway |
+| Connector drops every hour, to the minute | Mismatched phase 2 lifetimes, or DPD not set to `restart` |
+| SSH tunnel fails right after it worked | Key rotated on the bastion, key expired, or `MaxStartups` refusing concurrent sessions |
+| Everything dies at once, no config change | Tailscale key expiry, or an ngrok endpoint that moved |
+
+<Card title="Deployments and environments" icon="layer-group" href="/deployment/topology">
+  One deployment per isolated network — why a tunnel is often the alternative to
+  a second deployment.
+</Card>
