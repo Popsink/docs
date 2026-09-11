@@ -29,15 +29,16 @@ network at all; see
 | Configured in | Your network infrastructure | The Popsink connector form | Your network infrastructure |
 | Scope | Every pod, every connector, whole subnets | One connector, one TCP port | Every pod on the tailnet |
 | Operated by | Your network team | Whoever creates the connector | Platform / infra team |
-| Source stays private | Yes | Yes | Yes (Tailscale) / **No** (ngrok) |
+| Source stays private | Yes | Yes | Yes |
+| Inbound firewall rule needed | Yes, on the peer gateway | Yes, to the bastion | **None** — both ends dial out |
 | Typical time to set up | Days — change control, two teams | Minutes | Hours |
-| Good for | Production, many sources, on-prem data centres | A single database behind an existing bastion | Cloud-to-cloud, PoCs, networks you cannot re-architect |
+| Good for | Production, many sources, on-prem data centres | A single database behind an existing bastion | Networks you cannot re-architect, or where no inbound rule will ever be approved |
 
-A rule of thumb: **IPsec if the source is a data centre, SSH if the source is a
-single database with a bastion already in front of it, an overlay if you need
-something working this afternoon.** They also compose — an IPsec tunnel to the
-data centre plus an SSH tunnel to one stubborn host inside it is a perfectly
-normal end state.
+A rule of thumb: **IPsec if the source is a data centre and your network team is
+willing, SSH if the source is a single database with a bastion already in front
+of it, an overlay if no inbound rule is ever going to be approved.** They also
+compose — an IPsec tunnel to the data centre plus an SSH tunnel to one stubborn
+host inside it is a perfectly normal end state.
 
 Whichever you pick, the tunnel only has to carry the **database port**. Popsink
 needs no inbound path, no reverse tunnel and no callback.
@@ -268,13 +269,16 @@ the forward and nothing else.
 
 ---
 
-## Overlay networks — Tailscale and ngrok
+## Overlay and gateway services — Tailscale and ngrok
 
-Overlays sidestep the network team entirely: both ends dial *out* to a
-coordination service and get a private, routable address on a virtual network.
-No inbound firewall rule, no gateway, no static IP. That makes them excellent
-for proofs of concept and for networks nobody is willing to re-architect for a
-pilot.
+These sidestep the network team entirely: both ends dial *out* to a coordination
+service and the source becomes privately routable on a virtual network. No
+inbound firewall rule, no gateway appliance, no static IP, and in both cases the
+source is **never published on the public internet**.
+
+That makes them the practical answer when the source sits in a network you
+cannot re-architect — a customer's data centre, an acquisition still on its own
+infrastructure, anywhere an inbound rule would take a quarter to approve.
 
 ### Tailscale (WireGuard mesh)
 
@@ -330,33 +334,92 @@ connector through it stalls. Use tagged nodes (whose keys do not expire by
 default) or put the renewal in your calendar.
 </Note>
 
-### ngrok
+### ngrok (Gateway, internal endpoints)
 
-ngrok publishes a **TCP endpoint** on ngrok's own infrastructure and forwards it
-to a local port:
+Use ngrok's **site-to-site connectivity**, not the public `ngrok tcp` endpoint
+you may have seen in tutorials. The database is published as an **internal
+endpoint** — a `.internal` address that is *not addressable from the public
+internet at all* and can only be reached through a `forward-internal` traffic
+policy — and the cluster consumes it through a **Kubernetes-bound endpoint**
+that the ngrok Operator projects as an ordinary `Service`.
 
-```bash
-ngrok tcp 1521
-# → Forwarding tcp://1.tcp.eu.ngrok.io:19284 -> localhost:1521
-```
+The result is that a connector talks to a normal Kubernetes DNS name, and
+nothing is ever exposed publicly. Both ends only make **outbound** connections
+on TCP 443.
 
-The connector is then configured with the `1.tcp.eu.ngrok.io` host and the
-assigned port.
+<Steps>
+  <Step title="Publish the database as an internal endpoint">
+    Run the agent next to the database, in the source network. The `.internal`
+    suffix is what makes the endpoint private — internal domains are namespaced
+    to your account, so the name is yours alone:
 
-<Warning>
-**This puts your database on the public internet.** The endpoint is reachable by
-anyone who learns the hostname and port, and on free plans that address changes
-on every restart, which silently breaks the connector. ngrok TCP endpoints carry
-no authentication of their own — the database's own credentials and TLS are the
-only thing standing in front of it.
+    ```yaml
+    # ngrok.yml, on a host in the source network
+    version: 3
+    agent:
+      authtoken: <AGENT_AUTHTOKEN>
+    endpoints:
+      - name: Popsink source database
+        url: tcp://source-db.acme.internal
+        upstream:
+          url: 1521
+    ```
 
-Use it for a demo or a same-day test against non-production data. Do not use it
-for production replication.
-</Warning>
+    ```bash
+    ngrok start --all
+    ```
+  </Step>
+  <Step title="Install the ngrok Kubernetes Operator">
+    In the cluster running the Popsink data plane. It dials out to ngrok on TCP
+    443 and needs no inbound rule.
+  </Step>
+  <Step title="Bind the endpoint into the cluster">
+    A `CloudEndpoint` bound to `kubernetes` forwards to the internal endpoint.
+    Name it for the namespace the connectors run in — the URL's host and
+    namespace parts become the `Service`:
 
-If you do use it, at minimum: reserve a static TCP address so the connector
-config stays valid, enable IP restrictions on the endpoint pinned to the
-cluster's egress IP, and point it at a read-only account on a replica.
+    ```yaml
+    apiVersion: ngrok.k8s.ngrok.com/v1alpha1
+    kind: CloudEndpoint
+    metadata:
+      name: source-db
+      namespace: popsink
+    spec:
+      url: tcp://source-db.popsink:1521
+      bindings:
+        - kubernetes
+      trafficPolicy:
+        policy:
+          on_tcp_connect:
+            - actions:
+                - type: forward-internal
+                  config:
+                    url: tcp://source-db.acme.internal:1521
+    ```
+
+    The operator projects an `ExternalName` `Service` called `source-db` in the
+    `popsink` namespace pointing at its own forwarder.
+  </Step>
+  <Step title="Point the connector at the Service">
+    Host `source-db.popsink`, port `1521` — the connector resolves it through
+    cluster DNS like any in-cluster service, with no SSH tunnel and no VPN
+    fields to fill in. Verify with the `netshoot` pod from the IPsec section
+    first.
+  </Step>
+</Steps>
+
+<Note>
+Because the binding is `kubernetes`, the endpoint is reachable **only from
+inside clusters where the operator is installed** — it is not public, and it is
+not reachable from elsewhere in your ngrok account either. Traffic policy also
+sees `conn.k8s.pod.*` metadata, so access can be scoped to specific workloads.
+</Note>
+
+The trade-off to weigh at review time is not exposure, it is **dependency**: the
+data path runs through ngrok's cloud, so ngrok availability becomes replication
+availability, and you are trusting their transport. Connections are end-to-end
+encrypted between the two agents, and enabling TLS on the database itself keeps
+the credentials and rows opaque to the transport regardless.
 
 ---
 
@@ -369,7 +432,10 @@ cluster's egress IP, and point it at a read-only account on a replica.
 | SSH tunnel | Cluster egress → bastion | TCP 22 (or your SSH port), from the cluster's egress IP |
 | SSH tunnel | Bastion → database | Database port |
 | Tailscale | Both ends → internet | TCP 443 to `controlplane.tailscale.com`, UDP 41641 outbound for direct connections |
-| ngrok | Agent → internet | TCP 443 to `connect.ngrok-agent.com` |
+| ngrok | Agent and operator → internet | TCP 443 outbound only, to `connect.ngrok-agent.com` |
+
+Note that the last two patterns need **no inbound rule at all** on either side —
+that is the whole reason to reach for them.
 
 In every row, the data plane still needs its own outbound HTTPS to the control
 plane — that requirement is unchanged and independent of the tunnel.
@@ -383,7 +449,8 @@ plane — that requirement is unchanged and independent of the tunnel.
 | Works, then stalls on large tables | MTU / MSS clamping on the IPsec gateway |
 | Connector drops every hour, to the minute | Mismatched phase 2 lifetimes, or DPD not set to `restart` |
 | SSH tunnel fails right after it worked | Key rotated on the bastion, key expired, or `MaxStartups` refusing concurrent sessions |
-| Everything dies at once, no config change | Tailscale key expiry, or an ngrok endpoint that moved |
+| Everything dies at once, no config change | Tailscale key expiry, or the ngrok agent in the source network having stopped |
+| ngrok Service resolves but connections hang | The `CloudEndpoint` traffic policy points at an internal endpoint whose agent is offline |
 
 <Card title="Deployments and environments" icon="layer-group" href="/deployment/topology">
   One deployment per isolated network — why a tunnel is often the alternative to
