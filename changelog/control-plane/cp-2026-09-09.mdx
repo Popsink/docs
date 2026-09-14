@@ -1,0 +1,86 @@
+---
+title: "v2026.09.09 09/09/2026"
+---
+
+---
+
+**Description**: OTel phase 4 — browser trace-context propagation (data-plane #3090 + control-plane).
+
+### Changes
+
+- OTel phase 4 — browser trace-context propagation (data-plane #3090 + control-plane) (#3110).
+- CP: License fields on Organization (type + expiry) + migration + backfill (#3131).
+- Allow W3C trace-context headers through Traefik CORS middleware (#3132).
+- CP: SQLAdmin — edit license type & expiry on OrganizationAdmin (#3134).
+- Unify CP wizard stepper on the design-system pop-stepper (#3141).
+- CP: compute license_active and expose it in the heartbeat response (#3136).
+- Upgrade a SaaS deployment to the latest version from the CP admin (#3115).
+- Add pop-access-denied (on pop-empty-state) and unify the CP + DP gate (#3156).
+- Self-hosted deployment wizard shows a permanent [object Object] error banner (#3161).
+- DP/front: license-inactive screen when access is blocked (#3162).
+- Propose a default license expiry in the admin (#3185) (#3186).
+- Bump provisioner chart version when releasing new dp version (#3223).
+- Connector registration, PK warning, OAuth backbone (Part 1 of #3160) (#3204).
+- Bump data-plane + kafka-to-snowflake worker to 2026.07.21+ enhancements to kafka-to-snowflake (#3241).
+- Make HubSpot target OAuth scopes configurable, default to standard objects (#3248).
+- Bump versions data-plane & snow_target (#3279).
+- Use stored credentials when testing in edit mode + Snowflake warehouse edit (#3280) (#3284).
+- Increase control-plane resources (#3296).
+- Kafka to jdbc dependency upgrades better jvm docker file (#3326).
+- New deps need to be added to pass es_target native build (#3331).
+- Security - Fix all open Dependabot CVEs across lockfiles (#3340).
+- Serve the control-plane front from a dedicated dev container (#3339).
+- Introduce networkpolicies in data plane chart (#3376).
+- Bump versions data-plane + snow_target (#3385).
+- In snow_target, unit test update was missing (#3388).
+- Fold JAVA_OPTS_APPEND into JAVA_OPTIONS for the fabric8 launcher (#3395).
+- For release, bump ibmi_source + data-plane (#3412).
+- In snow_target, Force jvm mem settings (#3428).
+- Make organization API keys authenticate (#3327) (#3373).
+- Allow finer control over OTEL (#3403).
+- Quarantine an unprovisionable table instead of starving the connector (#3433).
+- Correctly bump bq target (#3449).
+- Upgrade debezium-ibmi, reduce log level (#3452).
+- Ibmi better error tolerance during startup (#3456).
+- Metrics - dashboard summary reads a daily rollup instead of scanning the month (#3438).
+- Self-hosted wizard pins chart version 0.1.0-alpha.8 (current is alpha.132) (#3439).
+- Invitations - new invitees land on sign-up, not a login dead end (#3479).
+- Bump every pin to 0.7.0-beta.39 and say "never" instead of "8760h" (#3495).
+- Self-hosted wizard generates unusable Helm values and ignores the configuration step (#3482).
+- Slugify the deployment name into the Helm release name (#3489).
+- Make the IBM i table listing fast on large LPARs (#3500).
+- Release data-plane 2026.08.07, chart 0.1.0-alpha.149 (#3501).
+- Clarify memory overrides in data plane and snow target and add our own launcher based on redhat's (#3502).
+- [#2707][#2973][DP] Kotatsu display over the HTTP service, with Kafka live-stream fallback (#3506).
+- Memory optimizations in swow_target - reduce kafka batch size + low allocation hashing (#3514).
+- Dependencies - clear the critical + high CVEs across npm, python and rust (#3517).
+- In popsink_connect, only report a stalled snapshot after receiving at least one sign of activity - this skips the schema stage (#3530).
+- In ibmi_source,  tweak ibmi_source defaults for low memory pods (#3543).
+- Fix typo in ibmi_source/application.properties + more cleanups and mem tweaks (#3546).
+- Move the broker to 1.0.0-alpha.1, which is a quiesce, not a rolling upgrade (#3542).
+- Improve heartbeats check in popsink connect with more useful messages (#3594).
+- Read kodansu: as an override on tansu:, so nobody has to move today (#3541).
+- In ibmi_source, Relax dbz timeouts for US client + network checks (#3609).
+- Cut data-plane 2026.08.24 and chart 0.1.0-alpha.159 (#3614).
+- In popsink_connect, Lower AsyncEmbededEngine log level and bump versions (#3619).
+- Release - cut data-plane 2026.08.26 / chart 0.1.0-alpha.161 (#3637).
+- Release - cut data-plane 2026.08.27 / chart 0.1.0-alpha.162 (#3662).
+- In ibmi_source, bump versions + dep (#3683).
+- Worker image drift inside one deployment: four source-image versions in one namespace, and every broken connector is broken by an already-fixed bug (#3641).
+- Attach the created imagePullSecret to every pod (#3511).
+- DP - Make a default self-hosted Helm install actually start (#3652).
+- Snowflake dynamic-table rebuilds finish at any table size (#3696).
+- DP - Say what config drift actually is, and stop re-syncing forever (#3685).
+- DP - Move self-hosted installs off a broker that loses records (#3705).
+- Release - cut data-plane 2026.09.01 / chart 0.1.0-alpha.167 (#3728).
+- DP - Add the environment-scoped read-only reader role (#3660).
+- Release - cut data-plane 2026.09.02 / chart 0.1.0-alpha.168 (#3760).
+- Bump versions of all kafka_to_jdbc + data-plane (#3771).
+- Self-hosted wizard invents a database configuration the operator never provided (#3730).
+- DP - Show pipeline target lag on deployments without Kotatsu + release cut (#3810).
+- UC worker - Stage a snapshot load and publish it once (#3829).
+- UC worker - report a degenerate MERGE key and the fan-out it produces (#3838).
+- UC worker - refuse a MERGE the target cannot fit, and size compaction in the units a merge pays in (#3883).
+- CP - A backend 500 no longer renders as "No Deployments yet" (#3888).
+- UC worker - a merge budget that counts the whole table refuses tables the merge reads in one file (#3913).
+- Cut 2026.09.09 and deploy it in preprod (#3936).

@@ -1,0 +1,28 @@
+---
+title: "v0.1.0-alpha.172 07/09/2026"
+---
+
+---
+
+**Description**: DP - Cap the IBM i journal buffer at the 8 MiB the host server accepts.
+
+### Changes
+
+- DP - Cap the IBM i journal buffer at the 8 MiB the host server accepts (#3819).
+- ARCH - Migrate the admin export/import gate off the infrastructure permission SQL layer (#3840).
+- [FRONT] Extract the pipeline detail page into usePipelineDetail (#3844).
+- DP - Test the Idempotency-Key replay cache beyond POST /teams/ (#3854).
+- [DOCSLIM] Compact the user-log slice's template docstrings (#3861).
+- [worker] Report a failed engine as failed, not as a healthy one (#3806).
+- [TESTCLEAN] Part 1 of #3857: assert the stale-worker cutoff, retire the tests the mock answered (#3859).
+- [SEC] Part 2 of #3814: refuse the deployment's own Kubernetes secrets by name, from the chart (#3850).
+- DOCSLIM - Stop the docstring boilerplate at the source (#3866).
+- Register the SQL Server transaction-log source as the mssql-log-to-kafka worker strategy (#3865).
+- Say what a bulk target-table rename will do before it does it (#3767) (#3775).
+- DP - Carry __op and __ts_ms on every mapped row so Typed subscriptions still delete (#3842).
+- UC worker - Bound the MERGE scan, and share the writer + prefetch budgets (#3851).
+- Worker resources - xl tier, Snowflake tier from table fan-out, heavy workers spread across nodes (#3858).
+- Add Tables panel: Select all kills the page on a large source, and the listing takes long enough to read as broken (#3843).
+- DP - Credentials DTO and catalog entry for the SQL Server transaction-log source (#3868).
+- Subscription Replay actually replays: reset consumer offsets to earliest (#3746).
+- UC worker - report a degenerate MERGE key and the fan-out it produces (#3838).
