@@ -53,7 +53,7 @@
           {
             "group": "Deployment",
             "icon": "server",
-            "pages": ["deployment/deployment", "deployment/control-data-plane", "deployment/topology", "deployment/tunnels", "deployment/singlevm","deployment/installation", "deployment/selfhosted", "deployment/partners", "deployment/data-model"]
+            "pages": ["deployment/deployment", "deployment/control-data-plane", "deployment/topology", "deployment/installation", "deployment/selfhosted", "deployment/singlevm", "deployment/tunnels", "deployment/partners", "deployment/troubleshooting", "deployment/data-model"]
           },
           {
             "group": "Source Connectors",
@@ -394,5 +394,8 @@
     "website": "https://popsink.com",
     "github": "https://github.com/popsink"
   },
-  "stylesheets": ["/styles/sidebar.css"]
+  "stylesheets": ["/styles/sidebar.css"],
+  "redirects": [
+    { "source": "/deployment", "destination": "/deployment/deployment" }
+  ]
 }

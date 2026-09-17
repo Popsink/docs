@@ -1,39 +1,41 @@
 ---
-title: "Popsink Kubernetes Deployment"
-description: Create a self-hosted deployment in the control plane, then install the data plane on your cluster with Helm.
+title: "Install the data plane on Kubernetes"
+description: "Create a self-hosted deployment in the control plane, then install the data plane on your cluster with Helm."
 ---
 
-This page is the **wizard-driven** install: you create a self-hosted deployment
-in the Popsink control plane, it hands you a complete `values.yaml` and a
+This is the install guide for a self-hosted **Popsink data plane** — the runtime
+that moves data from your sources to your targets. You create a deployment in
+the Popsink control plane, it hands you a complete `values.yaml` and a
 `helm install` command, and you run them against your cluster.
 
-If you install without the wizard — or you want the full reference for every
-value the chart exposes — use
-[Install Popsink with Helm for partners](/deployment/partners) instead. The two
-pages describe the same chart.
+Every value the chart exposes, component by component, is in the
+[Helm chart reference](/deployment/partners). This page covers the path that
+works; that one covers everything else.
 
-## Prerequisites
+## What gets installed
 
-| Requirement       | Minimum                                                  |
-| ----------------- | -------------------------------------------------------- |
-| Kubernetes        | `1.23+`                                                  |
-| Helm              | `3.8.0+`                                                 |
-| Worker nodes      | 2 nodes, `amd64`, 4 vCPU + 16 GB RAM each                |
-| Persistent volume | SSD-backed StorageClass, ≥ 200 GB available              |
-| Ingress           | Traefik / NGINX / Istio (or any IngressClass-compatible) |
-| Object storage    | S3-compatible bucket — recommended for the broker        |
+| Component    | Purpose                                                                       | Default      |
+| ------------ | ----------------------------------------------------------------------------- | ------------ |
+| `data-plane` | Main API + UI. Talks to the control plane, launches connector workers as pods | **enabled**  |
+| `kodansu`    | Stateless Kafka-compatible broker, object-store backed                        | **enabled**  |
+| `kora`       | Confluent-compatible schema registry. **Needs its own PostgreSQL database**   | **enabled**  |
+| `kotatsu`    | Optional topic / schema browser, reads the broker's S3 objects                | **disabled** |
+| `postgresql` | Bitnami sub-chart, in-cluster Postgres for the data-plane database            | **enabled**  |
 
-See [Kubernetes requirements](/deployment/installation) for the full list.
+Connector workers are not part of the chart: the data plane creates them as pods
+in its own namespace at runtime. Any sub-component can be disabled in favour of
+your own Kafka, schema registry or PostgreSQL — see the
+[chart reference](/deployment/partners).
 
-You also need two things from Popsink before you start:
+## Before you start
 
-- a **registry token** (a Google Artifact Registry service-account JSON) — every
-  Popsink image is pulled from a private registry;
-- an account on the control plane you will attach this deployment to
-  (`https://control-plane.popsink.com`, or your own).
+Run through [Kubernetes requirements](/deployment/installation) first. In short:
+Kubernetes `1.23+`, Helm `3.8.0+`, two `amd64` nodes at 4 vCPU / 16 GB, an
+ingress controller, outbound HTTPS, and — from Popsink — a **registry token**
+and an account on the control plane you will attach this deployment to.
 
-Decide up front where the data plane will be reachable — you will be asked for
-it in step 2, and it cannot be left blank:
+Decide up front where the data plane will be reachable. You are asked for it in
+step 2 and it cannot be left blank:
 
 <Note>
 **URL, not TLD, not FQDN.** For a data plane served at
@@ -69,6 +71,13 @@ Click **Configure Self-Hosted**.
 
 ![Create a new deployment form](/images/sh-tuto2.png)
 
+<Note>
+One deployment per isolated network. Environments split a single reachable
+network into scopes; they do not span VPCs or regions. If you are planning a
+fleet, read [Deployments and environments](/deployment/topology) before creating
+the first one.
+</Note>
+
 ---
 
 ## 2. Configure
@@ -76,11 +85,11 @@ Click **Configure Self-Hosted**.
 Everything on this step exists to generate your `values.yaml`. Nothing here is
 stored by Popsink — you can also skip the step and write the values yourself.
 
-| Section                  | What it asks                                                | What it generates                                             |
-| ------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------- |
-| **PostgreSQL Database**  | Off = use the in-cluster Postgres. On = your own instance    | `postgresql.*`, or `postgresql.enabled: false` + `externalDatabase.*` |
-| **Retention**            | **S3 Compat** (recommended) or **PostgreSQL Database**       | `kodansu.storage.engine` + `kodansu.storage.aws.*`, `kotatsu.*` |
-| **TLD**                  | Fully qualified domain name, e.g. `popsink.example.com`      | `ingressUrl: https://popsink.example.com`                     |
+| Section                  | What it asks                                                | What it generates                                                     |
+| ------------------------ | ----------------------------------------------------------- | --------------------------------------------------------------------- |
+| **PostgreSQL Database**  | Off = use the in-cluster Postgres. On = your own instance    | `postgresql.*`, or `postgresql.enabled: false` + `externalDatabase.*`  |
+| **Retention**            | **S3 Compat** (recommended) or **PostgreSQL Database**       | `kodansu.storage.engine` + `kodansu.storage.aws.*`, `kotatsu.*`        |
+| **TLD**                  | Fully qualified domain name, e.g. `popsink.example.com`      | `ingressUrl: https://popsink.example.com`                             |
 
 <Note>
 The **PostgreSQL Database** toggle means *"I bring my own"*. Left off, the chart
@@ -167,7 +176,8 @@ are generated in the browser and stored nowhere else. **Save this file in your
 secret manager before leaving the page.**
 
 `connectorConfigEncryptionKey.key` must never be rotated: every stored connector
-configuration is encrypted with it and becomes unreadable if it changes.
+configuration is encrypted with it and becomes unreadable if it changes. Each
+deployment gets its own — never share one across deployments.
 </Warning>
 
 `deploymentJwtToken` is an **object**, not a string — `token:` nested underneath.
@@ -229,6 +239,14 @@ installing"**. Two of them always need your attention:
   </Step>
 </Steps>
 
+<Tip>
+Sensitive values can come from an existing Kubernetes Secret rather than a
+literal — set the matching `existingSecret` field. It works with Vault, Sealed
+Secrets or the External Secrets Operator, and is the recommended shape in
+production. See
+[Managing secrets](/deployment/partners#managing-secrets-with-existingsecret).
+</Tip>
+
 ---
 
 ## 4. Configure ingress
@@ -238,24 +256,7 @@ way. Pick one — but either way, `ingressUrl` must match the public URL your
 users actually reach, or the control-plane login redirect loops.
 
 <Tabs>
-  <Tab title="Let the chart render it">
-    ```yaml
-    ingressUrl: https://popsink.example-company.com
-
-    ingress:
-      enabled: true
-      hostname: popsink.example-company.com
-      ingressClassName: nginx
-      tls: true
-      annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-prod
-    ```
-
-    `ingress.extraHosts`, `ingress.extraTls`, `ingress.path` and
-    `ingress.existingSecret` are available too — see the chart reference values
-    linked from the wizard.
-  </Tab>
-  <Tab title="Bring your own Ingress">
+  <Tab title="Bring your own Ingress (recommended)">
     Leave `ingress.enabled: false` (the default) and point your own resource at
     the data-plane service — `<release>-data-plane`, port `80`:
 
@@ -287,6 +288,23 @@ users actually reach, or the control-plane login redirect loops.
     This is the better option when ingress in your organisation needs specific
     annotations — WAF, allow-lists, a company cert issuer.
   </Tab>
+  <Tab title="Let the chart render it">
+    ```yaml
+    ingressUrl: https://popsink.example-company.com
+
+    ingress:
+      enabled: true
+      hostname: popsink.example-company.com
+      ingressClassName: nginx
+      tls: true
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+    ```
+
+    `ingress.extraHosts`, `ingress.extraTls`, `ingress.path` and
+    `ingress.existingSecret` are available too — see
+    [Ingress values](/deployment/partners#ingress).
+  </Tab>
 </Tabs>
 
 ---
@@ -308,8 +326,7 @@ helm install <release-name> oci://ghcr.io/popsink/charts/data-plane \
 <Warning>
 Do not copy a version from a document — including this one. The chart version is
 served by the control plane and tracks the published chart; a literal pinned in
-a guide rots. An install from a six-month-old chart fails in ways that look like
-product bugs but are pure version skew.
+a guide rots.
 </Warning>
 
 Watch the rollout:
@@ -332,63 +349,122 @@ never probes your cluster.
 
 Then open your `ingressUrl` and log in with `adminCredentials`.
 
-### If it stays on "Awaiting connections…"
-
-| Check                                                             | Why                                                                    |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `helm install` completed without an error                         | A `required` value aborts the render; nothing reaches the cluster       |
-| Every pod is `Running`, not `ImagePullBackOff`                    | `imagePullSecret.token` and `global.imagePullSecrets` — see step 3      |
-| `controlPlaneUrl` / `deploymentId` / `deploymentJwtToken.token`   | Used verbatim from the wizard, `token` nested                           |
-| Outbound access from the cluster to the control plane             | The data plane registers itself; egress must be open                    |
-| DNS resolves `ingressUrl` to your ingress controller              | Also what the post-login redirect uses                                  |
-
-```bash
-kubectl -n popsink logs -l app.kubernetes.io/component=data-plane --tail=200
-```
-
-The full symptom-to-cause table lives on the partners page —
-[Troubleshooting](/deployment/partners#troubleshooting).
+<Card
+  title="It stays on “Awaiting connections…”"
+  icon="triangle-exclamation"
+  href="/deployment/troubleshooting#the-deployment-stays-awaiting-connections"
+>
+  The five things to check, and the logs to read next.
+</Card>
 
 ---
 
-## Managing secrets
+## Production checklist
 
-Sensitive values can be provided two ways:
+<AccordionGroup>
+  <Accordion title="Versions & images">
+    - Pin the chart version (`--version`) and the application image
+      (`image.tag`) — never deploy `latest`.
+    - Upgrade one deployment at a time, starting with staging. See
+      [Upgrading a fleet](/deployment/topology#upgrading-a-fleet).
+  </Accordion>
+  <Accordion title="State">
+    - Use **external** PostgreSQL (`postgresql.enabled: false` +
+      `externalDatabase.*`) backed by managed snapshots, not the in-cluster
+      Bitnami sub-chart.
+    - Use **external** S3 with versioning and a lifecycle policy for the broker.
+  </Accordion>
+  <Accordion title="Resources & availability">
+    - Set explicit `resources.requests/limits` on every component — the defaults
+      target small-to-medium clusters.
+    - Keep `replicaCount ≥ 2` on `data-plane` (default) and
+      `kodansu.replicaCount: 3` (default).
+    - Keep `pdb.create: true` (default) so at least one pod survives a node drain.
+  </Accordion>
+  <Accordion title="Secrets">
+    - Provide values through `existingSecret` fields and a secrets controller
+      rather than literals in `values.yaml`.
+    - Back up the four secrets — admin credentials, JWT secret, Fernet key,
+      database password — in your secret manager.
+  </Accordion>
+  <Accordion title="Safety switches">
+    - Keep `allowDesignLogin: false` and `pipelineMode: false` — dev-only
+      switches.
+  </Accordion>
+  <Accordion title="Network">
+    - TLS-only ingress, with source ranges restricted if the data plane is
+      internet-exposed.
+  </Accordion>
+</AccordionGroup>
 
-1. **Directly in `values.yaml`** — simple, but keep the file out of Git and
-   under access control.
-2. **From an existing Kubernetes Secret** (recommended for production) — set the
-   matching `existingSecret` field instead of the literal. Available for
-   `deploymentJwtToken`, `jwt`, `connectorConfigEncryptionKey`,
-   `adminCredentials`, `kora.database`, `kodansu.storage.aws` and the database
-   blocks, and it works with Vault, Sealed Secrets or the External Secrets
-   Operator.
+## Upgrade
 
-## Production recommendations
+```bash
+helm upgrade <release-name> oci://ghcr.io/popsink/charts/data-plane \
+  --version <new-chart-version> \
+  -n popsink \
+  -f values.yaml
+```
 
-- **External PostgreSQL** (`postgresql.enabled: false` + `externalDatabase.*`)
-  backed by managed snapshots, rather than the bundled sub-chart.
-- **S3-compatible object storage** for retention, with versioning and a
-  lifecycle policy on the bucket.
-- **Pin the chart version** (`--version`) and the image tag (`image.tag`) for
-  reproducible upgrades — never deploy `latest`.
-- **TLS-only ingress**, with source ranges restricted if the data plane is
-  internet-exposed.
-- Keep `allowDesignLogin: false` and `pipelineMode: false` — dev-only switches.
-- Back up the four secrets (admin credentials, JWT secret, Fernet key, database
-  password) in your secret manager.
+The data plane runs its database migrations on startup. Watch a pod's logs:
 
-## Advanced configuration
+```bash
+kubectl -n popsink logs -l app.kubernetes.io/component=data-plane -f
+```
 
-Every value the chart exposes — component-level resources, replica counts, HPA
-and VPA, network policies, bringing your own Kafka or schema registry, Oracle as
-the Kora backend — is documented in
-[Install Popsink with Helm for partners](/deployment/partners), and in the
-**Full chart reference values** file linked from the wizard's Chart step.
+<Warning>
+Before bumping the broker image on an existing bucket, read the upgrade notes on
+`tansu.image.tag` in the chart's `values.yaml`. Two of the tags cross an
+object-layout boundary and need a quiesce-and-flip rather than a rolling
+upgrade.
+</Warning>
 
-### Custom JWT secrets
+## Uninstall
 
-You can supply your own `jwt.secret` instead of the generated one, for tighter
-control over token signing and rotation policy, secret ownership, and to keep
-signing material inside your own secret manager. Set `jwt.existingSecret` rather
-than a literal if the value is managed out of band.
+```bash
+helm uninstall <release-name> -n popsink
+```
+
+<Warning>
+By default the **PostgreSQL PVC and the broker's S3 data are kept**
+(`postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted=Retain`;
+S3 buckets are external). Delete them manually for a clean slate:
+
+```bash
+kubectl -n popsink delete pvc -l app.kubernetes.io/instance=<release-name>
+aws s3 rm s3://my-popsink-bucket/kafka/ --recursive   # ⚠ destroys all topics
+```
+</Warning>
+
+## Installing without the wizard
+
+The wizard only generates values — the chart is the same either way. Installing
+by hand means doing three things yourself:
+
+1. Get a `deploymentId` and `deploymentJwtToken` from the control plane
+   (**Deployments → New deployment → Self-hosted**). They are the deployment's
+   identity and cannot be minted locally.
+2. Generate the four secrets yourself — see
+   [Secrets you must generate](/deployment/partners#secrets-you-must-generate).
+3. Write the `values.yaml` from the
+   [Helm chart reference](/deployment/partners), which documents every component
+   the wizard configures for you, plus the ones it does not: BYO Kafka, an
+   external schema registry, Oracle as the Kora backend, HPA/VPA, network
+   policies.
+
+## Further reading
+
+<CardGroup cols={2}>
+  <Card title="Helm chart reference" icon="list" href="/deployment/partners">
+    Every value the chart exposes, component by component.
+  </Card>
+  <Card title="Troubleshooting" icon="triangle-exclamation" href="/deployment/troubleshooting">
+    Symptom-to-cause table for the install and the first boot.
+  </Card>
+  <Card title="Deployments and environments" icon="layer-group" href="/deployment/topology">
+    How to map deployments onto your regions, networks and staging tiers.
+  </Card>
+  <Card title="Control plane and data plane" icon="shuffle" href="/deployment/control-data-plane">
+    What metadata crosses between the two, and the network rules it implies.
+  </Card>
+</CardGroup>

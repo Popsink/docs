@@ -395,20 +395,28 @@ The trade-offs are real and worth naming:
   How offline, signed update bundles work.
 </Card>
 
-## Network requirements checklist
+## What this means for your firewall
 
-| Requirement                                                              | Why                                                             |
-| ------------------------------------------------------------------------ | --------------------------------------------------------------- |
-| Outbound HTTPS from the cluster to `controlPlaneUrl`                     | Heartbeat, config sync, metrics, login verification              |
-| No inbound rule from the control plane                                   | It never initiates a connection                                 |
-| `ingressUrl` matches the public URL your users actually reach            | It is what login redirects and OAuth callbacks return to        |
-| DNS for `ingressUrl` resolves to your ingress controller                 | Otherwise the post-login redirect fails                         |
-| Egress allowed for the whole namespace, not just the API pod             | Workers of OAuth connectors refresh their own tokens            |
+Everything above is initiated **outbound, by the data plane**. That gives three
+rules, and they are the whole story:
 
-If the deployment stays `offline`, the cause is almost always one of the first
-two rows plus a wrong `deploymentId` / `deploymentJwtToken` — the full
-symptom-to-cause table is on the
-[partners page](/deployment/partners#troubleshooting).
+- **allow egress** from the cluster to `controlPlaneUrl` over HTTPS — it carries
+  the heartbeat, config sync, metrics and login verification;
+- **allow it namespace-wide**, not just for the API pod: connector workers
+  refresh their own OAuth tokens;
+- **open nothing inbound.** The control plane never initiates a connection, so
+  there is no rule to write in that direction and no address to allow-list.
+
+The one value that is not a firewall rule but behaves like one is `ingressUrl`:
+it must match the public URL your users actually reach, and DNS must resolve it
+to your ingress controller, because it is what login redirects and OAuth
+callbacks return to.
+
+The full checklist, including image-registry egress, is in
+[Kubernetes requirements](/deployment/installation#network). If the deployment
+stays `offline`, the cause is almost always blocked egress plus a wrong
+`deploymentId` / `deploymentJwtToken` — the symptom-to-cause table is on the
+[troubleshooting page](/deployment/troubleshooting).
 
 ## Further reading
 
