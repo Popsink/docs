@@ -1,0 +1,20 @@
+---
+title: "v0.1.0-alpha.173 08/09/2026"
+---
+
+---
+
+**Description**: DP - Snapshot a SQL Server source without locking its tables.
+
+### Changes
+
+- DP - Snapshot a SQL Server source without locking its tables (#3873).
+- [ARCH] Part 1 of #3885: GetConnectorByNameQuery decides read access through the domain permission gate (#3886).
+- IBM i - Stop offering tables that can never produce an event (#3878).
+- [FRONT] Extract the subscription detail page into a composable + services (#3887).
+- SEC - Only a caller who can configure a connector may have a credential resolved (#3894).
+- Cover the configuration a source worker boots from (#3897).
+- [TESTCLEAN] assert the worker stop on connector delete, and make the duplicate test the failure path it was named after (#3898).
+- [DOCSLIM] Part 2 of #3860: compact the permission slice's template docstrings (#3900).
+- DP - Stop a queued snapshot request from stealing the running one's identity (#3818).
+- UC worker - refuse a MERGE the target cannot fit, and size compaction in the units a merge pays in (#3883).
