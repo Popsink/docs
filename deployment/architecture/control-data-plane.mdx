@@ -1,6 +1,7 @@
 ---
 title: "Control plane and data plane"
 description: "What each plane owns, and exactly which metadata crosses between them."
+sidebarTitle: "Control and data plane"
 ---
 
 Every Popsink installation is two halves. The **data plane** is the runtime that
@@ -222,7 +223,7 @@ if a rollout takes longer than 13 minutes.
 Because the heartbeat reports `data_plane_version`, the control plane can compare
 what you run against the chart version it publishes as supported — which is why
 the install wizard never hardcodes a chart version and you should not pin one
-either. See [Upgrading a fleet](/deployment/topology#upgrading-a-fleet).
+either. See [Upgrading a fleet](/deployment/architecture/topology#upgrading-a-fleet).
 
 ## Config sync
 
@@ -390,7 +391,7 @@ The trade-offs are real and worth naming:
 <Card
   title="Air-gapped deployments"
   icon="shield-halved"
-  href="/deployment/deployment"
+  href="/deployment/overview"
 >
   How offline, signed update bundles work.
 </Card>
@@ -413,21 +414,21 @@ to your ingress controller, because it is what login redirects and OAuth
 callbacks return to.
 
 The full checklist, including image-registry egress, is in
-[Kubernetes requirements](/deployment/installation#network). If the deployment
+[Kubernetes requirements](/deployment/install/requirements#network). If the deployment
 stays `offline`, the cause is almost always blocked egress plus a wrong
 `deploymentId` / `deploymentJwtToken` — the symptom-to-cause table is on the
-[troubleshooting page](/deployment/troubleshooting).
+[troubleshooting page](/deployment/operate/troubleshooting).
 
 ## Further reading
 
 <CardGroup cols={2}>
-  <Card title="Deployments and environments" icon="layer-group" href="/deployment/topology">
+  <Card title="Deployments and environments" icon="layer-group" href="/deployment/architecture/topology">
     How to map deployments onto your regions and networks.
   </Card>
-  <Card title="Install a deployment" icon="cloud-arrow-up" href="/deployment/selfhosted">
+  <Card title="Install a deployment" icon="cloud-arrow-up" href="/deployment/install/kubernetes">
     Create the deployment in the control plane, then install the chart.
   </Card>
-  <Card title="Deployment options" icon="server" href="/deployment/deployment">
+  <Card title="Deployment options" icon="server" href="/deployment/overview">
     SaaS, BYOC, on-prem and air-gapped compared.
   </Card>
   <Card title="Security & compliance" icon="lock" href="/securityandcompliance">

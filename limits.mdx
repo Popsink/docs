@@ -87,12 +87,12 @@ will hit the runtime cost first. The two are fixed the same way.
 
 Each connector — source or target — gets **its own worker pod** in the
 deployment's namespace (see [Deployments and
-environments](/deployment/topology)). There is no per-deployment counter to
+environments](/deployment/architecture/topology)). There is no per-deployment counter to
 exhaust: the limit is the CPU and memory your cluster can schedule, plus the
 per-connector resource tier Popsink picks.
 
 **What to do instead:** add nodes to the cluster, or stand up a
-[second deployment](/deployment/topology#per-deployment-isolation) — which is the
+[second deployment](/deployment/architecture/topology#per-deployment-isolation) — which is the
 right answer anyway when the new connectors live in a different network.
 
 ## Time to add a subscription
@@ -136,5 +136,5 @@ Two of these ceilings are avoided at design time and expensive to fix later:
 </CardGroup>
 
 Sizing the cluster underneath them is a separate question, covered in
-[Self-hosted deployment](/deployment/selfhosted) and
-[Single-VM deployment](/deployment/singlevm).
+[Self-hosted deployment](/deployment/install/kubernetes) and
+[Single-VM deployment](/deployment/install/single-vm).

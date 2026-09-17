@@ -1,6 +1,7 @@
 ---
 title: "Install the data plane on Kubernetes"
 description: "Create a self-hosted deployment in the control plane, then install the data plane on your cluster with Helm."
+sidebarTitle: "Kubernetes with Helm"
 ---
 
 This is the install guide for a self-hosted **Popsink data plane** — the runtime
@@ -9,7 +10,7 @@ the Popsink control plane, it hands you a complete `values.yaml` and a
 `helm install` command, and you run them against your cluster.
 
 Every value the chart exposes, component by component, is in the
-[Helm chart reference](/deployment/partners). This page covers the path that
+[Helm chart reference](/deployment/reference/helm-values). This page covers the path that
 works; that one covers everything else.
 
 ## What gets installed
@@ -25,11 +26,11 @@ works; that one covers everything else.
 Connector workers are not part of the chart: the data plane creates them as pods
 in its own namespace at runtime. Any sub-component can be disabled in favour of
 your own Kafka, schema registry or PostgreSQL — see the
-[chart reference](/deployment/partners).
+[chart reference](/deployment/reference/helm-values).
 
 ## Before you start
 
-Run through [Kubernetes requirements](/deployment/installation) first. In short:
+Run through [Kubernetes requirements](/deployment/install/requirements) first. In short:
 Kubernetes `1.23+`, Helm `3.8.0+`, two `amd64` nodes at 4 vCPU / 16 GB, an
 ingress controller, outbound HTTPS, and — from Popsink — a **registry token**
 and an account on the control plane you will attach this deployment to.
@@ -74,7 +75,7 @@ Click **Configure Self-Hosted**.
 <Note>
 One deployment per isolated network. Environments split a single reachable
 network into scopes; they do not span VPCs or regions. If you are planning a
-fleet, read [Deployments and environments](/deployment/topology) before creating
+fleet, read [Deployments and environments](/deployment/architecture/topology) before creating
 the first one.
 </Note>
 
@@ -244,7 +245,7 @@ Sensitive values can come from an existing Kubernetes Secret rather than a
 literal — set the matching `existingSecret` field. It works with Vault, Sealed
 Secrets or the External Secrets Operator, and is the recommended shape in
 production. See
-[Managing secrets](/deployment/partners#managing-secrets-with-existingsecret).
+[Managing secrets](/deployment/reference/helm-values#managing-secrets-with-existingsecret).
 </Tip>
 
 ---
@@ -303,7 +304,7 @@ users actually reach, or the control-plane login redirect loops.
 
     `ingress.extraHosts`, `ingress.extraTls`, `ingress.path` and
     `ingress.existingSecret` are available too — see
-    [Ingress values](/deployment/partners#ingress).
+    [Ingress values](/deployment/reference/helm-values#ingress).
   </Tab>
 </Tabs>
 
@@ -342,7 +343,7 @@ kubectl -n popsink get pods -w
 Once the pods are `Ready`, the control plane leaves **Awaiting connections…** and
 the deployment flips to **Live**, usually within a minute. That flip is driven by
 the data plane's first
-[heartbeat](/deployment/control-data-plane#the-heartbeat) — the control plane
+[heartbeat](/deployment/architecture/control-data-plane#the-heartbeat) — the control plane
 never probes your cluster.
 
 ![Awaiting connection screen](/images/sh-tuto5.png)
@@ -352,7 +353,7 @@ Then open your `ingressUrl` and log in with `adminCredentials`.
 <Card
   title="It stays on “Awaiting connections…”"
   icon="triangle-exclamation"
-  href="/deployment/troubleshooting#the-deployment-stays-awaiting-connections"
+  href="/deployment/operate/troubleshooting#the-deployment-stays-awaiting-connections"
 >
   The five things to check, and the logs to read next.
 </Card>
@@ -366,7 +367,7 @@ Then open your `ingressUrl` and log in with `adminCredentials`.
     - Pin the chart version (`--version`) and the application image
       (`image.tag`) — never deploy `latest`.
     - Upgrade one deployment at a time, starting with staging. See
-      [Upgrading a fleet](/deployment/topology#upgrading-a-fleet).
+      [Upgrading a fleet](/deployment/architecture/topology#upgrading-a-fleet).
   </Accordion>
   <Accordion title="State">
     - Use **external** PostgreSQL (`postgresql.enabled: false` +
@@ -397,44 +398,17 @@ Then open your `ingressUrl` and log in with `adminCredentials`.
   </Accordion>
 </AccordionGroup>
 
-## Upgrade
+## After the install
 
-```bash
-helm upgrade <release-name> oci://ghcr.io/popsink/charts/data-plane \
-  --version <new-chart-version> \
-  -n popsink \
-  -f values.yaml
-```
-
-The data plane runs its database migrations on startup. Watch a pod's logs:
-
-```bash
-kubectl -n popsink logs -l app.kubernetes.io/component=data-plane -f
-```
-
-<Warning>
-Before bumping the broker image on an existing bucket, read the upgrade notes on
-`tansu.image.tag` in the chart's `values.yaml`. Two of the tags cross an
-object-layout boundary and need a quiesce-and-flip rather than a rolling
-upgrade.
-</Warning>
-
-## Uninstall
-
-```bash
-helm uninstall <release-name> -n popsink
-```
-
-<Warning>
-By default the **PostgreSQL PVC and the broker's S3 data are kept**
-(`postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted=Retain`;
-S3 buckets are external). Delete them manually for a clean slate:
-
-```bash
-kubectl -n popsink delete pvc -l app.kubernetes.io/instance=<release-name>
-aws s3 rm s3://my-popsink-bucket/kafka/ --recursive   # ⚠ destroys all topics
-```
-</Warning>
+<CardGroup cols={2}>
+  <Card title="Upgrades" icon="arrow-up-right-dots" href="/deployment/operate/upgrades">
+    `helm upgrade`, the broker-image caveat, and the order to roll a fleet in.
+    Uninstalling is documented there too.
+  </Card>
+  <Card title="Tunnels and private connectivity" icon="network-wired" href="/deployment/connectivity/tunnels">
+    Reaching a source database that is not on the cluster's network.
+  </Card>
+</CardGroup>
 
 ## Installing without the wizard
 
@@ -445,9 +419,9 @@ by hand means doing three things yourself:
    (**Deployments → New deployment → Self-hosted**). They are the deployment's
    identity and cannot be minted locally.
 2. Generate the four secrets yourself — see
-   [Secrets you must generate](/deployment/partners#secrets-you-must-generate).
+   [Secrets you must generate](/deployment/reference/helm-values#secrets-you-must-generate).
 3. Write the `values.yaml` from the
-   [Helm chart reference](/deployment/partners), which documents every component
+   [Helm chart reference](/deployment/reference/helm-values), which documents every component
    the wizard configures for you, plus the ones it does not: BYO Kafka, an
    external schema registry, Oracle as the Kora backend, HPA/VPA, network
    policies.
@@ -455,16 +429,16 @@ by hand means doing three things yourself:
 ## Further reading
 
 <CardGroup cols={2}>
-  <Card title="Helm chart reference" icon="list" href="/deployment/partners">
+  <Card title="Helm chart reference" icon="list" href="/deployment/reference/helm-values">
     Every value the chart exposes, component by component.
   </Card>
-  <Card title="Troubleshooting" icon="triangle-exclamation" href="/deployment/troubleshooting">
+  <Card title="Troubleshooting" icon="triangle-exclamation" href="/deployment/operate/troubleshooting">
     Symptom-to-cause table for the install and the first boot.
   </Card>
-  <Card title="Deployments and environments" icon="layer-group" href="/deployment/topology">
+  <Card title="Deployments and environments" icon="layer-group" href="/deployment/architecture/topology">
     How to map deployments onto your regions, networks and staging tiers.
   </Card>
-  <Card title="Control plane and data plane" icon="shuffle" href="/deployment/control-data-plane">
+  <Card title="Control plane and data plane" icon="shuffle" href="/deployment/architecture/control-data-plane">
     What metadata crosses between the two, and the network rules it implies.
   </Card>
 </CardGroup>

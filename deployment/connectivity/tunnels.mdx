@@ -1,6 +1,7 @@
 ---
 title: "Tunnels and private connectivity"
 description: "Reaching a source that is not on the data plane's network — IPsec VPN, SSH tunnel, and overlay networks such as Tailscale."
+sidebarTitle: "Tunnels"
 ---
 
 Popsink connectors are **always the client**. A connector worker pod opens an
@@ -20,7 +21,7 @@ shapes we see in practice.
 
 This is a *data plane* concern only. The control plane never reaches into your
 network at all; see
-[Control plane and data plane](/deployment/control-data-plane) for why.
+[Control plane and data plane](/deployment/architecture/control-data-plane) for why.
 
 ## Choosing a shape
 
@@ -362,7 +363,7 @@ plane — that requirement is unchanged and independent of the tunnel.
 | SSH tunnel fails right after it worked | Key rotated on the bastion, key expired, or `MaxStartups` refusing concurrent sessions |
 | Everything dies at once, no config change | Tailscale key expiry, or the subnet router in the source network having stopped |
 
-<Card title="Deployments and environments" icon="layer-group" href="/deployment/topology">
+<Card title="Deployments and environments" icon="layer-group" href="/deployment/architecture/topology">
   One deployment per isolated network — why a tunnel is often the alternative to
   a second deployment.
 </Card>

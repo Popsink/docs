@@ -1,6 +1,7 @@
 ---
-title: Single VM Deployment
+title: "Single VM deployment"
 description: Deploy Popsink on a single virtual machine — ideal for evaluation and lightweight usage.
+sidebarTitle: "Single VM"
 ---
 
 ## Overview
@@ -10,7 +11,7 @@ The **Single VM** deployment packages the entire Popsink data-plane into a singl
 - **Proof-of-concept and evaluation** — get Popsink running in your environment quickly, without managing a distributed infrastructure.
 - **Lightweight workloads** — small teams or low-traffic environments where horizontal scalability is not a requirement.
 
-> This deployment model is intentionally simple. For high-availability or large-scale production use, see the [Kubernetes deployment](/deployment/selfhosted) instead.
+> This deployment model is intentionally simple. For high-availability or large-scale production use, see the [Kubernetes deployment](/deployment/install/kubernetes) instead.
 
 The VM is distributed as a pre-built image (`.qcow2` for KVM/QEMU, `.ova` for VMware vSphere). No Kubernetes knowledge is required to operate it.
 
@@ -507,19 +508,10 @@ Log in with the `ADMIN_PANEL_USERNAME` and `ADMIN_PANEL_PASSWORD` you set in the
 
 ## Updates
 
-The VM is stateless — all data lives in your external database instance and S3 bucket. Updating Popsink means replacing the VM with a newer image; no in-place upgrades are required.
-
-**Replacement procedure:**
-
-1. Boot the new VM with the same configuration.
-2. Confirm `curl http://<new-vm-ip>/api/readyz` returns HTTP 200.
-3. Run a test pipeline end-to-end on the new VM.
-4. Pause any active pipelines on the old VM, then switch network routing to the new VM.
-5. Resume pipelines and decommission the old VM.
-
-> The old and new VM can run against the same database and S3 bucket simultaneously — state is in the external systems, and concurrent access is safe. Do **not** serve production traffic from both VMs at the same time, as pipelines may execute in duplicate.
-
-If the new VM fails verification, restore routing to the old VM. Its state is unaffected.
+The VM is stateless — all data lives in your external database and S3 bucket, so
+updating Popsink means booting a replacement VM from a newer image and switching
+routing to it. There is no in-place upgrade. The step-by-step procedure is in
+[Upgrades](/deployment/operate/upgrades#single-vm).
 
 ---
 
@@ -531,4 +523,4 @@ If the new VM fails verification, restore routing to the old VM. Its state is un
 | Single point of failure | If the VM goes down, the data-plane is unavailable. |
 | No built-in TLS | HTTPS termination is your responsibility. |
 
-For production-grade scalability and high availability, consider the [Kubernetes deployment](/deployment/selfhosted).
+For production-grade scalability and high availability, consider the [Kubernetes deployment](/deployment/install/kubernetes).

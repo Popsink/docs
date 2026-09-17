@@ -53,7 +53,44 @@
           {
             "group": "Deployment",
             "icon": "server",
-            "pages": ["deployment/deployment", "deployment/control-data-plane", "deployment/topology", "deployment/installation", "deployment/selfhosted", "deployment/singlevm", "deployment/tunnels", "deployment/partners", "deployment/troubleshooting", "deployment/data-model"]
+            "pages": [
+              "deployment/overview",
+              {
+                "group": "Architecture",
+                "pages": [
+                  "deployment/architecture/control-data-plane",
+                  "deployment/architecture/topology"
+                ]
+              },
+              {
+                "group": "Install",
+                "pages": [
+                  "deployment/install/requirements",
+                  "deployment/install/kubernetes",
+                  "deployment/install/single-vm"
+                ]
+              },
+              {
+                "group": "Connectivity",
+                "pages": [
+                  "deployment/connectivity/tunnels"
+                ]
+              },
+              {
+                "group": "Operate",
+                "pages": [
+                  "deployment/operate/upgrades",
+                  "deployment/operate/troubleshooting"
+                ]
+              },
+              {
+                "group": "Reference",
+                "pages": [
+                  "deployment/reference/helm-values",
+                  "deployment/reference/data-model"
+                ]
+              }
+            ]
           },
           {
             "group": "Source Connectors",
@@ -155,10 +192,9 @@
             ]
           },
           {
-            "group": "On-Premises & Integrations",
-            "icon": "server",
+            "group": "Integrations",
+            "icon": "puzzle-piece",
             "pages": [
-              "on-prem/on-prem",
               {
                 "group": "Snowflake IBMi",
                 "pages": [
@@ -168,7 +204,13 @@
                 ]
               }
             ]
-          },{
+          },
+          {
+            "group": "API",
+            "icon": "code",
+            "pages": ["api/tutorial"]
+          },
+          {
             "group":"Transformation",
             "icon":"code",
             "pages": ["transform"]
@@ -402,6 +444,18 @@
   },
   "stylesheets": ["/styles/sidebar.css"],
   "redirects": [
-    { "source": "/deployment", "destination": "/deployment/deployment" }
+    { "source": "/deployment", "destination": "/deployment/overview" },
+    { "source": "/deployment/deployment", "destination": "/deployment/overview" },
+    { "source": "/deployment/control-data-plane", "destination": "/deployment/architecture/control-data-plane" },
+    { "source": "/deployment/topology", "destination": "/deployment/architecture/topology" },
+    { "source": "/deployment/installation", "destination": "/deployment/install/requirements" },
+    { "source": "/deployment/selfhosted", "destination": "/deployment/install/kubernetes" },
+    { "source": "/deployment/singlevm", "destination": "/deployment/install/single-vm" },
+    { "source": "/deployment/tunnels", "destination": "/deployment/connectivity/tunnels" },
+    { "source": "/deployment/partners", "destination": "/deployment/reference/helm-values" },
+    { "source": "/deployment/troubleshooting", "destination": "/deployment/operate/troubleshooting" },
+    { "source": "/deployment/data-model", "destination": "/deployment/reference/data-model" },
+    { "source": "/on-prem/on-prem", "destination": "/api/tutorial" },
+    { "source": "/on-prem/api", "destination": "/api/tutorial" }
   ]
 }

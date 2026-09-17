@@ -37,7 +37,7 @@ Deployment  (one data plane, one cluster, one URL)
 The control plane sits above all of it and manages your whole fleet of
 deployments from a single organization, with one user and billing view. What
 travels between the two is documented in
-[Control plane and data plane](/deployment/control-data-plane).
+[Control plane and data plane](/deployment/architecture/control-data-plane).
 
 How large each of those boxes gets before the design has to be split —
 tables per connector, subscriptions per target, connectors per deployment — is
@@ -94,16 +94,16 @@ per-deployment values substituted is the usual shape.
 
 ## Upgrading a fleet
 
-Deployments upgrade independently: `helm upgrade` one at a time, with the version
-the control plane reports as supported. Roll a staging deployment first, confirm
-its status flips back to **Live** in the control plane, then move through
-the production ones.
+Deployments upgrade independently — there is no fleet-wide rollout. Roll a
+staging deployment first, confirm it comes back **Live**, then move through the
+production ones. The procedure per form factor is in
+[Upgrades](/deployment/operate/upgrades).
 
 <CardGroup cols={2}>
-  <Card title="Install a deployment" icon="cloud-arrow-up" href="/deployment/selfhosted">
+  <Card title="Install a deployment" icon="cloud-arrow-up" href="/deployment/install/kubernetes">
     From the control-plane wizard to a Live deployment.
   </Card>
-  <Card title="Helm chart reference" icon="list" href="/deployment/partners">
+  <Card title="Helm chart reference" icon="list" href="/deployment/reference/helm-values">
     Every value the chart exposes, component by component.
   </Card>
 </CardGroup>
