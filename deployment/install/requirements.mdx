@@ -1,10 +1,11 @@
 ---
 title: "Kubernetes requirements"
 description: "Everything a cluster must provide before the Popsink data plane can be installed on it."
+sidebarTitle: "Requirements"
 ---
 
 This is the single checklist to run before
-[installing the data plane on Kubernetes](/deployment/selfhosted). Nothing on
+[installing the data plane on Kubernetes](/deployment/install/kubernetes). Nothing on
 this page is Popsink-specific configuration — it is what the cluster, the
 network and your Popsink account have to provide first.
 
@@ -56,12 +57,12 @@ but it does not scale the same way and it rules out the optional stream browser
 
 The control plane never reaches into your cluster: every exchange is initiated
 outbound by the data plane. [Control plane and data
-plane](/deployment/control-data-plane) documents exactly which metadata crosses
+plane](/deployment/architecture/control-data-plane) documents exactly which metadata crosses
 that boundary.
 
 Reaching a **source database** that is not on the cluster's network is a
 separate problem, solved with a tunnel rather than a firewall rule — see
-[Tunnels and private connectivity](/deployment/tunnels).
+[Tunnels and private connectivity](/deployment/connectivity/tunnels).
 
 ## From Popsink
 
@@ -82,11 +83,11 @@ Two things must be in your hands before you start:
 ## Not on Kubernetes?
 
 <CardGroup cols={2}>
-  <Card title="Single VM" icon="server" href="/deployment/singlevm">
+  <Card title="Single VM" icon="server" href="/deployment/install/single-vm">
     One machine, no Kubernetes knowledge required. 4 vCPU, 16 GB RAM, ~30 GB
     disk, plus an external database and S3 bucket.
   </Card>
-  <Card title="Deployment options" icon="sitemap" href="/deployment/deployment">
+  <Card title="Deployment options" icon="sitemap" href="/deployment/overview">
     SaaS, BYOC, on-premises and air-gapped compared.
   </Card>
 </CardGroup>

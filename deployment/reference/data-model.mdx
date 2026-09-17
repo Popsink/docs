@@ -3,7 +3,7 @@ title: "Data-plane data model"
 description: "Every table the data-plane keeps about itself, what it is for, and what it is not."
 ---
 
-{/* Generated from the data-plane's SQLAlchemy models by `inv dp.dm`. Refresh it by copying data-plane/docs/data-model.mdx over this file — never by editing it here, which would make it disagree with the shipped schema at the next migration. */}
+{/* Generated from the data-plane's SQLAlchemy models by `inv dp.dm`. Refresh it by copying data-plane/docs/data-model.mdx over docs/deployment/reference/data-model.mdx — never by editing it here, which would make it disagree with the shipped schema at the next migration. */}
 
 The data-plane keeps its own PostgreSQL database. It holds **configuration and operational records only** — which systems to read, how to shape what they produce and where to deliver it, plus who may change any of that. **Your rows never land here**: replicated data travels source → broker → target and is never written to this database.
 

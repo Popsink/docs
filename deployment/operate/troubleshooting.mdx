@@ -1,6 +1,7 @@
 ---
 title: "Troubleshooting a self-hosted deployment"
 description: "Symptom-to-cause table for the Popsink data-plane Helm install, plus the logs to read next."
+sidebarTitle: "Troubleshooting"
 ---
 
 Every failure mode we see on a self-hosted install, and what actually causes it.
@@ -10,7 +11,7 @@ where the large majority of first installs land.
 ## The deployment stays "Awaiting connections…"
 
 The control plane flips a deployment to **Live** on the data plane's first
-[heartbeat](/deployment/control-data-plane#the-heartbeat). It never probes your
+[heartbeat](/deployment/architecture/control-data-plane#the-heartbeat). It never probes your
 cluster, so a deployment stuck on **Offline** always means the data plane did
 not call out — or could not start at all.
 
@@ -30,7 +31,7 @@ kubectl -n popsink logs -l app.kubernetes.io/component=data-plane --tail=200
 
 | Symptom                                                            | Likely cause                                                                                    |
 | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `helm install` aborts on the Kora database message                 | `kora.database` not configured — see [Schema registry](/deployment/partners#schema-registry-kora) |
+| `helm install` aborts on the Kora database message                 | `kora.database` not configured — see [Schema registry](/deployment/reference/helm-values#schema-registry-kora) |
 | `kora` pod: `password authentication failed for user "kora"`       | The `kora` role / database does not exist. Create them, or point Kora at the data-plane database  |
 | `Kora must be enabled, or schemaRegistry.url must be provided`     | `kora.enabled: false` with no external registry configured                                        |
 | `kotatsu.s3.bucket must be provided when kotatsu is enabled`       | Kotatsu enabled with a non-S3 retention engine — set `kotatsu.enabled: false`                     |
@@ -48,7 +49,7 @@ kubectl -n popsink logs -l app.kubernetes.io/component=data-plane --tail=200
 | Workers (connectors) never become `LIVE`      | The data-plane pod cannot reach the broker or Kora inside the cluster — check `NetworkPolicy` |
 | Stream tab has no search bar                  | Kotatsu is disabled — expected. The tab falls back to a live Kafka read              |
 | Target-lag rows missing on the latency view   | Kotatsu is disabled; the rows are computed from the broker's S3 objects              |
-| A connector cannot reach its source           | A network path problem, not an install problem — see [Tunnels](/deployment/tunnels#troubleshooting) |
+| A connector cannot reach its source           | A network path problem, not an install problem — see [Tunnels](/deployment/connectivity/tunnels#troubleshooting) |
 
 ## Logs
 
@@ -85,16 +86,16 @@ confusion on older installs:
 ## Elsewhere
 
 <CardGroup cols={2}>
-  <Card title="Install on Kubernetes" icon="cloud-arrow-up" href="/deployment/selfhosted">
+  <Card title="Install on Kubernetes" icon="cloud-arrow-up" href="/deployment/install/kubernetes">
     The install guide, step by step.
   </Card>
-  <Card title="Helm chart reference" icon="list" href="/deployment/partners">
+  <Card title="Helm chart reference" icon="list" href="/deployment/reference/helm-values">
     Every value the chart exposes, component by component.
   </Card>
-  <Card title="Tunnels and private connectivity" icon="network-wired" href="/deployment/tunnels">
+  <Card title="Tunnels and private connectivity" icon="network-wired" href="/deployment/connectivity/tunnels">
     When the connector, not the install, is what cannot connect.
   </Card>
-  <Card title="Single VM" icon="server" href="/deployment/singlevm#troubleshooting">
+  <Card title="Single VM" icon="server" href="/deployment/install/single-vm#troubleshooting">
     The VM image has its own health checks and failure modes.
   </Card>
 </CardGroup>

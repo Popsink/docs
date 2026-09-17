@@ -1,0 +1,141 @@
+---
+title: "Upgrades"
+description: "Which version to run, how to roll it out across a fleet, and how each form factor upgrades."
+sidebarTitle: "Upgrades"
+---
+
+Every deployment upgrades independently. There is no fleet-wide "upgrade now"
+button and no automatic rollout — you choose when each one moves, and the
+control plane tells you which version it should be on.
+
+## Which version to run
+
+<Warning>
+Never install or upgrade to a chart version copied from a document, including
+this one. The supported version is served by the control plane and tracks the
+published chart; a literal pinned in a guide rots. An install from a
+six-month-old chart fails in ways that look like product bugs but are pure
+version skew.
+</Warning>
+
+The control plane reports each deployment's current version and whether it is
+still supported, from the data plane's
+[heartbeat](/deployment/architecture/control-data-plane#the-heartbeat). That
+report is the source of truth for what to upgrade to.
+
+In `STANDALONE` mode there is no control plane to ask: upgrades are fully
+manual, via signed offline bundles.
+
+## Ordering a fleet
+
+Deployments are independent runtimes, so upgrade them **one at a time**:
+
+<Steps>
+  <Step title="Roll a staging deployment first">
+    Pick the deployment whose pipelines you can afford to interrupt.
+  </Step>
+  <Step title="Confirm it comes back">
+    Its status must flip back to **Live** in the control plane. That flip is
+    driven by the data plane's first heartbeat on the new version — if it stays
+    **Offline**, stop and see
+    [Troubleshooting](/deployment/operate/troubleshooting).
+  </Step>
+  <Step title="Then move through production">
+    One deployment at a time, confirming **Live** between each.
+  </Step>
+</Steps>
+
+Everything except the per-deployment identity and state — images, chart version,
+ingress class, IAM patterns — should be identical across deployments, so the
+same upgrade is a repeat of the one you just validated. See
+[Per-deployment isolation](/deployment/architecture/topology#per-deployment-isolation)
+for what must never be shared.
+
+## Kubernetes
+
+```bash
+helm upgrade <release-name> oci://ghcr.io/popsink/charts/data-plane \
+  --version <new-chart-version> \
+  -n popsink \
+  -f values.yaml
+```
+
+The data plane runs its database migrations on startup. Watch a pod's logs:
+
+```bash
+kubectl -n popsink logs -l app.kubernetes.io/component=data-plane -f
+```
+
+<Warning>
+Before bumping the broker image on an existing bucket, read the upgrade notes on
+`tansu.image.tag` in the chart's `values.yaml`. Two of the tags cross an
+object-layout boundary and need a quiesce-and-flip rather than a rolling
+upgrade.
+</Warning>
+
+Pin both the chart version (`--version`) and the application image (`image.tag`)
+— never deploy `latest`, or an upgrade becomes whatever happened to be published
+that day.
+
+## Single VM
+
+The VM is stateless: all data lives in your external database and S3 bucket.
+Upgrading means **replacing the VM** with one built from a newer image — there
+is no in-place upgrade.
+
+<Steps>
+  <Step title="Boot the new VM">
+    With the same configuration as the old one.
+  </Step>
+  <Step title="Check it is ready">
+    `curl http://<new-vm-ip>/api/readyz` must return HTTP 200.
+  </Step>
+  <Step title="Run a test pipeline end-to-end">
+    On the new VM, before it takes any real traffic.
+  </Step>
+  <Step title="Switch over">
+    Pause the active pipelines on the old VM, then switch network routing to the
+    new one.
+  </Step>
+  <Step title="Resume and decommission">
+    Resume pipelines, then decommission the old VM.
+  </Step>
+</Steps>
+
+<Note>
+Both VMs can point at the same database and bucket at once — state lives in
+those external systems and concurrent access is safe. Do **not** serve
+production traffic from both at the same time, though: pipelines would execute
+twice.
+</Note>
+
+If the new VM fails verification, restore routing to the old one. Its state is
+unaffected.
+
+## Uninstalling
+
+```bash
+helm uninstall <release-name> -n popsink
+```
+
+<Warning>
+By default the **PostgreSQL PVC and the broker's S3 data are kept**
+(`postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted=Retain`;
+S3 buckets are external). Delete them manually for a clean slate:
+
+```bash
+kubectl -n popsink delete pvc -l app.kubernetes.io/instance=<release-name>
+aws s3 rm s3://my-popsink-bucket/kafka/ --recursive   # ⚠ destroys all topics
+```
+</Warning>
+
+## Further reading
+
+<CardGroup cols={2}>
+  <Card title="Deployments and environments" icon="layer-group" href="/deployment/architecture/topology">
+    Why deployments are independent runtimes in the first place.
+  </Card>
+  <Card title="Troubleshooting" icon="triangle-exclamation" href="/deployment/operate/troubleshooting">
+    When a deployment does not come back Live.
+  </Card>
+</CardGroup>

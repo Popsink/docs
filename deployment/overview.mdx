@@ -1,5 +1,7 @@
 ---
-title: Popsink Deployment Options
+title: "Deployment options"
+description: "SaaS, BYOC, on-premises and air-gapped compared, and the two form factors the data plane ships in."
+sidebarTitle: "Overview"
 ---
 
 Popsink supports multiple deployment models so that you can run the same core engine, with the same features and performance, in the mode that fits your organization’s requirements. The primary deployment models are:
@@ -33,11 +35,11 @@ and air-gapped all run the same software — a **Popsink data plane** — and it
 comes in two form factors:
 
 <CardGroup cols={2}>
-  <Card title="Kubernetes, with Helm" icon="cloud-arrow-up" href="/deployment/selfhosted">
+  <Card title="Kubernetes, with Helm" icon="cloud-arrow-up" href="/deployment/install/kubernetes">
     The production shape. Horizontal scaling, high availability, upgrades with
     `helm upgrade`. Needs two nodes and an ingress controller.
   </Card>
-  <Card title="Single VM" icon="server" href="/deployment/singlevm">
+  <Card title="Single VM" icon="server" href="/deployment/install/single-vm">
     One pre-built VM image, no Kubernetes knowledge required. Evaluation and
     lightweight workloads; no horizontal scaling, no built-in TLS.
   </Card>
@@ -46,17 +48,17 @@ comes in two form factors:
 Either way the data plane attaches to a **control plane** — ours, or your own —
 which manages your fleet, users and entitlements. What crosses between the two
 is documented in
-[Control plane and data plane](/deployment/control-data-plane); air-gapped
+[Control plane and data plane](/deployment/architecture/control-data-plane); air-gapped
 installs run with no control plane at all.
 
 <CardGroup cols={2}>
-  <Card title="Kubernetes requirements" icon="list-check" href="/deployment/installation">
+  <Card title="Kubernetes requirements" icon="list-check" href="/deployment/install/requirements">
     What the cluster, the network and your Popsink account must provide first.
   </Card>
-  <Card title="Deployments and environments" icon="layer-group" href="/deployment/topology">
+  <Card title="Deployments and environments" icon="layer-group" href="/deployment/architecture/topology">
     How to map deployments onto your regions, networks and staging tiers.
   </Card>
-  <Card title="Tunnels and private connectivity" icon="network-wired" href="/deployment/tunnels">
+  <Card title="Tunnels and private connectivity" icon="network-wired" href="/deployment/connectivity/tunnels">
     Reaching a source that is not on the data plane's network.
   </Card>
   <Card title="Sizing and limits" icon="gauge" href="/limits">

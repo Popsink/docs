@@ -1,11 +1,12 @@
 ---
 title: "Helm chart reference"
 description: "Every value the Popsink data-plane chart exposes, component by component."
+sidebarTitle: "Helm values"
 ---
 
 The reference for the `data-plane` Helm chart. If you are installing for the
 first time, follow
-[Install the data plane on Kubernetes](/deployment/selfhosted) instead — it walks
+[Install the data plane on Kubernetes](/deployment/install/kubernetes) instead — it walks
 the one path that works. This page is what you reach for when the wizard's
 output is not enough: bringing your own Kafka, schema registry or PostgreSQL,
 tuning resources, or managing secrets out of band.
@@ -64,7 +65,7 @@ ingressUrl: https://popsink.your-company.com
 `deploymentMode: STANDALONE` disables every control-plane call, including the
 heartbeat, and requires no `deploymentJwtToken`. It is the mode behind
 air-gapped installs — see
-[Standalone](/deployment/control-data-plane#standalone-no-control-plane-at-all)
+[Standalone](/deployment/architecture/control-data-plane#standalone-no-control-plane-at-all)
 for what you give up.
 
 <Tip>
@@ -399,7 +400,7 @@ install that had not opted into S3 aborted with
 `ingress.enabled` is **off by default** and we recommend leaving it that way:
 ingress in production usually needs company-specific annotations (cert-manager,
 WAF, allow-lists). Both shapes — chart-rendered and bring-your-own — are covered
-in [step 4 of the install guide](/deployment/selfhosted#4-configure-ingress).
+in [step 4 of the install guide](/deployment/install/kubernetes#4-configure-ingress).
 
 | Value                    | What it does                                                   |
 | ------------------------ | -------------------------------------------------------------- |
@@ -527,16 +528,16 @@ kotatsu:
 ## Further reading
 
 <CardGroup cols={2}>
-  <Card title="Install the data plane on Kubernetes" icon="cloud-arrow-up" href="/deployment/selfhosted">
+  <Card title="Install the data plane on Kubernetes" icon="cloud-arrow-up" href="/deployment/install/kubernetes">
     The guided path, from the control-plane wizard to a Live deployment.
   </Card>
-  <Card title="Troubleshooting" icon="triangle-exclamation" href="/deployment/troubleshooting">
+  <Card title="Troubleshooting" icon="triangle-exclamation" href="/deployment/operate/troubleshooting">
     Symptom-to-cause table for the install and the first boot.
   </Card>
-  <Card title="Kubernetes requirements" icon="server" href="/deployment/installation">
+  <Card title="Kubernetes requirements" icon="server" href="/deployment/install/requirements">
     What the cluster, the network and your Popsink account must provide first.
   </Card>
-  <Card title="Deployments and environments" icon="layer-group" href="/deployment/topology">
+  <Card title="Deployments and environments" icon="layer-group" href="/deployment/architecture/topology">
     How to map deployments onto your regions, networks and staging tiers.
   </Card>
 </CardGroup>
