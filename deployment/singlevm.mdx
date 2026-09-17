@@ -10,7 +10,7 @@ The **Single VM** deployment packages the entire Popsink data-plane into a singl
 - **Proof-of-concept and evaluation** — get Popsink running in your environment quickly, without managing a distributed infrastructure.
 - **Lightweight workloads** — small teams or low-traffic environments where horizontal scalability is not a requirement.
 
-> This deployment model is intentionally simple. For high-availability or large-scale production use, see the [Kubernetes deployment](./selfhosted) instead.
+> This deployment model is intentionally simple. For high-availability or large-scale production use, see the [Kubernetes deployment](/deployment/selfhosted) instead.
 
 The VM is distributed as a pre-built image (`.qcow2` for KVM/QEMU, `.ova` for VMware vSphere). No Kubernetes knowledge is required to operate it.
 
@@ -531,4 +531,4 @@ If the new VM fails verification, restore routing to the old VM. Its state is un
 | Single point of failure | If the VM goes down, the data-plane is unavailable. |
 | No built-in TLS | HTTPS termination is your responsibility. |
 
-For production-grade scalability and high availability, consider the [Kubernetes deployment](./selfhosted).
+For production-grade scalability and high availability, consider the [Kubernetes deployment](/deployment/selfhosted).

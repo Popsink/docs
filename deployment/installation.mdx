@@ -1,42 +1,92 @@
 ---
-title: Popsink Deployment Kubernetes Requirements
+title: "Kubernetes requirements"
+description: "Everything a cluster must provide before the Popsink data plane can be installed on it."
 ---
 
-## Prerequisites for Popsink Kubernetes Deployment
+This is the single checklist to run before
+[installing the data plane on Kubernetes](/deployment/selfhosted). Nothing on
+this page is Popsink-specific configuration — it is what the cluster, the
+network and your Popsink account have to provide first.
 
-Before deploying Popsink on a Kubernetes cluster, ensure that your environment meets the following requirements.
+## Cluster
 
-### Mandatory Requirements
-* **Kubernetes Cluster**
+| Requirement       | Minimum                                                    |
+| ----------------- | ---------------------------------------------------------- |
+| Kubernetes        | `1.23+`                                                    |
+| Helm              | `3.8.0+`                                                   |
+| Worker nodes      | 2 nodes, `amd64`                                           |
+| Per node          | 4 vCPU, 16 GB RAM                                          |
+| Persistent volume | SSD-backed StorageClass, ≥ 200 GB available                |
+| Ingress           | Traefik / NGINX / Istio (or any IngressClass-compatible)   |
 
-  * A Kubernetes cluster with a minimum of **2 worker nodes**
-  * Each node must have at least:
+<Note>
+Those are floor values for a working install, not a sizing exercise. Connector
+workers run as pods in the same namespace and are the part that grows with your
+workload — how many connectors, tables and subscriptions a single deployment
+holds is covered in [Sizing and limits](/limits).
+</Note>
 
-    * **4 vCPUs**
-    * **16 GB of RAM**
-    * **amd64 architecture**
+<Warning>
+The chart **can** render an `Ingress` (`ingress.enabled`, off by default) but it
+never installs an ingress controller. You need your own, plus a DNS record
+pointing at it, before the data plane is reachable.
+</Warning>
 
-* **Ingress Controller**
+## Storage
 
-  * An ingress controller must be installed and configured
-  * Examples: **Traefik**, **Nginx Ingress Controller**, **Istio Ingress Gateway**
+| Requirement          | Status                          | Why                                                                     |
+| -------------------- | ------------------------------- | ----------------------------------------------------------------------- |
+| S3-compatible bucket | **Recommended**                 | Broker retention. AWS S3, MinIO or equivalent; enable object versioning  |
+| External PostgreSQL  | Recommended in production       | The chart bundles a Bitnami Postgres, fine for evaluation only           |
+| Cluster autoscaler   | Optional                        | Node autoscaling for bursty connector workloads                          |
 
-* **Storage**
+Retention can also run on PostgreSQL instead of S3. It is simpler to operate,
+but it does not scale the same way and it rules out the optional stream browser
+— there is no bucket to browse.
 
-  * SSD-based persistent storage
-  * Minimum available disk space: **200 GB**
+## Network
 
-* **Helm**
+| Requirement                                                   | Why                                                              |
+| ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Outbound HTTPS from the cluster to the control plane          | Heartbeat, config sync, metrics, login verification               |
+| Outbound HTTPS to `europe-west1-docker.pkg.dev`               | Every Popsink image is pulled from a private registry             |
+| Egress allowed for the whole namespace, not just the API pod  | Connector workers refresh their own OAuth tokens                  |
+| DNS resolving your data-plane URL to your ingress controller  | It is what the post-login redirect uses                           |
+| No inbound rule from the control plane                        | It never initiates a connection — see below                       |
 
-  * **Helm 3** must be installed
-  * Installation and upgrades of PopSink are performed using a **Helm chart**
+The control plane never reaches into your cluster: every exchange is initiated
+outbound by the data plane. [Control plane and data
+plane](/deployment/control-data-plane) documents exactly which metadata crosses
+that boundary.
 
-### Optional Requirements
+Reaching a **source database** that is not on the cluster's network is a
+separate problem, solved with a tunnel rather than a firewall rule — see
+[Tunnels and private connectivity](/deployment/tunnels).
 
-* **Object Storage**
+## From Popsink
 
-  * An **S3-compatible storage** service (or equivalent)
+Two things must be in your hands before you start:
 
-* **Autoscaling**
+<CardGroup cols={2}>
+  <Card title="A registry token" icon="key">
+    A Google Artifact Registry service-account JSON. Every Popsink image is
+    pulled from a private registry and the control plane holds no copy of this
+    credential.
+  </Card>
+  <Card title="A control-plane account" icon="user">
+    On `https://control-plane.popsink.com`, or on your own control plane. It is
+    what issues the deployment's identity.
+  </Card>
+</CardGroup>
 
-  * **Kubernetes Cluster Autoscaler** (or equivalent node autoscaling solution)
+## Not on Kubernetes?
+
+<CardGroup cols={2}>
+  <Card title="Single VM" icon="server" href="/deployment/singlevm">
+    One machine, no Kubernetes knowledge required. 4 vCPU, 16 GB RAM, ~30 GB
+    disk, plus an external database and S3 bucket.
+  </Card>
+  <Card title="Deployment options" icon="sitemap" href="/deployment/deployment">
+    SaaS, BYOC, on-premises and air-gapped compared.
+  </Card>
+</CardGroup>

@@ -1,0 +1,100 @@
+---
+title: "Troubleshooting a self-hosted deployment"
+description: "Symptom-to-cause table for the Popsink data-plane Helm install, plus the logs to read next."
+---
+
+Every failure mode we see on a self-hosted install, and what actually causes it.
+If the deployment never comes up at all, start with the first section — that is
+where the large majority of first installs land.
+
+## The deployment stays "Awaiting connections…"
+
+The control plane flips a deployment to **Live** on the data plane's first
+[heartbeat](/deployment/control-data-plane#the-heartbeat). It never probes your
+cluster, so a deployment stuck on **Offline** always means the data plane did
+not call out — or could not start at all.
+
+| Check                                                            | Why                                                                |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `helm install` completed without an error                        | A `required` value aborts the render; nothing reaches the cluster   |
+| Every pod is `Running`, not `ImagePullBackOff`                   | `imagePullSecret.token` and `global.imagePullSecrets` are both needed |
+| `controlPlaneUrl` / `deploymentId` / `deploymentJwtToken.token`  | Used verbatim from the wizard, with `token` nested under the object |
+| Outbound HTTPS from the cluster to the control plane             | The data plane registers itself; egress must be open                |
+| DNS resolves `ingressUrl` to your ingress controller             | Also what the post-login redirect uses                              |
+
+```bash
+kubectl -n popsink logs -l app.kubernetes.io/component=data-plane --tail=200
+```
+
+## Install and startup
+
+| Symptom                                                            | Likely cause                                                                                    |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `helm install` aborts on the Kora database message                 | `kora.database` not configured — see [Schema registry](/deployment/partners#schema-registry-kora) |
+| `kora` pod: `password authentication failed for user "kora"`       | The `kora` role / database does not exist. Create them, or point Kora at the data-plane database  |
+| `Kora must be enabled, or schemaRegistry.url must be provided`     | `kora.enabled: false` with no external registry configured                                        |
+| `kotatsu.s3.bucket must be provided when kotatsu is enabled`       | Kotatsu enabled with a non-S3 retention engine — set `kotatsu.enabled: false`                     |
+| `data-plane` pods crash-loop on an empty `DB_USER`                 | `externalDatabase.user` / `.database` left empty — the chart does not guard them                  |
+| `data-plane` pods crash-loop on `connector-config-encryption-key`  | The Fernet key is not a valid URL-safe base64-encoded 32-byte string                              |
+| `ImagePullBackOff` on every pod                                    | `imagePullSecret.token` not set, or not a valid GAR service-account JSON                          |
+| Broker pods `CrashLoopBackOff` with S3 errors                      | `kodansu.storage.engine`, `region` or IAM role/credentials are wrong; or the bucket is missing    |
+
+## Running, but wrong
+
+| Symptom                                       | Likely cause                                                                       |
+| --------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Login at `ingressUrl` fails with a redirect loop | `ingressUrl` doesn't match the public URL fronted by your ingress                  |
+| Ingress 502 on `/api/livez`                   | The service name in your `Ingress` doesn't match `<release>-data-plane`              |
+| Workers (connectors) never become `LIVE`      | The data-plane pod cannot reach the broker or Kora inside the cluster — check `NetworkPolicy` |
+| Stream tab has no search bar                  | Kotatsu is disabled — expected. The tab falls back to a live Kafka read              |
+| Target-lag rows missing on the latency view   | Kotatsu is disabled; the rows are computed from the broker's S3 objects              |
+| A connector cannot reach its source           | A network path problem, not an install problem — see [Tunnels](/deployment/tunnels#troubleshooting) |
+
+## Logs
+
+```bash
+kubectl -n popsink logs -l app.kubernetes.io/component=data-plane --tail=200
+kubectl -n popsink logs -l app.kubernetes.io/component=tansu       --tail=200
+kubectl -n popsink logs -l app.kubernetes.io/name=kora             --tail=200
+kubectl -n popsink logs -l app.kubernetes.io/component=kotatsu     --tail=200
+```
+
+<Note>
+`kodansu` was previously called `tansu`. The broker's pod label still reads
+`tansu`, and the chart still accepts a `tansu:` block for backwards
+compatibility — anything under `kodansu:` wins.
+</Note>
+
+## Version skew
+
+<Warning>
+Never install a chart version copied from a document, including this one. The
+supported version is served by the control plane and tracks the published chart;
+a literal pinned in a guide rots. An install from a six-month-old chart fails in
+ways that look like product bugs but are pure version skew.
+</Warning>
+
+Two behaviours changed at chart `0.1.0-alpha.162` and are a common source of
+confusion on older installs:
+
+- before it, an unset `kora.database` installed a pod that crash-looped instead
+  of aborting the render with instructions;
+- before it, `kotatsu` defaulted to **enabled**, so an install that had not
+  opted into S3 aborted on `kotatsu.s3.bucket`.
+
+## Elsewhere
+
+<CardGroup cols={2}>
+  <Card title="Install on Kubernetes" icon="cloud-arrow-up" href="/deployment/selfhosted">
+    The install guide, step by step.
+  </Card>
+  <Card title="Helm chart reference" icon="list" href="/deployment/partners">
+    Every value the chart exposes, component by component.
+  </Card>
+  <Card title="Tunnels and private connectivity" icon="network-wired" href="/deployment/tunnels">
+    When the connector, not the install, is what cannot connect.
+  </Card>
+  <Card title="Single VM" icon="server" href="/deployment/singlevm#troubleshooting">
+    The VM image has its own health checks and failure modes.
+  </Card>
+</CardGroup>

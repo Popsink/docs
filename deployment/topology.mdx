@@ -99,10 +99,11 @@ the control plane reports as supported. Roll a staging deployment first, confirm
 its status flips back to **Live** in the control plane, then move through
 the production ones.
 
-<Card
-  title="Install a deployment"
-  icon="cloud-arrow-up"
-  href="https://docs.popsink.com/deployment/partners"
->
-  The Helm chart, component by component.
-</Card>
+<CardGroup cols={2}>
+  <Card title="Install a deployment" icon="cloud-arrow-up" href="/deployment/selfhosted">
+    From the control-plane wizard to a Live deployment.
+  </Card>
+  <Card title="Helm chart reference" icon="list" href="/deployment/partners">
+    Every value the chart exposes, component by component.
+  </Card>
+</CardGroup>

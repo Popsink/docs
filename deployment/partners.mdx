@@ -1,36 +1,37 @@
 ---
-title: "Install Popsink with Helm for partners"
-description: "Self-host the Popsink data plane on Kubernetes using the official Helm chart."
+title: "Helm chart reference"
+description: "Every value the Popsink data-plane chart exposes, component by component."
 ---
 
-This page is intended for **integrators** who install Popsink in their own
-Kubernetes cluster. The chart deploys a self-hosted **Popsink data plane** —
-the runtime that moves data from your sources to your targets. It connects to
-a **control plane** (managed by Popsink at `control-plane.popsink.com`, or
-your own) which orchestrates and monitors the deployment. See
-[Control plane and data plane](/deployment/control-data-plane) for the exact
-metadata exchanged between the two, and the network rules it implies.
+The reference for the `data-plane` Helm chart. If you are installing for the
+first time, follow
+[Install the data plane on Kubernetes](/deployment/selfhosted) instead — it walks
+the one path that works. This page is what you reach for when the wizard's
+output is not enough: bringing your own Kafka, schema registry or PostgreSQL,
+tuning resources, or managing secrets out of band.
 
-## Architecture overview
+The chart is published as an OCI artifact:
 
-The chart deploys the following components:
+```
+oci://ghcr.io/popsink/charts/data-plane
+```
 
-| Component    | Purpose                                                                            | Default      |
-| ------------ | ---------------------------------------------------------------------------------- | ------------ |
-| `data-plane` | Main API + UI. Talks to the control plane, launches connector workers as pods      | **enabled**  |
-| `kodansu`    | Stateless Kafka-compatible broker, object-store backed                             | **enabled**  |
-| `kora`       | Confluent-compatible Schema Registry. **Needs its own PostgreSQL — see below**     | **enabled**  |
-| `kotatsu`    | Optional topic / schema browser, reads the broker's S3 objects                     | **disabled** |
-| `postgresql` | Bitnami sub-chart, in-cluster Postgres for the data-plane DB                       | **enabled**  |
+A full, annotated list of every value (with `@param` blocks) ships inside the
+chart's own `values.yaml`, and the control-plane wizard links the reference
+values file for the version it serves you.
 
-Connector workers are not part of the chart: the data-plane creates them as pods
+## Components
+
+| Component    | Purpose                                                                       | Default      | Replaceable by                       |
+| ------------ | ----------------------------------------------------------------------------- | ------------ | ------------------------------------ |
+| `data-plane` | Main API + UI. Talks to the control plane, launches connector workers as pods | **enabled**  | —                                    |
+| `kodansu`    | Stateless Kafka-compatible broker, object-store backed                        | **enabled**  | `defaultKafka.*`                     |
+| `kora`       | Confluent-compatible schema registry                                          | **enabled**  | `schemaRegistry.*`                   |
+| `kotatsu`    | Optional topic / schema browser over the broker's S3 objects                  | **disabled** | —                                    |
+| `postgresql` | Bitnami sub-chart, in-cluster Postgres for the data-plane database            | **enabled**  | `externalDatabase.*`                 |
+
+Connector workers are not part of the chart: the data plane creates them as pods
 in its own namespace at runtime.
-
-You can disable any sub-component and bring your own:
-
-- **External Kafka** — `kodansu.enabled=false`, configure `defaultKafka.*`
-- **External Schema Registry** — `kora.enabled=false`, configure `schemaRegistry.*`
-- **External PostgreSQL** — `postgresql.enabled=false`, configure `externalDatabase.*`
 
 <Note>
 `kodansu` was previously called `tansu`, and the chart still reads a `tansu:`
@@ -43,28 +44,73 @@ Two components that appeared in earlier versions of this page — `karapace` and
 `kafkaUi.*` is silently ignored.
 </Note>
 
+## Identity
+
+These come from the control plane (**Deployments → New deployment →
+Self-hosted**) and must be used verbatim — they are how the data plane
+authenticates itself.
+
+```yaml
+controlPlaneUrl:         https://control-plane-api.popsink.com/api
+controlPlaneFrontendUrl: https://control-plane.popsink.com
+deploymentMode: SELF_HOSTED       # or STANDALONE — no control plane at all
+deploymentId:   <uuid>
+deploymentJwtToken:
+  token: <jwt>                    # an object, not a string
+
+ingressUrl: https://popsink.your-company.com
+```
+
+`deploymentMode: STANDALONE` disables every control-plane call, including the
+heartbeat, and requires no `deploymentJwtToken`. It is the mode behind
+air-gapped installs — see
+[Standalone](/deployment/control-data-plane#standalone-no-control-plane-at-all)
+for what you give up.
+
+<Tip>
+`ingressUrl` **must** match the public URL the control plane redirects users to
+— it is also used for OAuth-style callbacks. A mismatch shows up as a login
+redirect loop.
+</Tip>
+
+## Secrets you must generate
+
+Beyond the values handed by the control plane, four secrets are generated
+locally. The wizard mints three of them in your browser; installing by hand
+means producing them yourself.
+
+| Secret                                                       | Format                                          | How to generate                                                                              |
+| ------------------------------------------------------------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `adminCredentials.username` / `password`                     | any                                             | Pick a strong password                                                                       |
+| `jwt.secret`                                                 | random string ≥ 32 chars                        | `openssl rand -base64 48`                                                                    |
+| `connectorConfigEncryptionKey.key`                           | URL-safe base64-encoded **32-byte** Fernet key  | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`  |
+| `postgresql.auth.password` (or `externalDatabase.password`)  | any                                             | `openssl rand -base64 24`                                                                    |
+
 <Warning>
-The chart **can** render an `Ingress` (`ingress.enabled`, off by default), but it
-never installs an ingress controller: you still need your own (Traefik, NGINX,
-Istio…) and a DNS record pointing at it. Both options — chart-rendered or
-bring-your-own — are covered under [Ingress](#ingress) below.
+These four secrets encrypt connector credentials, sign user sessions and protect
+the admin login. **Lose them and you lose access to your stored connector
+configs.** Back them up in your secret manager.
+
+`connectorConfigEncryptionKey.key` must **never be rotated**: every stored
+connector configuration is encrypted with it and becomes unreadable if it
+changes. Each deployment gets its own — never share one across deployments.
 </Warning>
 
-## Prerequisites
+## Managing secrets with `existingSecret`
 
-### Cluster
+Any sensitive value can come from an existing Kubernetes Secret instead of a
+literal. Set the matching `existingSecret` field and leave the literal unset —
+this works with Vault, Sealed Secrets and the External Secrets Operator, and is
+the recommended shape in production.
 
-| Requirement       | Minimum                                                    |
-| ----------------- | ---------------------------------------------------------- |
-| Kubernetes        | `1.23+`                                                    |
-| Helm              | `3.8.0+`                                                   |
-| Worker nodes      | 2 nodes, `amd64`                                           |
-| Per-node          | 4 vCPU, 16 GB RAM                                          |
-| Persistent volume | SSD-backed StorageClass, ≥ 200 GB available                |
-| Ingress           | Traefik / NGINX / Istio (or any IngressClass-compatible)   |
-| Object storage    | S3-compatible bucket (recommended for the broker)          |
+Available for `deploymentJwtToken`, `jwt`, `connectorConfigEncryptionKey`,
+`adminCredentials`, `kora.database`, `kodansu.storage.aws`, `externalDatabase`
+and `postgresql.auth`.
 
-### Access to Popsink images
+The sources are mutually exclusive: an `existingSecret` combined with a literal
+`password` or `url` is rejected at render time.
+
+## Image pull
 
 All images are published to a private GAR registry:
 
@@ -72,24 +118,29 @@ All images are published to a private GAR registry:
 europe-west1-docker.pkg.dev/popsink-common-438615/onprem
 ```
 
-Popsink will provide you with a service-account JSON token to pull these
-images.
+Popsink provides a service-account JSON token to pull them.
 
 <Tabs>
   <Tab title="Chart-managed pull secret">
-    Let the chart create the `imagePullSecret` for you:
-
     ```yaml
     imagePullSecret:
       create: true
       registry: europe-west1-docker.pkg.dev/popsink-common-438615/onprem
       token: |
         <base64-encoded service account JSON, or the JSON itself>
+
+    global:
+      imagePullSecrets:
+        - <release-name>-regcred
     ```
+
+    <Note>
+    `global.imagePullSecrets` is required alongside `imagePullSecret.create`.
+    The chart creates the secret but does not attach it to any pod, so without
+    it every image fails with `ImagePullBackOff`. This is a known chart defect.
+    </Note>
   </Tab>
   <Tab title="Bring your own pull secret">
-    Create the secret yourself, then reference it via `global.imagePullSecrets`:
-
     ```bash
     kubectl create secret docker-registry popsink-registry \
       --docker-server=europe-west1-docker.pkg.dev \
@@ -106,64 +157,47 @@ images.
   </Tab>
 </Tabs>
 
-## Onboarding flow (control plane)
+## Data-plane database
 
-Before installing the chart, you need a **deployment ID** and a
-**deployment JWT token** issued by the control plane.
+<Tabs>
+  <Tab title="In-cluster (default)">
+    ```yaml
+    postgresql:
+      enabled: true
+      auth:
+        password: <strong-password>
+      primary:
+        persistence:
+          size: 50Gi
+          storageClass: <your-ssd-class>
+    ```
 
-<Steps>
-  <Step title="Open the control plane">
-    Log into `https://control-plane.popsink.com` (or your own control plane).
-  </Step>
-  <Step title="Create a self-hosted deployment">
-    Open **Deployments → New deployment** and pick **Self-hosted**.
-  </Step>
-  <Step title="Fill the wizard">
-    - Optional pre-fill of PostgreSQL credentials (not stored).
-    - **Retention strategy** — pick S3-compatible storage (recommended) or
-      PostgreSQL.
-    - **FQDN** — the public URL where the data plane will be reachable
-      (e.g. `https://popsink.your-company.com`).
-  </Step>
-  <Step title="Copy the values snippet">
-    The wizard outputs a `values-control-plane.yaml` snippet containing
-    `controlPlaneUrl`, `deploymentId` and `deploymentJwtToken`.
-    **Use these values verbatim** — they identify and authenticate your data
-    plane against the control plane.
-  </Step>
-  <Step title="Wait for connection">
-    Keep the wizard open. After `helm install`, the wizard leaves
-    **Awaiting connections…** and the deployment flips to **Live** on the data
-    plane's first heartbeat.
-  </Step>
-</Steps>
+    Fine for evaluation. In production, prefer a managed instance with
+    snapshots.
+  </Tab>
+  <Tab title="External (recommended in production)">
+    ```yaml
+    postgresql:
+      enabled: false
 
-## Required secrets to generate yourself
+    externalDatabase:
+      host: popsink.abc123.eu-west-2.rds.amazonaws.com
+      port: 5432
+      user: popsink
+      database: popsink
+      password: <strong-password>
+    ```
 
-Beyond the values handed by the control plane, you must generate four secrets
-locally:
+    <Warning>
+    `externalDatabase.user` and `externalDatabase.database` are **not** guarded
+    by the chart: left empty they render, install, and the data plane then
+    crash-loops on an empty `DB_USER`. The database must exist before the
+    install — the data plane runs its own migrations on startup.
+    </Warning>
+  </Tab>
+</Tabs>
 
-| Secret                                                       | Format                                          | How to generate                                                                              |
-| ------------------------------------------------------------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `adminCredentials.username` / `password`                     | any                                             | Pick a strong password                                                                       |
-| `jwt.secret`                                                 | random string ≥ 32 chars                        | `openssl rand -base64 48`                                                                    |
-| `connectorConfigEncryptionKey.key`                           | URL-safe base64-encoded **32-byte** Fernet key  | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`  |
-| `postgresql.auth.password` (or `externalDatabase.password`)  | any                                             | `openssl rand -base64 24`                                                                    |
-
-<Warning>
-These four secrets encrypt connector credentials, sign user sessions and
-protect the admin login. **Lose them and you lose access to your stored
-connector configs**. Back them up in your secret manager.
-
-`connectorConfigEncryptionKey.key` must **never be rotated**: every stored
-connector configuration is encrypted with it and becomes unreadable if it
-changes. Each deployment gets its own — never share one across deployments.
-</Warning>
-
-If you prefer to manage secrets out of band (Vault, Sealed Secrets, External
-Secrets Operator…), set the corresponding `existingSecret` field instead.
-
-## Schema registry database (Kora)
+## Schema registry (Kora)
 
 Kora is Popsink's schema registry: every connector registers the structure of
 what it reads there, and every target resolves schemas from it. It is enabled by
@@ -204,7 +238,7 @@ password authentication failed for user \"kora\"")
     ```
   </Tab>
   <Tab title="Share the data-plane database">
-    No SQL to run — point Kora at the same role and database as the data-plane.
+    No SQL to run — point Kora at the same role and database as the data plane.
     This keeps a self-hosted install to a single database to operate, and is what
     the control-plane wizard generates.
 
@@ -236,50 +270,13 @@ password authentication failed for user \"kora\"")
 
 Credentials can also come from a secret rather than a literal — use
 `kora.database.existingSecret` with `secretKeys.password`, or `secretKeys.url`
-for a full connection URL. The three sources are mutually exclusive: an
-`existingSecret` combined with a literal `password` or `url` is rejected at
-render time.
+for a full connection URL.
 
 Kora also supports an Oracle backend: `kora.database.backend: oracle`, port
 `1521`, and `database` set to the service name (e.g. `FREEPDB1`). The chart
 selects the matching image automatically.
 
-## Stream browser (Kotatsu)
-
-Kotatsu is **optional and disabled by default**. It is a read-only browser over
-the objects the broker wrote to S3, and it backs two things in the UI:
-
-- search, pagination and the timestamp column on the datamodel **Stream** tab;
-- the per-subscription **target lag** rows on the pipeline latency view.
-
-Without it, the Stream tab falls back to a live Kafka read (no search, no
-pagination) and the target-lag rows are simply absent. Pipelines, connectors,
-subscriptions and delivery are unaffected — it is safe to leave disabled in
-production.
-
-Because it reads the bucket the broker writes, it only means anything with S3
-retention. To enable it:
-
-```yaml
-kotatsu:
-  enabled: true
-```
-
-That is the entire configuration. Bucket, cluster id, region, endpoint and
-credentials all default to the broker's own (`kodansu.storage.*`,
-`kodansu.clusterId`) — the only combination that can work, since the two read and
-write the same objects. Set `kotatsu.s3.*` only to point Kotatsu at a replica of
-the bucket or at a separate read-only credential. On EKS with IRSA, leave the
-keys empty and annotate `kotatsu.serviceAccount.annotations` with the role ARN.
-
-<Note>
-On charts before `0.1.0-alpha.162` Kotatsu defaulted to **enabled**, so an
-install that had not opted into S3 aborted with
-`kotatsu.s3.bucket must be provided when kotatsu is enabled`. Setting
-`kotatsu.enabled: false` is the correct workaround on those versions.
-</Note>
-
-## Broker storage (S3)
+## Broker storage (Kodansu)
 
 Kodansu is a stateless Kafka broker that stores log segments in an object store.
 `kodansu.storage.engine` decides where records live, and both it and
@@ -330,24 +327,15 @@ kodansu:
 
 </CodeGroup>
 
-The bucket must exist, be writable by the configured identity, and ideally
-have **object versioning** enabled.
-
-<Warning>
-Before bumping the broker image on an existing bucket, read the upgrade notes on
-`tansu.image.tag` in the chart's `values.yaml`. Two of the tags cross an
-object-layout boundary and need a quiesce-and-flip rather than a rolling
-upgrade.
-</Warning>
+The bucket must exist, be writable by the configured identity, and ideally have
+**object versioning** enabled.
 
 <Note>
 PostgreSQL retention is simpler to operate but does not scale the same way, and
 rules out Kotatsu (there is no bucket to browse).
 </Note>
 
-<Note>
-If you don't want the in-cluster broker, set `kodansu.enabled=false` and
-`kora.enabled=false`, then point the data plane at your existing Kafka:
+### Bring your own Kafka
 
 ```yaml
 kodansu: { enabled: false }
@@ -370,58 +358,83 @@ schemaRegistry:
   username: popsink
   password: <secret>
 ```
+
+## Stream browser (Kotatsu)
+
+Kotatsu is **optional and disabled by default**. It is a read-only browser over
+the objects the broker wrote to S3, and it backs two things in the UI:
+
+- search, pagination and the timestamp column on the datamodel **Stream** tab;
+- the per-subscription **target lag** rows on the pipeline latency view.
+
+Without it, the Stream tab falls back to a live Kafka read (no search, no
+pagination) and the target-lag rows are simply absent. Pipelines, connectors,
+subscriptions and delivery are unaffected — it is safe to leave disabled in
+production.
+
+Because it reads the bucket the broker writes, it only means anything with S3
+retention. To enable it:
+
+```yaml
+kotatsu:
+  enabled: true
+```
+
+That is the entire configuration. Bucket, cluster id, region, endpoint and
+credentials all default to the broker's own (`kodansu.storage.*`,
+`kodansu.clusterId`) — the only combination that can work, since the two read and
+write the same objects. Set `kotatsu.s3.*` only to point Kotatsu at a replica of
+the bucket or at a separate read-only credential. On EKS with IRSA, leave the
+keys empty and annotate `kotatsu.serviceAccount.annotations` with the role ARN.
+
+<Note>
+On charts before `0.1.0-alpha.162` Kotatsu defaulted to **enabled**, so an
+install that had not opted into S3 aborted with
+`kotatsu.s3.bucket must be provided when kotatsu is enabled`. Setting
+`kotatsu.enabled: false` is the correct workaround on those versions.
 </Note>
 
 ## Ingress
 
-The chart's built-in `ingress.enabled` flag is **off by default** and we
-recommend leaving it that way: ingress in production usually needs
-company-specific annotations (cert-manager, WAF, allow-lists). Provide your
-own `Ingress` resource that exposes:
+`ingress.enabled` is **off by default** and we recommend leaving it that way:
+ingress in production usually needs company-specific annotations (cert-manager,
+WAF, allow-lists). Both shapes — chart-rendered and bring-your-own — are covered
+in [step 4 of the install guide](/deployment/selfhosted#4-configure-ingress).
 
-- the data-plane HTTP service (`<release>-data-plane`, port `80`),
-- on the FQDN you declared in the control plane (`ingressUrl`).
+| Value                    | What it does                                                   |
+| ------------------------ | -------------------------------------------------------------- |
+| `ingress.enabled`        | Render an `Ingress` resource (default `false`)                 |
+| `ingress.hostname`       | Host to serve on                                               |
+| `ingress.ingressClassName` | `nginx`, `traefik`, `istio`…                                 |
+| `ingress.tls`            | Enable TLS on the rendered resource                            |
+| `ingress.annotations`    | Passed through — cert-manager issuer, WAF, allow-lists         |
+| `ingress.extraHosts` / `extraTls` | Additional hosts and TLS blocks                       |
+| `ingress.path`           | Path prefix (default `/`)                                      |
+| `ingress.existingSecret` | Use an existing TLS secret rather than issuing one             |
 
-Example with NGINX + cert-manager:
+The chart never installs an ingress controller. Bringing your own means pointing
+it at the `<release>-data-plane` service on port `80`.
 
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: popsink
-  namespace: popsink
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-spec:
-  ingressClassName: nginx
-  tls:
-    - hosts: [popsink.your-company.com]
-      secretName: popsink-tls
-  rules:
-    - host: popsink.your-company.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: <release>-data-plane
-                port: { number: 80 }
-```
+## Resources and availability
 
-If you want the chart to render an `Ingress` for you, set `ingress.enabled=true`
-and configure `ingress.hostname`, `ingress.ingressClassName`, `ingress.tls`.
+| Value                                 | Default | What it does                                          |
+| ------------------------------------- | ------- | ----------------------------------------------------- |
+| `replicaCount`                        | `2`     | Data-plane API replicas                               |
+| `resources.requests` / `.limits`      | small   | Per-component CPU and memory — tune for your workload |
+| `kodansu.replicaCount`                | `3`     | Broker replicas                                       |
+| `pdb.create`                          | `true`  | PodDisruptionBudget — keeps ≥ 1 pod during drains     |
+| `autoscaling.hpa.*`                   | off     | Horizontal pod autoscaling                            |
+| `autoscaling.vpa.*`                   | off     | Vertical pod autoscaling                              |
+| `image.tag`                           | chart   | Pin the data-plane image — never deploy `latest`      |
 
-<Tip>
-The value of **`ingressUrl`** in the chart **must** match the public URL the
-control plane redirects users to (it is also used for OAuth-style callbacks):
+## Safety switches
 
-```yaml
-ingressUrl: "https://popsink.your-company.com"
-```
-</Tip>
+| Value               | Default | What it does                             |
+| ------------------- | ------- | ---------------------------------------- |
+| `allowDesignLogin`  | `false` | Dev-only. Leave off.                     |
+| `pipelineMode`      | `false` | Dev-only. Leave off.                     |
 
-## Putting it together — minimal `values.yaml`
+## A complete `values.yaml`
 
 ```yaml values.yaml
 # ───── Identity (from the control-plane wizard) ─────
@@ -438,7 +451,11 @@ ingressUrl: https://popsink.your-company.com
 # ───── Image pull ─────
 imagePullSecret:
   create: true
+  registry: europe-west1-docker.pkg.dev/popsink-common-438615/onprem
   token: <gar-service-account-json>
+global:
+  imagePullSecrets:
+    - <release-name>-regcred
 
 # ───── Secrets you generated ─────
 adminCredentials:
@@ -484,172 +501,23 @@ kotatsu:
   enabled: true
 ```
 
-<Tip>
-For production, swap the in-cluster Postgres for a managed one:
-
-```yaml
-postgresql:
-  enabled: false
-
-externalDatabase:
-  host: popsink.abc123.eu-west-2.rds.amazonaws.com
-  port: 5432
-  user: popsink
-  database: popsink
-  password: <strong-password>
-```
-
-`externalDatabase.user` and `externalDatabase.database` are **not** guarded by
-the chart: left empty they render, install, and the data plane then crash-loops
-on an empty `DB_USER`. The database must exist before the install — the data
-plane runs its own migrations on startup.
-</Tip>
-
-## Install
-
-```bash
-# 1. Create the namespace
-kubectl create namespace popsink
-
-# 2. Install (chart is published as an OCI artifact)
-helm install popsink \
-  oci://ghcr.io/popsink/charts/data-plane \
-  -n popsink \
-  -f values.yaml \
-  --version <chart-version>
-```
-
-<Tip>
-Use `helm search repo` or check the chart's `Chart.yaml` (`version:`) to pin
-the chart version. Pinning avoids surprise upgrades.
-</Tip>
-
-Watch the rollout:
-
-```bash
-kubectl -n popsink get pods -w
-```
-
-When all pods are `Ready`, head back to the control-plane deployment page —
-the status should flip from **Offline** to **Live** within a minute. Open
-`ingressUrl` and log in with the `adminCredentials` you set.
-
-## Production checklist
-
-<AccordionGroup>
-  <Accordion title="Versions & images">
-    - Pin the chart version (`--version`) and the application image
-      (`image.tag`) — never deploy `latest`.
-  </Accordion>
-  <Accordion title="State">
-    - Use **external** PostgreSQL (`postgresql.enabled=false`,
-      `externalDatabase.*`) backed by managed snapshots, not the in-cluster
-      Bitnami chart.
-    - Use **external** S3 with versioning + lifecycle policy for the broker.
-  </Accordion>
-  <Accordion title="Resources & availability">
-    - Set explicit `resources.requests/limits` on every component (defaults
-      target small-medium clusters; tune for your workload).
-    - Configure `replicaCount ≥ 2` on `data-plane` (default), keep
-      `tansu.replicaCount=3` (default).
-    - Enable `pdb.create: true` (default) — at least 1 pod stays during node
-      drains.
-  </Accordion>
-  <Accordion title="Secrets">
-    - Provide `imagePullSecrets` via a sealed secret / external secrets
-      controller, not plain values.
-    - Back up the four secrets (admin credentials, JWT secret, Fernet key,
-      DB password) in your secret manager.
-  </Accordion>
-  <Accordion title="Safety switches">
-    - Keep `allowDesignLogin: false` (default) and `pipelineMode: false`
-      unless explicitly told otherwise — these are dev-only switches.
-  </Accordion>
-  <Accordion title="Network">
-    - Ingress: TLS-only, cert-manager (or equivalent), restrict source ranges
-      if your data plane is internet-exposed only for known IPs.
-  </Accordion>
-</AccordionGroup>
-
-## Upgrade
-
-```bash
-helm upgrade popsink \
-  oci://ghcr.io/popsink/charts/data-plane \
-  -n popsink \
-  -f values.yaml \
-  --version <new-chart-version>
-```
-
-The data plane runs DB migrations on startup. Watch a pod's logs:
-
-```bash
-kubectl -n popsink logs -l app.kubernetes.io/component=data-plane -f
-```
-
-## Uninstall
-
-```bash
-helm uninstall popsink -n popsink
-```
-
-<Warning>
-By default the **PostgreSQL PVC and the broker's S3 data are kept**
-(`postgresql.primary.persistentVolumeClaimRetentionPolicy.whenDeleted=Retain`,
-S3 buckets are external). Delete them manually if you want a clean slate:
-
-```bash
-kubectl -n popsink delete pvc -l app.kubernetes.io/instance=popsink
-aws s3 rm s3://my-popsink-bucket/kafka/ --recursive   # ⚠ destroys all topics
-```
-</Warning>
-
-## Troubleshooting
-
-| Symptom                                                              | Likely cause                                                                                                |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `helm install` aborts on the Kora database message                   | `kora.database` not configured — see [Schema registry database](#schema-registry-database-kora)              |
-| `kora` pod: `password authentication failed for user "kora"`         | The `kora` role / database does not exist. Create them, or point Kora at the data-plane database             |
-| `kotatsu.s3.bucket must be provided when kotatsu is enabled`         | Kotatsu enabled with a non-S3 retention engine — set `kotatsu.enabled: false`                                |
-| `Kora must be enabled, or schemaRegistry.url must be provided`       | `kora.enabled: false` with no external registry configured                                                   |
-| `data-plane` pods crash-loop on an empty `DB_USER`                   | `externalDatabase.user` / `.database` left empty                                                             |
-| Stream tab has no search bar                                         | Kotatsu is disabled — expected, the tab falls back to a live Kafka read                                      |
-| Deployment stays **Offline** / "Awaiting connections…"               | Wrong `controlPlaneUrl` / `deploymentId` / `deploymentJwtToken`, or egress to the control plane is blocked  |
-| `data-plane` pods crash-loop on `connector-config-encryption-key`    | Fernet key is not a valid URL-safe base64-encoded 32-byte string                                            |
-| Broker pods `CrashLoopBackOff` with S3 errors                        | `kodansu.storage.engine`, `region`, or IAM role/credentials are wrong; bucket missing                        |
-| `ImagePullBackOff` on every pod                                      | `imagePullSecret.token` not set / not a valid GAR service-account JSON                                      |
-| Login at `ingressUrl` fails with redirect loop                       | `ingressUrl` doesn't match the public URL fronted by your ingress                                           |
-| Workers (connectors) never become `LIVE`                             | The data-plane pod cannot reach the broker or Kora inside the cluster — check `NetworkPolicy`                |
-| Ingress 502 on `/api/livez`                                          | Service name in your `Ingress` doesn't match `<release>-data-plane`                                         |
-
-For deeper logs:
-
-```bash
-kubectl -n popsink logs -l app.kubernetes.io/component=data-plane --tail=200
-kubectl -n popsink logs -l app.kubernetes.io/component=tansu       --tail=200
-kubectl -n popsink logs -l app.kubernetes.io/name=kora             --tail=200
-kubectl -n popsink logs -l app.kubernetes.io/component=kotatsu     --tail=200
-```
-
-## Reference — most useful values
-
-A full list lives in `values.yaml` (annotated with `@param` blocks). The most
-common knobs are:
+## Most useful values
 
 | Path                                            | What it does                                              |
 | ----------------------------------------------- | --------------------------------------------------------- |
 | `controlPlaneUrl` / `controlPlaneFrontendUrl`   | Control plane API and UI URLs                             |
-| `deploymentId`, `deploymentJwtToken.token`      | Identity vs. control plane                                |
+| `deploymentId`, `deploymentJwtToken.token`      | Identity vs. the control plane                            |
+| `deploymentMode`                                | `SELF_HOSTED` or `STANDALONE`                             |
 | `ingressUrl`                                    | Public URL of this data plane                             |
 | `image.tag`                                     | Pin the data-plane image version                          |
 | `replicaCount`                                  | Data-plane API replicas (default 2)                       |
-| `resources`                                     | Data-plane CPU / memory requests / limits                 |
+| `resources`                                     | Data-plane CPU / memory requests and limits               |
 | `imagePullSecret.*` / `global.imagePullSecrets` | How to authenticate to the GAR registry                   |
 | `adminCredentials.*`                            | First admin login                                         |
 | `jwt.secret`                                    | Signs user session tokens                                 |
 | `connectorConfigEncryptionKey.key`              | Encrypts connector credentials at rest                    |
 | `kodansu.enabled`, `kodansu.storage.*`          | In-cluster broker or BYO Kafka; object-store backend      |
-| `kora.enabled` / `schemaRegistry.*`             | In-cluster Schema Registry or BYO                         |
+| `kora.enabled` / `schemaRegistry.*`             | In-cluster schema registry or BYO                         |
 | `kora.database.*`                               | **Required.** Kora's own PostgreSQL role and database     |
 | `kotatsu.enabled`                               | Optional stream browser (default `false`)                 |
 | `postgresql.enabled` / `externalDatabase.*`     | In-cluster Postgres or BYO                                |
@@ -659,25 +527,16 @@ common knobs are:
 ## Further reading
 
 <CardGroup cols={2}>
-  <Card
-    title="Installation prerequisites"
-    icon="server"
-    href="https://docs.popsink.com/deployment/installation"
-  >
-    Hardware, ingress and storage requirements for a Popsink-ready cluster.
+  <Card title="Install the data plane on Kubernetes" icon="cloud-arrow-up" href="/deployment/selfhosted">
+    The guided path, from the control-plane wizard to a Live deployment.
   </Card>
-  <Card
-    title="Self-hosted onboarding"
-    icon="cloud-arrow-up"
-    href="https://docs.popsink.com/deployment/selfhosted"
-  >
-    The control-plane wizard that issues your `deploymentId` and JWT token.
+  <Card title="Troubleshooting" icon="triangle-exclamation" href="/deployment/troubleshooting">
+    Symptom-to-cause table for the install and the first boot.
   </Card>
-  <Card
-    title="Deployments and environments"
-    icon="sitemap"
-    href="https://docs.popsink.com/deployment/topology"
-  >
+  <Card title="Kubernetes requirements" icon="server" href="/deployment/installation">
+    What the cluster, the network and your Popsink account must provide first.
+  </Card>
+  <Card title="Deployments and environments" icon="layer-group" href="/deployment/topology">
     How to map deployments onto your regions, networks and staging tiers.
   </Card>
 </CardGroup>

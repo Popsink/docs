@@ -26,6 +26,46 @@ High level comparison:
 
 ***
 
+## How it actually gets installed
+
+The four models above describe *who owns the infrastructure*. BYOC, on-premises
+and air-gapped all run the same software — a **Popsink data plane** — and it
+comes in two form factors:
+
+<CardGroup cols={2}>
+  <Card title="Kubernetes, with Helm" icon="cloud-arrow-up" href="/deployment/selfhosted">
+    The production shape. Horizontal scaling, high availability, upgrades with
+    `helm upgrade`. Needs two nodes and an ingress controller.
+  </Card>
+  <Card title="Single VM" icon="server" href="/deployment/singlevm">
+    One pre-built VM image, no Kubernetes knowledge required. Evaluation and
+    lightweight workloads; no horizontal scaling, no built-in TLS.
+  </Card>
+</CardGroup>
+
+Either way the data plane attaches to a **control plane** — ours, or your own —
+which manages your fleet, users and entitlements. What crosses between the two
+is documented in
+[Control plane and data plane](/deployment/control-data-plane); air-gapped
+installs run with no control plane at all.
+
+<CardGroup cols={2}>
+  <Card title="Kubernetes requirements" icon="list-check" href="/deployment/installation">
+    What the cluster, the network and your Popsink account must provide first.
+  </Card>
+  <Card title="Deployments and environments" icon="layer-group" href="/deployment/topology">
+    How to map deployments onto your regions, networks and staging tiers.
+  </Card>
+  <Card title="Tunnels and private connectivity" icon="network-wired" href="/deployment/tunnels">
+    Reaching a source that is not on the data plane's network.
+  </Card>
+  <Card title="Sizing and limits" icon="gauge" href="/limits">
+    How large a single deployment gets before the design has to be split.
+  </Card>
+</CardGroup>
+
+***
+
 ## Deployment Models — Detailed Descriptions
 
 Below are more detailed descriptions of each deployment model, including features, constraints, and prerequisites.
