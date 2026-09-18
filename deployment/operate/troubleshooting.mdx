@@ -39,6 +39,8 @@ kubectl -n popsink logs -l app.kubernetes.io/component=data-plane --tail=200
 | `data-plane` pods crash-loop on `connector-config-encryption-key`  | The Fernet key is not a valid URL-safe base64-encoded 32-byte string                              |
 | `ImagePullBackOff` on every pod                                    | `imagePullSecret.token` not set, or not a valid GAR service-account JSON                          |
 | Broker pods `CrashLoopBackOff` with S3 errors                      | `kodansu.storage.engine`, `region` or IAM role/credentials are wrong; or the bucket is missing    |
+| Broker pods on `abfss://` fail with `403 AuthorizationFailure`     | The Azure identity lacks `Storage Blob Data Contributor`. `Owner` is an ARM role and grants no data-plane access |
+| Broker pods on `abfss://` time out or are refused, account resolves | A private endpoint was provisioned for the `dfs` sub-resource only — the broker speaks `blob`     |
 
 ## Running, but wrong
 

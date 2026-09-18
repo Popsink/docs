@@ -41,9 +41,12 @@ pointing at it, before the data plane is reachable.
 | External PostgreSQL  | Recommended in production       | The chart bundles a Bitnami Postgres, fine for evaluation only           |
 | Cluster autoscaler   | Optional                        | Node autoscaling for bursty connector workloads                          |
 
-Retention can also run on PostgreSQL instead of S3. It is simpler to operate,
-but it does not scale the same way and it rules out the optional stream browser
-— there is no bucket to browse.
+Retention can also run on **ADLS Gen2** or on **PostgreSQL** instead of S3.
+PostgreSQL is simpler to operate but does not scale the same way; ADLS Gen2 is
+supported and experimental — deliberately so, since there is no continuous run
+against a real account. Both rule out the optional stream browser: one has no
+bucket to browse, the other no ADLS client. The ADLS Gen2 setup is on the
+[Kubernetes install page](/deployment/install/kubernetes#broker-storage-on-azure-data-lake-storage-gen2).
 
 ## Network
 

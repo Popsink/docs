@@ -281,7 +281,8 @@ selects the matching image automatically.
 
 Kodansu is a stateless Kafka broker that stores log segments in an object store.
 `kodansu.storage.engine` decides where records live, and both it and
-`kodansu.storage.aws.region` are required by the chart.
+`kodansu.storage.aws.region` are required by the chart — the region on every
+path, including the ones that never read it.
 
 <CodeGroup>
 
@@ -317,6 +318,20 @@ kodansu:
       secretAccessKey: minio123
 ```
 
+```yaml Azure — ADLS Gen2
+kodansu:
+  storage:
+    engine: "abfss://popsink@mystorage.dfs.core.windows.net/kafka/"
+    aws:
+      # Required by the chart even here, and never read on this path.
+      region: us-east-1
+  podLabels:
+    azure.workload.identity/use: "true"
+  serviceAccount:
+    annotations:
+      azure.workload.identity/client-id: <managed-identity-client-id>
+```
+
 ```yaml PostgreSQL retention
 kodansu:
   storage:
@@ -329,12 +344,109 @@ kodansu:
 </CodeGroup>
 
 The bucket must exist, be writable by the configured identity, and ideally have
-**object versioning** enabled.
+**object versioning** enabled — on S3. On ADLS Gen2 versioning is the opposite
+instruction; see below.
 
 <Note>
 PostgreSQL retention is simpler to operate but does not scale the same way, and
 rules out Kotatsu (there is no bucket to browse).
 </Note>
+
+### Azure (ADLS Gen2)
+
+Supported from Kodansu `1.0.0-alpha.17`, and **experimental by decision rather
+than by omission**: every conditional-put assertion the broker makes is verified
+against Azurite on every Kodansu PR — more than the S3 or GCS arms get — but
+there is no continuous run against a real ADLS Gen2 account, so the behaviours
+hierarchical namespace imposes were verified by hand, once. S3 is the
+recommended production backend.
+
+The install recipe, with the credential variants side by side, is on the
+[Kubernetes install page](/deployment/install/kubernetes#broker-storage-on-azure-data-lake-storage-gen2).
+What follows is what the chart cannot express.
+
+#### Accepted URL forms
+
+| Form                                                         | When                                                                        |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `abfss://<container>@<account>.dfs.core.windows.net/<prefix>` | **Canonical.** What an ADLS Gen2 user already writes, and it carries the account |
+| `az://<container>/<prefix>`                                   | Short form; the account comes from `AZURE_STORAGE_ACCOUNT_NAME`             |
+| `abfs://<container>@<account>.dfs.core.windows.net/<prefix>`  | The same Hadoop convention over HTTP                                        |
+
+`wasbs://`, `adl://`, `azure://` and a raw
+`https://<account>.blob.core.windows.net/` are **refused**, even though the
+underlying object-store parser understands them: every extra alias is another
+spelling a deployment can drift onto, and `wasbs://` is the legacy Blob scheme —
+it should fail loudly rather than be treated quietly as Gen2.
+
+A `dfs` host is resolved to `<account>.blob.core.windows.net`: the broker speaks
+the **Blob** endpoint against an ADLS Gen2 account, never the DFS one. Every
+`kodansu.storage.tuning` knob is scheme-independent and applies unchanged.
+
+#### Credentials
+
+The broker reads them from the environment only, via the object-store client's
+own resolution. The chart has no `kodansu.storage.azure` block, so anything other
+than workload identity goes in through `kodansu.extraEnvVarsSecret`,
+`extraEnvVarsCM` or `extraEnvVars`.
+
+| Mechanism                         | Variables                                                                          |
+| ---------------------------------- | ----------------------------------------------------------------------------------- |
+| **Workload identity federation**  | Injected by the AKS webhook — `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_AUTHORITY_HOST`, `AZURE_FEDERATED_TOKEN_FILE` |
+| Account key                       | `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_ACCOUNT_KEY`                          |
+| Client secret                     | `AZURE_STORAGE_CLIENT_ID`, `AZURE_STORAGE_CLIENT_SECRET`, `AZURE_STORAGE_TENANT_ID` |
+| Managed identity                  | `AZURE_STORAGE_CLIENT_ID` (optional; IMDS otherwise)                               |
+
+Whichever you use, the identity needs **`Storage Blob Data Contributor`** on the
+account or container. `Owner` is an ARM role and grants no data-plane access
+whatsoever; it fails as a `403 AuthorizationFailure` that names no role.
+
+#### Account settings are part of the contract
+
+The object layout is create-only and immutable, and retention is implemented by
+delete. Four account settings therefore are not preferences:
+
+| Setting                     | Required          | Why                                                                                                  |
+| ---------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------ |
+| Blob versioning             | **off**           | Every superseded write is retained and billed. The broker keeps working, so this fails as a bill, not an error |
+| Blob soft delete            | **off**, or minimal | Supported under hierarchical namespace, but a retention delete then frees no space                   |
+| Immutability / legal hold   | **absent**        | It breaks the delete path outright                                                                   |
+| Access tier                 | **hot**           | Cool and cold add per-GB read charges this access pattern pays constantly                            |
+
+A freshly created `StorageV2` account with nothing but
+`--enable-hierarchical-namespace true --access-tier Hot` already satisfies all
+four. Read the table as *"do not turn these on"* rather than *"remember to turn
+these off"*: the deployment that gets it wrong is the one that hardened an
+existing data-lake account. None of the four is detectable from the data plane,
+so there is no startup warning for any of them.
+
+Hierarchical namespace is the target. Deleting every blob under a prefix leaves
+the directories behind — not billed for capacity, absent from the listings the
+broker issues, untidy and nothing more. Flat Blob Storage is untested.
+
+#### Private endpoints
+
+Azure's guidance for an ADLS Gen2 account is a private endpoint for **both** the
+`blob` and `dfs` sub-resources, because managing ACLs and creating or deleting
+directories need the DFS one. The broker does none of those three, so **`blob`
+alone is sufficient**.
+
+The failure worth knowing is the other direction: a network team that provisioned
+**`dfs` only** — the usual default for a data-lake account — leaves the broker
+unable to connect, with nothing in the error naming the sub-resource. If
+`abfss://` times out or is refused while the account resolves, check this first.
+
+#### Cost and Kotatsu
+
+At the shape of a measured production S3 fleet, ADLS Gen2 comes to roughly
+**1.11× the S3 request bill**, almost entirely the ~30 % hierarchical-namespace
+write premium. Two differences worth knowing: a list is billed as a *read* here
+(≈9× cheaper than on S3, where `LIST` is priced with `PUT`), and read/write
+transactions are metered per 4 MiB — so every 16 MiB merged segment write bills
+four times. Deletes are free, exactly as on S3.
+
+Kotatsu has no ADLS client: it reads S3 objects directly. Keep
+`kotatsu.enabled: false` on this path.
 
 ### Bring your own Kafka
 
