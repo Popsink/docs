@@ -332,38 +332,27 @@ kodansu:
       azure.workload.identity/client-id: <managed-identity-client-id>
 ```
 
-```yaml PostgreSQL retention
-kodansu:
-  storage:
-    engine: "postgres://user:password@db.example.com:5432/database"
-    aws:
-      # Required by the chart even here, and never read on this path.
-      region: us-east-1
-```
-
 </CodeGroup>
 
 The bucket must exist, be writable by the configured identity, and ideally have
 **object versioning** enabled — on S3. On ADLS Gen2 versioning is the opposite
 instruction; see below.
 
-<Note>
-PostgreSQL retention is simpler to operate but does not scale the same way, and
-rules out Kotatsu (there is no bucket to browse).
-</Note>
+<Warning>
+**There is no PostgreSQL retention.** The broker has been object-store only
+since Kodansu `0.7.0-beta.11`, and a `postgres://` storage engine is now refused
+as an unsupported storage URL rather than ignored — the pods do not start. The
+self-hosted wizard still offers the choice and still generates that URL; do not
+take it. `postgresql.*` and `externalDatabase.*` are a different thing entirely:
+the data plane's own database, which every install needs.
+</Warning>
 
 ### Azure (ADLS Gen2)
 
-Supported from Kodansu `1.0.0-alpha.17`, and **experimental by decision rather
-than by omission**: every conditional-put assertion the broker makes is verified
-against Azurite on every Kodansu PR — more than the S3 or GCS arms get — but
-there is no continuous run against a real ADLS Gen2 account, so the behaviours
-hierarchical namespace imposes were verified by hand, once. S3 is the
-recommended production backend.
-
-The install recipe, with the credential variants side by side, is on the
-[Kubernetes install page](/deployment/install/kubernetes#broker-storage-on-azure-data-lake-storage-gen2).
-What follows is what the chart cannot express.
+Supported from Kodansu `1.0.0-alpha.17`. The install recipe, with the credential
+variants side by side, is on the
+[Kubernetes install page](/deployment/install/kubernetes#broker-storage-on-azure-data-lake-storage-gen2);
+what follows is what the chart cannot express.
 
 #### Accepted URL forms
 
@@ -485,8 +474,8 @@ pagination) and the target-lag rows are simply absent. Pipelines, connectors,
 subscriptions and delivery are unaffected — it is safe to leave disabled in
 production.
 
-Because it reads the bucket the broker writes, it only means anything with S3
-retention. To enable it:
+Because it reads the bucket the broker writes, it only means anything on an
+`s3://` engine — it has no ADLS client. To enable it:
 
 ```yaml
 kotatsu:
@@ -609,7 +598,7 @@ kodansu:
       irsaRoleArn:    arn:aws:iam::123:role/popsink-kodansu
       assumedRoleArn: arn:aws:iam::123:role/popsink-kodansu
 
-# ───── Optional stream browser (S3 retention only) ─────
+# ───── Optional stream browser (s3:// engines only) ─────
 kotatsu:
   enabled: true
 ```
