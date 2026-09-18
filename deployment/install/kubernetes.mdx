@@ -105,6 +105,14 @@ out the stream browser (Kotatsu) — there is no bucket to browse, so the wizard
 sets `kotatsu.enabled: false` for you.
 </Warning>
 
+<Note>
+On Azure, pick **S3 Compat** here anyway and point the broker at ADLS Gen2
+afterwards — the wizard emits no `abfss://` engine, and the swap is three values
+in the generated file. See
+[Broker storage on Azure Data Lake Storage Gen2](#broker-storage-on-azure-data-lake-storage-gen2)
+below.
+</Note>
+
 Click **Create Chart**.
 
 ---
@@ -247,6 +255,113 @@ Secrets or the External Secrets Operator, and is the recommended shape in
 production. See
 [Managing secrets](/deployment/reference/helm-values#managing-secrets-with-existingsecret).
 </Tip>
+
+### Broker storage on Azure Data Lake Storage Gen2
+
+The **Retention** step only offers S3 and PostgreSQL, but the broker also reads
+and writes **ADLS Gen2** — `abfss://`, `abfs://` and `az://` — from Kodansu
+`1.0.0-alpha.17` onwards — the broker tag the chart pins by default is already
+past it, so there is no image bump to do. What is missing is the chart: there is
+no `kodansu.storage.azure` block, so this is a hand-edit of the generated
+`values.yaml`. Pick **S3 Compat** in the wizard, then replace the storage engine
+and swap the credentials over.
+
+<Warning>
+ADLS Gen2 is **experimental**, by decision rather than by omission. Every
+conditional-put assertion the broker makes is verified against Azurite on every
+Kodansu PR — more than the S3 arm gets — but there is no continuous run against a
+real ADLS Gen2 account, and what was checked against one was checked by hand,
+once. S3 stays the recommended backend for production.
+</Warning>
+
+Three things are true of every ADLS install and none of them are optional:
+
+- the identity needs **`Storage Blob Data Contributor`** on the account or
+  container. `Owner` is an ARM role and grants no data-plane access at all — it
+  fails as a `403 AuthorizationFailure` that never names the missing role, and it
+  is the first thing that goes wrong;
+- `kodansu.storage.aws.region` is still **required by the chart**, on every path,
+  and never read on this one. Leave any valid region string in it;
+- `kotatsu.enabled` must stay `false`. The stream browser reads S3 objects
+  directly and has no ADLS client, so an ADLS engine either fails the render with
+  `kotatsu.s3.bucket must be provided…` or points it at a bucket that does not
+  exist.
+
+<CodeGroup>
+
+```yaml Workload identity (AKS — recommended)
+kodansu:
+  storage:
+    engine: "abfss://popsink@mystorage.dfs.core.windows.net/kafka/"
+    aws:
+      region: us-east-1        # required by the chart, unread on this path
+
+  # The azure-workload-identity webhook keys off this label and this annotation.
+  podLabels:
+    azure.workload.identity/use: "true"
+  serviceAccount:
+    annotations:
+      azure.workload.identity/client-id: <managed-identity-client-id>
+
+kotatsu:
+  enabled: false
+```
+
+```yaml Account key
+kodansu:
+  storage:
+    engine: "abfss://popsink@mystorage.dfs.core.windows.net/kafka/"
+    aws:
+      region: us-east-1
+  # AZURE_STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY
+  extraEnvVarsSecret: kodansu-azure
+
+kotatsu:
+  enabled: false
+```
+
+```yaml Client secret
+kodansu:
+  storage:
+    engine: "abfss://popsink@mystorage.dfs.core.windows.net/kafka/"
+    aws:
+      region: us-east-1
+  # AZURE_STORAGE_CLIENT_ID + AZURE_STORAGE_CLIENT_SECRET + AZURE_STORAGE_TENANT_ID
+  extraEnvVarsSecret: kodansu-azure
+
+kotatsu:
+  enabled: false
+```
+
+</CodeGroup>
+
+Kodansu takes its Azure credentials from **the environment and nowhere else**, so
+the secret-backed paths go in through `kodansu.extraEnvVarsSecret` (or
+`extraEnvVars` / `extraEnvVarsCM`) rather than a storage value:
+
+```bash
+kubectl create secret generic kodansu-azure -n popsink \
+  --from-literal=AZURE_STORAGE_ACCOUNT_NAME=mystorage \
+  --from-literal=AZURE_STORAGE_ACCOUNT_KEY="$AZURE_KEY"
+```
+
+<Tip>
+**Prefer workload identity.** It is the AKS analogue of IRSA on EKS and the one
+mechanism with nothing to rotate. The webhook injects `AZURE_CLIENT_ID`,
+`AZURE_TENANT_ID`, `AZURE_AUTHORITY_HOST` and `AZURE_FEDERATED_TOKEN_FILE` into
+the broker pod, and the broker's object-store client reads all four under exactly
+those names — no `extraEnvVars` needed. Set up the federated credential against
+the `popsink` namespace and the broker's service account — still
+`<release>-tansu`, the chart has not renamed it — before installing;
+`az identity federated-credential create` is the Azure-side half.
+</Tip>
+
+The container must exist and be writable before the install — the broker creates
+objects, never the container. The account's own settings are part of the contract
+too (versioning off, soft delete off, no immutability policy, hot tier), and a
+freshly created hierarchical-namespace account already satisfies all four: see
+[Azure (ADLS Gen2)](/deployment/reference/helm-values#azure-adls-gen2) for that
+table, private endpoints, and the cost difference against S3.
 
 ---
 
