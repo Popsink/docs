@@ -208,7 +208,7 @@
           {
             "group": "API",
             "icon": "code",
-            "pages": ["api/tutorial"]
+            "pages": ["api/tutorial", "api/skills"]
           },
           {
             "group":"Transformation",
