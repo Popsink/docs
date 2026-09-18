@@ -349,16 +349,10 @@ the data plane's own database, which every install needs.
 
 ### Azure (ADLS Gen2)
 
-Supported from Kodansu `1.0.0-alpha.17`, and **experimental by decision rather
-than by omission**: every conditional-put assertion the broker makes is verified
-against Azurite on every Kodansu PR — more than the S3 or GCS arms get — but
-there is no continuous run against a real ADLS Gen2 account, so the behaviours
-hierarchical namespace imposes were verified by hand, once. S3 is the
-recommended production backend.
-
-The install recipe, with the credential variants side by side, is on the
-[Kubernetes install page](/deployment/install/kubernetes#broker-storage-on-azure-data-lake-storage-gen2).
-What follows is what the chart cannot express.
+Supported from Kodansu `1.0.0-alpha.17`. The install recipe, with the credential
+variants side by side, is on the
+[Kubernetes install page](/deployment/install/kubernetes#broker-storage-on-azure-data-lake-storage-gen2);
+what follows is what the chart cannot express.
 
 #### Accepted URL forms
 
