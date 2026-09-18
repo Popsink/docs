@@ -332,25 +332,20 @@ kodansu:
       azure.workload.identity/client-id: <managed-identity-client-id>
 ```
 
-```yaml PostgreSQL retention
-kodansu:
-  storage:
-    engine: "postgres://user:password@db.example.com:5432/database"
-    aws:
-      # Required by the chart even here, and never read on this path.
-      region: us-east-1
-```
-
 </CodeGroup>
 
 The bucket must exist, be writable by the configured identity, and ideally have
 **object versioning** enabled — on S3. On ADLS Gen2 versioning is the opposite
 instruction; see below.
 
-<Note>
-PostgreSQL retention is simpler to operate but does not scale the same way, and
-rules out Kotatsu (there is no bucket to browse).
-</Note>
+<Warning>
+**There is no PostgreSQL retention.** The broker has been object-store only
+since Kodansu `0.7.0-beta.11`, and a `postgres://` storage engine is now refused
+as an unsupported storage URL rather than ignored — the pods do not start. The
+self-hosted wizard still offers the choice and still generates that URL; do not
+take it. `postgresql.*` and `externalDatabase.*` are a different thing entirely:
+the data plane's own database, which every install needs.
+</Warning>
 
 ### Azure (ADLS Gen2)
 
@@ -485,8 +480,8 @@ pagination) and the target-lag rows are simply absent. Pipelines, connectors,
 subscriptions and delivery are unaffected — it is safe to leave disabled in
 production.
 
-Because it reads the bucket the broker writes, it only means anything with S3
-retention. To enable it:
+Because it reads the bucket the broker writes, it only means anything on an
+`s3://` engine — it has no ADLS client. To enable it:
 
 ```yaml
 kotatsu:
@@ -609,7 +604,7 @@ kodansu:
       irsaRoleArn:    arn:aws:iam::123:role/popsink-kodansu
       assumedRoleArn: arn:aws:iam::123:role/popsink-kodansu
 
-# ───── Optional stream browser (S3 retention only) ─────
+# ───── Optional stream browser (s3:// engines only) ─────
 kotatsu:
   enabled: true
 ```

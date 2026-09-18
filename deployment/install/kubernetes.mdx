@@ -89,7 +89,7 @@ stored by Popsink — you can also skip the step and write the values yourself.
 | Section                  | What it asks                                                | What it generates                                                     |
 | ------------------------ | ----------------------------------------------------------- | --------------------------------------------------------------------- |
 | **PostgreSQL Database**  | Off = use the in-cluster Postgres. On = your own instance    | `postgresql.*`, or `postgresql.enabled: false` + `externalDatabase.*`  |
-| **Retention**            | **S3 Compat** (recommended) or **PostgreSQL Database**       | `kodansu.storage.engine` + `kodansu.storage.aws.*`, `kotatsu.*`        |
+| **Retention**            | **S3 Compat** — the only choice that works                   | `kodansu.storage.engine` + `kodansu.storage.aws.*`, `kotatsu.*`        |
 | **TLD**                  | Fully qualified domain name, e.g. `popsink.example.com`      | `ingressUrl: https://popsink.example.com`                             |
 
 <Note>
@@ -99,10 +99,11 @@ schema registry (Kora) at it.
 </Note>
 
 <Warning>
-Pick **S3 Compat** retention unless you have a reason not to. PostgreSQL
-retention is simpler to operate but does not scale the same way, and it rules
-out the stream browser (Kotatsu) — there is no bucket to browse, so the wizard
-sets `kotatsu.enabled: false` for you.
+Pick **S3 Compat**. The wizard still offers **PostgreSQL Database** as a
+retention choice and still generates a `postgres://` storage engine for it, but
+the broker has been object-store only since Kodansu `0.7.0-beta.11` and now
+refuses that URL outright — the pods never start. The option is a leftover;
+treat the retention step as having one answer.
 </Warning>
 
 <Note>
@@ -258,12 +259,12 @@ production. See
 
 ### Broker storage on Azure Data Lake Storage Gen2
 
-The **Retention** step only offers S3 and PostgreSQL, but the broker also reads
-and writes **ADLS Gen2** — `abfss://`, `abfs://` and `az://` — from Kodansu
-`1.0.0-alpha.17` onwards — the broker tag the chart pins by default is already
-past it, so there is no image bump to do. What is missing is the chart: there is
-no `kodansu.storage.azure` block, so this is a hand-edit of the generated
-`values.yaml`. Pick **S3 Compat** in the wizard, then replace the storage engine
+The **Retention** step only offers S3, but the broker also reads and writes
+**ADLS Gen2** — `abfss://`, `abfs://` and `az://` — from Kodansu
+`1.0.0-alpha.17` onwards. The tag the chart pins by default is already past it,
+so there is no image bump to do; what is missing is the chart. It has no
+`kodansu.storage.azure` block, so this is a hand-edit of the generated
+`values.yaml`: pick **S3 Compat** in the wizard, then replace the storage engine
 and swap the credentials over.
 
 <Warning>

@@ -34,11 +34,12 @@ kubectl -n popsink logs -l app.kubernetes.io/component=data-plane --tail=200
 | `helm install` aborts on the Kora database message                 | `kora.database` not configured — see [Schema registry](/deployment/reference/helm-values#schema-registry-kora) |
 | `kora` pod: `password authentication failed for user "kora"`       | The `kora` role / database does not exist. Create them, or point Kora at the data-plane database  |
 | `Kora must be enabled, or schemaRegistry.url must be provided`     | `kora.enabled: false` with no external registry configured                                        |
-| `kotatsu.s3.bucket must be provided when kotatsu is enabled`       | Kotatsu enabled with a non-S3 retention engine — set `kotatsu.enabled: false`                     |
+| `kotatsu.s3.bucket must be provided when kotatsu is enabled`       | Kotatsu enabled with a non-`s3://` storage engine — set `kotatsu.enabled: false`                  |
 | `data-plane` pods crash-loop on an empty `DB_USER`                 | `externalDatabase.user` / `.database` left empty — the chart does not guard them                  |
 | `data-plane` pods crash-loop on `connector-config-encryption-key`  | The Fernet key is not a valid URL-safe base64-encoded 32-byte string                              |
 | `ImagePullBackOff` on every pod                                    | `imagePullSecret.token` not set, or not a valid GAR service-account JSON                          |
 | Broker pods `CrashLoopBackOff` with S3 errors                      | `kodansu.storage.engine`, `region` or IAM role/credentials are wrong; or the bucket is missing    |
+| Broker pods refuse the storage URL as unsupported                  | A `postgres://` engine, from the wizard's retention step — the broker is object-store only, use `s3://` or `abfss://` |
 | Broker pods on `abfss://` fail with `403 AuthorizationFailure`     | The Azure identity lacks `Storage Blob Data Contributor`. `Owner` is an ARM role and grants no data-plane access |
 | Broker pods on `abfss://` time out or are refused, account resolves | A private endpoint was provisioned for the `dfs` sub-resource only — the broker speaks `blob`     |
 
