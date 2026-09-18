@@ -1,0 +1,179 @@
+---
+title: "Claude Code skill"
+description: "Install the public popsink-api skill so Claude Code can authenticate against your deployment and drive it through the REST API."
+sidebarTitle: "Claude Code skill"
+---
+
+Popsink publishes a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills)
+that teaches the agent how to talk to a Popsink data plane: how to exchange an
+API key for a token, which endpoints exist, what the domain model looks like,
+and what it must not do without asking you first.
+
+It lives in a public repository — [`Popsink/public-skills`](https://github.com/Popsink/public-skills) —
+so you can read every line before installing it.
+
+<Card title="Popsink/public-skills" icon="github" href="https://github.com/Popsink/public-skills">
+  One directory per skill under `skills/`, each holding a `SKILL.md`. Public by
+  design: no client names, no hostnames, no credentials.
+</Card>
+
+## What the skill gives you
+
+Once installed, Claude Code can answer questions about a running deployment
+instead of guessing from documentation:
+
+- *"Is anything broken on `<tenant>`?"* — lists datamodels in `error`, pulls the
+  connector logs for the ones that are.
+- *"How far behind is this pipeline?"* — reads production and consumption
+  metrics over a window and reports lag.
+- *"Inventory this environment"* — source connectors, target connectors,
+  datamodels, subscriptions, paginated properly.
+- *"Restart this connector"* — but only after telling you exactly which named
+  resource it is about to touch, and waiting for a yes.
+
+It also ships `scripts/popsink`, a small `curl` + `jq` wrapper that handles the
+token dance — caching, expiry, and one retry on `401` — so the agent does not
+re-invent it on every call.
+
+<Note>
+The skill always reads your instance's **live** OpenAPI schema
+(`$POPSINK_URL/api/openapi.json`) before calling. The endpoint list bundled with
+it is a snapshot to find the right area fast, not a contract.
+</Note>
+
+## Prerequisites
+
+| | |
+|---|---|
+| **Claude Code** | Installed and authenticated. See [Anthropic's install guide](https://docs.claude.com/en/docs/claude-code/overview). |
+| **Instance URL** | Your deployment's base URL, for example `https://<tenant>.<region>.popsink.com`. The API lives under `/api`. |
+| **API key** | An organization API key, created in the control plane under **Dashboard → API keys → Create**. |
+| **`curl` and `jq`** | Required by the bundled helper script. |
+
+An API key starts with `psk_` and is shown **once, at creation** — afterwards
+only a masked preview is retrievable. It grants access to a chosen set of
+environments, each with a role (`admin` or `user`), and only works on the
+deployment that owns those environments.
+
+<Warning>
+API-key login requires the instance to run in self-hosted mode. If the exchange
+returns `400 This endpoint is only available in SELF_HOSTED mode`, check
+`GET /api/config/deployment` → `deployment_mode` and confirm which instance you
+meant.
+</Warning>
+
+## Install
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/Popsink/public-skills.git ~/src/popsink-public-skills
+    ```
+  </Step>
+
+  <Step title="Symlink the skills you want">
+    ```bash
+    for s in ~/src/popsink-public-skills/skills/*/; do
+      ln -sfn "$s" ~/.claude/skills/"$(basename "$s")"
+    done
+    ```
+
+    Symlinking rather than copying means a `git pull` updates every installed
+    skill. To scope the skills to a single project instead, use that project's
+    `.claude/skills/` directory in place of `~/.claude/skills/`.
+  </Step>
+
+  <Step title="Export your credentials">
+    ```bash
+    export POPSINK_URL="https://<tenant>.<region>.popsink.com"
+    export POPSINK_API_KEY="psk_..."
+    ```
+
+    Keep the key in your shell environment or a secret manager — not in a file
+    inside the repository, and never in a commit.
+  </Step>
+
+  <Step title="Check it loaded">
+    Start `claude` from any directory and ask it something read-only — the
+    skill loads on its own when the question is about a Popsink instance:
+
+    ```
+    > Which environments can this key reach?
+    ```
+
+    The agent exchanges the key for a token and calls `GET /api/envs/`.
+  </Step>
+</Steps>
+
+## The model it works with
+
+The skill knows the shape of a Popsink deployment, which is why it can navigate
+without being told where to look:
+
+```
+environment
+  └── source connector          reads a source system (CDC or batch)
+        └── datamodel           one per replicated table / topic
+              └── subscription  delivery of that datamodel to one target
+                    └── target connector   writes to the destination
+```
+
+Most list endpoints take an explicit `env` (or `env_id`) query parameter.
+Endpoints that take none fall back to the principal's **active environment**,
+which for an API-key principal is parked on the first granted environment —
+switch it with `PATCH /api/users/me {"active_env_id": "<uuid>"}`.
+
+## Guardrails
+
+The skill is written to be safe to point at production, but the guardrails are
+instructions to an agent, not permissions enforced by the API. Your API key's
+role is what actually bounds it — issue a `user` key on the environments you
+want reachable rather than an `admin` key on everything.
+
+What the skill asks Claude to confirm with you before doing:
+
+| Operation | Why it asks |
+|---|---|
+| Any `DELETE` | Deleting a subscription can drop objects in your warehouse. |
+| `stop` / `pause` | Halts replication; lag starts accumulating immediately. |
+| `sync`, `replay`, `trigger-blocking-snapshot`, `trigger-incremental-load` | Re-reads source data and rewrites target data — expensive on the source, the warehouse and the bill. A blocking snapshot also stalls ongoing CDC. |
+| `PATCH` on connectors, datamodels or subscriptions | Config changes can restart workers. |
+
+It is also told to treat connector configs as secrets — they contain your source
+credentials — and to redact client names, hostnames, schema and table names from
+anything written into a ticket or a document.
+
+## Troubleshooting
+
+| Symptom | Meaning |
+|---|---|
+| `401` on a call that worked minutes ago | The token lasts 10 minutes and no refresh token is issued, by design. Exchange the key again — not `/api/auth/jwt/refresh`. |
+| `401 Invalid API key` | Key revoked, mistyped, or it grants no environment on *this* deployment. |
+| `400 Environment <id> is not available on this deployment` | The key's environment belongs to another deployment, or has not synced here yet. |
+| `307` redirect | Missing or extra trailing slash — `/datamodels/`, not `/datamodels`. |
+| `422` | Body or query parameters do not match the schema. Re-read it from `/api/openapi.json`. |
+| Skill never triggers | Confirm the symlink resolves and that `SKILL.md` sits directly inside `~/.claude/skills/popsink-api/`. |
+
+## Contributing a skill
+
+The repository takes contributions. Add a directory under `skills/`, write a
+`SKILL.md` whose frontmatter `name` matches the directory and whose
+`description` says both *what it does* and *when to use it* — that description
+is the only thing the model sees when deciding whether to load the skill.
+Supporting files go in subdirectories (`reference/`, `scripts/`).
+
+<Warning>
+The repository is **public**. No client names, hostnames, schema or table names,
+connector IDs, credentials or internal links — placeholders only (`<host>`,
+`<schema>.<table>`, `<connector-id>`), English throughout.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="API tutorial" icon="code" href="/api/tutorial">
+    The same API by hand: register, authenticate, then build environments,
+    connectors and pipelines with `curl`.
+  </Card>
+  <Card title="Deployment options" icon="server" href="/deployment/overview">
+    Where your instance runs, and what `deployment_mode` will report.
+  </Card>
+</CardGroup>
