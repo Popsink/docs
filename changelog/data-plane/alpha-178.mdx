@@ -1,0 +1,33 @@
+---
+title: "v0.1.0-alpha.178 15/09/2026"
+---
+
+---
+
+**Description**: [DOCSLIM] Compact Args/Returns boilerplate in connector and subscription commands.
+
+### Changes
+
+- [DOCSLIM] Compact Args/Returns boilerplate in connector and subscription commands (#4095).
+- UC worker - stop a MERGE's cost scaling with the target table (#4087).
+- DP - Send customers the data model instead of explaining it on a call (#4014).
+- DP front: env-admin Monitoring falsely shows 'No logs yet' on direct load (audit fetch skipped while env store not hydrated) (#4109).
+- Worker - Clear the netty, Jetty and httpcore5 CVEs on the five JVM sources (#4073).
+- Worker - Rebase kafka_to_unity_catalog off bookworm, where its openssl has no fix (#4076).
+- DP - A connector catalog that follows the schema registry, not the deployment mode (#4080).
+- DP - A loaded target's config renders in one pass, off the event loop (#4107).
+- DP - A backfill knows which image loads a pair, and says so when none does (#4081).
+- [FRONT] One credential pre-flight for the source connector forms (#4114).
+- DP - A HubSpot delete can flag the record, not archive it (#4090).
+- DP front: expired-token page load fires parallel 401s, never replays the failed queries (empty panels until user interaction) (#4106).
+- [SEC] DP - Creating a HubSpot property is a write, so it is gated on write access (#4115).
+- [TESTS] Lock the bulk team-invite endpoint's partial-success contract (#4116).
+- [DOCSLIM] Compact Args/Returns boilerplate in application/services (#4121).
+- DP - An enumeration test that compares the two answers, not each one's status set (#4118).
+- [ARCH] Part 3 of #4018: pin the application/ outer-layer import map with a shrink-only ratchet (#4111).
+- Validate the imported file before opening the confirm dialog (#4101).
+- DP - One backfill endpoint for five entry points, and a skipped table that says why (#4083).
+- Point the soft-delete tests at the batched datamodel read (#4125).
+- DP - The backfill drawer reads once, and never publishes a figure it does not have (#4084).
+- DP - The transaction-log SQL Server source reads as "SQL Server Beta" (#4131).
+- Chart - Fix the empty Stream tab and report the next pin drift (#4130).
