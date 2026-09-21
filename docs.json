@@ -222,6 +222,8 @@
               {
                 "group": "Data Plane",
                 "pages": [
+                  "changelog/data-plane/alpha-178",
+                  "changelog/data-plane/alpha-177",
                   "changelog/data-plane/alpha-176",
                   "changelog/data-plane/alpha-175",
                   "changelog/data-plane/alpha-174",

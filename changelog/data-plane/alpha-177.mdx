@@ -1,0 +1,24 @@
+---
+title: "v0.1.0-alpha.177 14/09/2026"
+---
+
+---
+
+**Description**: Worker resources - xl from 750 Snowflake tables, loops and pool per connector.
+
+### Changes
+
+- Worker resources - xl from 750 Snowflake tables, loops and pool per connector (#3995).
+- DP - A HubSpot custom object survives the save, so its subscription can deliver (#4026).
+- DP - Backlog on the subscription page reads the group the target really commits under (#4003).
+- DP - Move snowflake-connector-python off the version CVE-2026-15925 names (#4075).
+- Show the subscription count per data model in the source connector's data model list (#4001).
+- The Tolerations editor silently drops a stored toleration when edited, and cannot be corrected once loaded (#3996).
+- Four filtered admin list pages return 500 in production since the sqladmin 0.22 -> 0.28 bump: EnvFilter has no template (#4035).
+- [ARCH] application/: two reads move behind a Read Port (#4088).
+- [FRONT] Part 3 of #3945: one credential pre-flight for the target connector forms (#4089).
+- [SEC] DP - A Salesforce instance URL that cannot reach the cluster (#4092).
+- [TESTCLEAN] Harden auth and connector route tests that asserted only a status (#4094).
+- [TESTS] Lock the untested branches of DeploymentSwitchService (#4093).
+- DP - A static mapper value can be scoped to record creation, so an upsert target stops overwriting the destination's own edits (#4079).
+- Bump versions and upgrade debezium-ibmi-connector + new integration test for ibmi_source (#4100).
