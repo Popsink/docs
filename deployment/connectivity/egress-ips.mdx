@@ -15,13 +15,19 @@ IPs below, fixed per region.
 
 ## Addresses
 
-| Region         | Location                  | Egress IP         |
-| -------------- | ------------------------- | ----------------- |
-| `europe-west1` | Belgium (St. Ghislain)    | `34.78.134.240`   |
-| `europe-west9` | France (Paris)            | `34.155.204.177`  |
-| `us-east1`     | US (South Carolina)       | `136.108.113.91`  |
-| `us-east4`     | US (Northern Virginia)    | `35.245.179.223`  |
-| `us-east5`     | US (Columbus, Ohio)       | `34.162.89.188`   |
+<!-- EGRESS_IPS_TABLE:START -->
+| Provider | Region | Location | Egress IP |
+| --- | --- | --- | --- |
+| AWS | `eu-west-3` | France (Paris) | `35.181.192.187` |
+| AWS | `us-east-1` | US (Northern Virginia) | `100.28.202.76` |
+| GCP | `europe-west1` | Belgium (St. Ghislain) | `34.78.134.240` |
+| GCP | `europe-west9` | France (Paris) | `34.155.204.177` |
+| GCP | `us-east1` | US (South Carolina) | `136.108.113.91` |
+| GCP | `us-east4` | US (Northern Virginia) | `35.245.179.223` |
+| GCP | `us-east5` | US (Columbus, Ohio) | `34.162.89.188` |
+
+*Last verified: 2026-09-23*
+<!-- EGRESS_IPS_TABLE:END -->
 
 Each is a single address — allowlist it as a `/32` (`34.78.134.240/32`, and so
 on). They are static and do not rotate; we announce any change before it takes
@@ -31,8 +37,14 @@ effect.
 Allowlist the region your deployment runs in, and any region you may be moved
 or expanded to. If you are not sure which one you are on, ask
 [support@popsink.com](mailto:support@popsink.com) — or simply allowlist all
-five, which costs nothing and survives a region change.
+seven, which costs nothing and survives a region change.
 </Note>
+
+<Tip>
+Automating your allowlist? The same list is published as JSON at
+[`/deployment/connectivity/egress-ips.json`](/deployment/connectivity/egress-ips.json),
+kept in sync with the table above.
+</Tip>
 
 ## Writing the rule
 
