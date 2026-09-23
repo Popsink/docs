@@ -73,7 +73,8 @@
               {
                 "group": "Connectivity",
                 "pages": [
-                  "deployment/connectivity/tunnels"
+                  "deployment/connectivity/tunnels",
+                  "deployment/connectivity/egress-ips"
                 ]
               },
               {
