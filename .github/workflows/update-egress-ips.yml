@@ -1,13 +1,6 @@
 name: Update egress IPs
 
 on:
-  # TODO(temporary): remove before merging to main - lets this be re-run from
-  # feat_egress_ips_listing without the workflow being on main yet. The OIDC
-  # trust on both AWS and GCP was also temporarily widened to trust this
-  # branch's ref; revert that alongside removing this trigger.
-  push:
-    branches:
-      - feat_egress_ips_listing
   schedule:
     - cron: "17 5 * * *" # daily, off the hour to dodge GH Actions cron congestion
   workflow_dispatch: {}
