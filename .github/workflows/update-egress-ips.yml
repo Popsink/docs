@@ -1,0 +1,61 @@
+name: Update egress IPs
+
+on:
+  schedule:
+    - cron: "17 5 * * *" # daily, off the hour to dodge GH Actions cron congestion
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: update-egress-ips
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::733281893834:role/github-actions-egress-ips-reader
+          aws-region: us-east-1
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/265341694142/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: github-actions-egress-ips@popsink-production-438615.iam.gserviceaccount.com
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Fetch current egress IPs and sync docs
+        id: sync
+        run: python3 .github/scripts/update_egress_ips.py
+
+      - name: Open pull request
+        if: steps.sync.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore(egress-ips): sync published egress IP list"
+          title: "chore(egress-ips): sync published egress IP list"
+          body: |
+            Automated sync of `deployment/connectivity/egress-ips.mdx` and
+            `deployment/connectivity/egress-ips.json` against the live AWS NAT
+            Gateway / GCP reserved egress IPs.
+
+            This page is customer-facing and used for firewall allowlisting —
+            please review the diff before merging.
+          branch: automated/update-egress-ips
+          delete-branch: true
+          labels: automation
+          add-paths: |
+            deployment/connectivity/egress-ips.json
+            deployment/connectivity/egress-ips.mdx
