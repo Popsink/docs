@@ -1,5 +1,40 @@
 {
-  "updated_at": "2026-09-23T00:00:00Z",
+  "updated_at": "2026-09-23T14:01:40Z",
   "addresses": [
+    {
+      "provider": "aws",
+      "region": "eu-west-3",
+      "ip": "35.181.192.187"
+    },
+    {
+      "provider": "aws",
+      "region": "us-east-1",
+      "ip": "100.28.202.76"
+    },
+    {
+      "provider": "gcp",
+      "region": "europe-west1",
+      "ip": "34.78.134.240"
+    },
+    {
+      "provider": "gcp",
+      "region": "europe-west9",
+      "ip": "34.155.204.177"
+    },
+    {
+      "provider": "gcp",
+      "region": "us-east1",
+      "ip": "136.108.113.91"
+    },
+    {
+      "provider": "gcp",
+      "region": "us-east4",
+      "ip": "35.245.179.223"
+    },
+    {
+      "provider": "gcp",
+      "region": "us-east5",
+      "ip": "34.162.89.188"
+    }
   ]
 }
