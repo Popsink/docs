@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Sync deployment/connectivity/egress-ips.{json,mdx} against the live AWS NAT
-Gateway / GCP reserved egress IPs. Fails loudly instead of publishing a
-partial or empty list - this page is used for customer firewall allowlists.
+"""Sync public/egress-ips.json and deployment/connectivity/egress-ips.mdx
+against the live AWS NAT Gateway / GCP reserved egress IPs. Fails loudly
+instead of publishing a partial or empty list - this page is used for
+customer firewall allowlists.
 """
 import json
 import os
@@ -12,7 +13,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-JSON_PATH = REPO_ROOT / "deployment/connectivity/egress-ips.json"
+# Must live under public/ - Mintlify does not serve static files placed in a
+# folder that also contains .mdx pages, they 404 despite being on main.
+JSON_PATH = REPO_ROOT / "public/egress-ips.json"
 MDX_PATH = REPO_ROOT / "deployment/connectivity/egress-ips.mdx"
 
 GCP_PROJECT = "popsink-production-438615"
