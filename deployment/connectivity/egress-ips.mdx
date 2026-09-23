@@ -1,0 +1,81 @@
+---
+title: "Egress IP addresses"
+description: "The public addresses Popsink-managed connectors connect from, per region, for source and target firewall allowlists."
+sidebarTitle: "Egress IPs"
+---
+
+Popsink connectors are **always the client**: a connector worker opens an
+outbound TCP connection to your database and keeps it open. When that database
+is reachable over the public internet and fronted by a firewall, the rule you
+need is an inbound one on *your* side, whose source is the address the connector
+leaves from.
+
+On a **Popsink-managed** deployment, that address is one of the static egress
+IPs below, fixed per region.
+
+## Addresses
+
+| Region         | Location                  | Egress IP         |
+| -------------- | ------------------------- | ----------------- |
+| `europe-west1` | Belgium (St. Ghislain)    | `34.78.134.240`   |
+| `europe-west9` | France (Paris)            | `34.155.204.177`  |
+| `us-east1`     | US (South Carolina)       | `136.108.113.91`  |
+| `us-east4`     | US (Northern Virginia)    | `35.245.179.223`  |
+| `us-east5`     | US (Columbus, Ohio)       | `34.162.89.188`   |
+
+Each is a single address — allowlist it as a `/32` (`34.78.134.240/32`, and so
+on). They are static and do not rotate; we announce any change before it takes
+effect.
+
+<Note>
+Allowlist the region your deployment runs in, and any region you may be moved
+or expanded to. If you are not sure which one you are on, ask
+[support@popsink.com](mailto:support@popsink.com) — or simply allowlist all
+five, which costs nothing and survives a region change.
+</Note>
+
+## Writing the rule
+
+The rule is always the same shape: **source** one of the addresses above,
+**destination** your database host, **port** the database port only. Popsink
+needs no inbound path other than that, no callback and no reverse tunnel.
+
+| Where your source lives | What to configure |
+| --- | --- |
+| AWS RDS / EC2 | An inbound security-group rule, source `<egress IP>/32`, the database port |
+| Azure SQL Database | A server-level firewall rule with start and end both set to the egress IP |
+| Google Cloud SQL | The address added to **Authorized networks** (or use Private Service Connect instead) |
+| Snowflake | A network policy with the address in `ALLOWED_IP_LIST` |
+| On-prem, behind a corporate firewall | A NAT rule to the database, scoped to the same source addresses |
+
+<Warning>
+An IP allowlist is a filter, not authentication. Keep TLS on and keep the
+connector's credentials least-privilege — see
+[Security and compliance](/securityandcompliance).
+</Warning>
+
+## When this page does not apply
+
+<AccordionGroup>
+  <Accordion title="Self-hosted data planes">
+    Connectors run in **your** cluster, so they leave from **your** egress
+    address, not ours. Give the cluster a stable one — a NAT gateway with a
+    fixed IP — and allowlist that; the
+    [routing gotcha](/deployment/connectivity/tunnels#the-routing-gotcha)
+    section explains why a pod IP is not usable here.
+  </Accordion>
+  <Accordion title="Sources that are not publicly reachable">
+    If the database has no public address at all, an allowlist cannot help and
+    you need a tunnel instead — IPsec, SSH or an overlay network. See
+    [Tunnels and private connectivity](/deployment/connectivity/tunnels).
+  </Accordion>
+  <Accordion title="The control plane">
+    These addresses cover connector traffic to your sources and targets. The
+    control plane never initiates a connection into your network at all; see
+    [Control plane and data plane](/deployment/architecture/control-data-plane).
+  </Accordion>
+</AccordionGroup>
+
+<Card title="Tunnels and private connectivity" icon="shield-halved" href="/deployment/connectivity/tunnels">
+  The alternative when the source has no public address to allowlist from.
+</Card>

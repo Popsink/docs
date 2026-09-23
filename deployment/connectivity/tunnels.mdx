@@ -352,6 +352,10 @@ that is the whole reason to reach for it.
 In every row, the data plane still needs its own outbound HTTPS to the control
 plane — that requirement is unchanged and independent of the tunnel.
 
+On a Popsink-managed deployment there is no tunnel to build for a source that is
+already publicly reachable: allowlist our fixed per-region address instead, from
+[Egress IP addresses](/deployment/connectivity/egress-ips).
+
 ## Troubleshooting
 
 | Symptom | Usual cause |

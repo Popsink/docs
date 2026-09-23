@@ -75,7 +75,7 @@ When setting up the target in Popsink, you'll need to provide the following:
 ## 🔐 Security Notes
 
 - Ensure the SQL Server user has **least privilege access** needed to insert and update data only in the required schema/tables.
-- For cloud-hosted SQL Server (e.g., Azure SQL Database), ensure Popsink IPs are whitelisted.
+- For cloud-hosted SQL Server (e.g., Azure SQL Database), ensure Popsink's [egress IPs](/deployment/connectivity/egress-ips) are allowlisted in the server firewall.
 
 ***
 
