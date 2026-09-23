@@ -29,8 +29,10 @@ LOCATIONS = {
     ("gcp", "us-east5"): "US (Columbus, Ohio)",
 }
 
-TABLE_START = "<!-- EGRESS_IPS_TABLE:START -->"
-TABLE_END = "<!-- EGRESS_IPS_TABLE:END -->"
+# MDX has no HTML-comment syntax - `<!--` is parsed as the start of a JSX tag
+# and breaks the build. JSX-style comments are the only kind MDX tolerates.
+TABLE_START = "{/* EGRESS_IPS_TABLE:START */}"
+TABLE_END = "{/* EGRESS_IPS_TABLE:END */}"
 
 
 def run_json(cmd: list[str]):
