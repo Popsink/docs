@@ -11,12 +11,12 @@ The Oracle Source Connector is an advanced tool designed to synchronize Oracle d
 | | |
 |---|---|
 | **Oracle Database** | 19c, 21c, 23ai, 26ai |
-| **Capture method** | LogMiner, reading the online redo and archived redo logs |
+| **Capture method** | LogMiner (default), LogMiner unbuffered, or XStream Out — see [Choosing a capture adapter](#choosing-a-capture-adapter) |
 | **Deployments** | Single instance and RAC; multitenant (CDB/PDB) and non-CDB |
 | **Managed services** | Amazon RDS for Oracle, Oracle Base Database Service (OCI) |
 | **CDC engine** | Debezium 3.5 |
 
-<Note>Oracle 12c and 11g are not supported. On 23ai and 26ai, capture is available through LogMiner only.</Note>
+<Note>Oracle 12c and 11g are not supported. On 23ai and 26ai, capture is available through LogMiner only — XStream is validated on 19c and 21c.</Note>
 
 ## **Prerequisites**
 
@@ -40,9 +40,27 @@ Before deploying the Oracle Source Connector, certain prerequisites must be met 
 
    > Note: If using AWS RDS, additional steps may be required. Please consult the relevant AWS RDS documentation and do feel free to reach out for help.
 
+These three prerequisites apply to every capture adapter. XStream Out has additional requirements, described in [XStream Out configuration](#xstream-out-configuration).
+
+## Choosing a capture adapter
+
+The connector can read changes in three different ways. All three produce the same events on the Popsink side — they differ in what they cost the source database and in what they require from your DBA.
+
+| Adapter | How it captures | When to choose it |
+|---|---|---|
+| **LogMiner** *(default)* | Mines the online and archived redo logs through `DBMS_LOGMNR`, and buffers open transactions inside the connector until they commit | The default, and the right answer for most sources. No extra licence, and it works on every supported deployment |
+| **LogMiner unbuffered** | Mines the same redo logs, but Oracle only hands back committed data, so the connector keeps no transaction buffer of its own | Sources with very large or long-running transactions, or long catch-ups after an outage, where the buffered adapter runs out of memory. It trades connector memory for more work on the source |
+| **XStream Out** | Reads logical change records (LCRs) from an XStream outbound server | Lowest latency, no mining load on the source, and no redo re-reading on catch-up. Requires an Oracle GoldenGate licence and an outbound server created by your DBA |
+
+<Info>LogMiner is the adapter every Oracle connector runs today. **LogMiner unbuffered** and **XStream** are being rolled out — get in touch with Popsink before you plan a migration to either one, so we can confirm availability on your data plane and size the change with you.</Info>
+
+<Note>XStream is a licensed Oracle GoldenGate feature. Using it without a GoldenGate licence is a licence violation — confirm your entitlement with Oracle before enabling it. On managed services such as Amazon RDS for Oracle, check with your provider that `DBMS_XSTREAM_ADM` and outbound servers are available on your instance class.</Note>
+
+<Warning>The adapter is chosen when the connector is created. LogMiner records its position as an SCN, while XStream records it as an LCR position, so moving an existing connector to or from XStream loses its position and requires a re-seed. Switching between the two LogMiner adapters is safe.</Warning>
+
 ## **Required Permissions**
 
-Although you *could* use a **`superuser`**, we do recommend setting up dedicated users for security reasons. The user account that the Oracle Source Connector utilizes must have sufficient privileges. The following SQL statements outline the necessary permissions:
+Although you *could* use a **`superuser`**, we do recommend setting up dedicated users for security reasons. The user account that the Oracle Source Connector utilizes must have sufficient privileges. The following SQL statements outline the necessary permissions for both LogMiner adapters:
 
 ```sql
 GRANT CREATE SESSION TO {username} CONTAINER=ALL;
@@ -71,6 +89,118 @@ GRANT SELECT ON V_$TRANSACTION TO {username} CONTAINER=ALL;
 ```
 
 Replace **`{username}`** with the actual username being used for the connection.
+
+If you selected the XStream adapter, grant the privileges described in [XStream Out configuration](#xstream-out-configuration) instead — the `DBMS_LOGMNR` and `LOGMINING` grants above are not needed.
+
+## XStream Out configuration
+
+This section is only relevant if you chose the **XStream** adapter. Everything here is done by your DBA on the source database, before the connector is created. Popsink connects to the outbound server you create here; the Oracle Instant Client and XStream libraries the connector needs are part of the Popsink image, so there is nothing to install on your side.
+
+The examples use two accounts, following Oracle's own separation of duties:
+
+- an **XStream administrator** (`c##popsinkadmin`) that creates and owns the outbound server,
+- the **connect user** (`c##popsinkuser`) that Popsink authenticates as and that attaches to the outbound server.
+
+On a non-CDB database, drop the `c##` prefix and the `CONTAINER=ALL` clauses.
+
+### 1. Enable GoldenGate replication
+
+XStream requires the GoldenGate replication parameter, alongside the ArchiveLog mode and supplemental logging already covered in the [prerequisites](#prerequisites).
+
+```sql
+ALTER SYSTEM SET ENABLE_GOLDENGATE_REPLICATION=TRUE SCOPE=BOTH;
+```
+
+### 2. Create the XStream administrator
+
+```sql
+CREATE TABLESPACE xstream_adm_tbs
+  DATAFILE '/opt/oracle/oradata/ORCLCDB/xstream_adm_tbs.dbf'
+  SIZE 25M REUSE AUTOEXTEND ON MAXSIZE UNLIMITED;
+
+CREATE USER c##popsinkadmin IDENTIFIED BY {password}
+  DEFAULT TABLESPACE xstream_adm_tbs
+  QUOTA UNLIMITED ON xstream_adm_tbs
+  CONTAINER=ALL;
+
+GRANT CREATE SESSION, SET CONTAINER TO c##popsinkadmin CONTAINER=ALL;
+
+BEGIN
+  DBMS_XSTREAM_AUTH.GRANT_ADMIN_PRIVILEGE(
+    grantee                 => 'c##popsinkadmin',
+    privilege_type          => 'CAPTURE',
+    grant_select_privileges => TRUE,
+    container               => 'ALL');
+END;
+/
+```
+
+### 3. Create the connect user
+
+This is the user whose credentials you enter in the Popsink form.
+
+```sql
+CREATE TABLESPACE xstream_tbs
+  DATAFILE '/opt/oracle/oradata/ORCLCDB/xstream_tbs.dbf'
+  SIZE 25M REUSE AUTOEXTEND ON MAXSIZE UNLIMITED;
+
+CREATE USER c##popsinkuser IDENTIFIED BY {password}
+  DEFAULT TABLESPACE xstream_tbs
+  QUOTA UNLIMITED ON xstream_tbs
+  CONTAINER=ALL;
+
+GRANT CREATE SESSION TO c##popsinkuser CONTAINER=ALL;
+GRANT SET CONTAINER TO c##popsinkuser CONTAINER=ALL;
+GRANT SELECT ON V_$DATABASE TO c##popsinkuser CONTAINER=ALL;
+GRANT FLASHBACK ANY TABLE TO c##popsinkuser CONTAINER=ALL;
+GRANT SELECT ANY TABLE TO c##popsinkuser CONTAINER=ALL;
+GRANT SELECT_CATALOG_ROLE TO c##popsinkuser CONTAINER=ALL;
+GRANT EXECUTE_CATALOG_ROLE TO c##popsinkuser CONTAINER=ALL;
+```
+
+### 4. Create the outbound server
+
+Connect as the XStream administrator — **to the CDB root** on a multitenant deployment — and create one outbound server per connector. List the schemas or tables you intend to replicate; the outbound server only forwards changes for what it captures, so it acts as a first, server-side filter.
+
+```sql
+DECLARE
+  tables  DBMS_UTILITY.UNCL_ARRAY;
+  schemas DBMS_UTILITY.UNCL_ARRAY;
+BEGIN
+  tables(1)  := NULL;
+  schemas(1) := 'SALES';
+  schemas(2) := NULL;
+  DBMS_XSTREAM_ADM.CREATE_OUTBOUND(
+    server_name  => 'POPSINK_OUT',
+    table_names  => tables,
+    schema_names => schemas);
+END;
+/
+```
+
+Then hand the outbound server to the connect user, so Popsink can attach to it:
+
+```sql
+BEGIN
+  DBMS_XSTREAM_ADM.ALTER_OUTBOUND(
+    server_name  => 'POPSINK_OUT',
+    connect_user => 'c##popsinkuser');
+END;
+/
+```
+
+<Note>On a multitenant database, the outbound server lives in the CDB root while the tables live in a PDB. Give Popsink the PDB in the connector form, and make sure the schemas you listed above are the ones in that PDB.</Note>
+
+### 5. Verify the setup
+
+```sql
+SELECT server_name, capture_name, connect_user, source_database
+  FROM dba_xstream_outbound;
+
+SELECT server_name, state FROM v$xstream_outbound_server;
+```
+
+The outbound server must exist, be attached to the connect user, and be in a running state before the connector is created. Popsink's **Check Credentials** step runs these checks for you and reports a clear error if the outbound server is missing or disabled.
 
 ## Steps
 
@@ -118,7 +248,9 @@ Provide **exactly one** of the two:
 
 | Field | Default | Description |
 |---|---|---|
-| **Poll Interval (ms)** | `2000` | How often the connector polls for new redo log activity |
+| **Adapter** | `LogMiner` | How changes are captured: `LogMiner`, `LogMiner unbuffered` or `XStream` — see [Choosing a capture adapter](#choosing-a-capture-adapter) |
+| **XStream Outbound Server** | — | Name of the outbound server created with `DBMS_XSTREAM_ADM.CREATE_OUTBOUND`, for example `POPSINK_OUT`. Required with the XStream adapter, and ignored otherwise |
+| **Poll Interval (ms)** | `2000` | How often the connector polls for new redo log activity. LogMiner adapters only |
 | **Initial Load** | `true` | Snapshot existing rows before streaming changes |
 
 <SshTunnel />
@@ -126,6 +258,8 @@ Provide **exactly one** of the two:
 ### Table Selection
 
 After a successful credential check, pick the tables to replicate from the discovered list. The selection is stored as a comma-separated whitelist in `SCHEMA.TABLE` format.
+
+With the XStream adapter, this selection is applied on top of what the outbound server already captures: a table that the outbound server does not capture never reaches the connector, whatever you select here.
 
 You can use **Check Credentials** at any moment to verify the validity of your inputs.
 
