@@ -1,0 +1,25 @@
+---
+title: "v0.1.0-alpha.181 22/09/2026"
+---
+
+---
+
+**Description**: Snow target - keep a dynamic table an hour behind, not ten minutes.
+
+### Changes
+
+- Snow target - keep a dynamic table an hour behind, not ten minutes (#4280).
+- Surface DDS keyed access paths as primary keys — SYSCST only knows SQL constraints, which legacy IBM i files do not have (#4253).
+- DP - A backfill can load an Oracle source, and the half that is not the reader is shared (#4255).
+- DP - Iceberg tables Snowflake can read: a Rust Polaris target (#4256).
+- [FRONT] Part 3 of #4225: route connector creation through the service and a shared composable (#4305).
+- [SEC] Part 1 of #4308: a worker config is read by that connector's worker, not by any service account (#4310).
+- DP - Test the self-hosted user proxy: the control plane's answer is what gets stored (#4311).
+- [TESTCLEAN] Assert the one status each endpoint answers, not a set of two (#4312).
+- [DOCSLIM] Compact Args/Returns boilerplate in the worker, pipeline and team commands (#4315).
+- DP - An Oracle dlt source worker connects to an NNE-hardened database (#4306).
+- Connectors - a table added at runtime gets its existing rows (#4304).
+- Mongo source - the connector type exists and its worker can start (#4261).
+- [SEMANTIC] Name the outbound-HTTP call budget in the unit it holds (#4314).
+- DP - Read a whole catalog's primary keys in one call (#4318).
+- In popsink_connect, move log filtering from debezium_source to common_source (#4320).
