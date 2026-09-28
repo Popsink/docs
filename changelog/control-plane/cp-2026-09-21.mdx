@@ -1,0 +1,27 @@
+---
+title: "v2026.09.21 21/09/2026"
+---
+
+---
+
+**Description**: Worker - Stop pacing backlogged topics like idle ones.
+
+### Changes
+
+- Worker - Stop pacing backlogged topics like idle ones (#3941).
+- Direct data-plane URL loops forever between the data plane and the control plane: the SSO return trip carries no token (#4027).
+- Worker - An IBM i source that stops freezing, and catches up (#4034).
+- CP Billing - Recipients picker loads, and reports a failed load (#4008).
+- CP - HubSpot offers only the CRM objects the consent can actually write (#4037).
+- Bump versions and upgrade debezium-ibmi-connector + new integration test for ibmi_source (#4100).
+- DP - A connector catalog that follows the schema registry, not the deployment mode (#4080).
+- CP - The Clerk user sync no longer fails on every page load (#4102).
+- Chart - Fix the empty Stream tab and report the next pin drift (#4130).
+- CP - Ask for the custom-object scopes without requiring them (#4127).
+- CP - Revoking an API key demands the type-DELETE guard (#4132).
+- Move HUBSPOT_TARGET_* envvar from patches to base manifest (#4177).
+- A subscription routed to a topic that does not exist waits forever: 46 of 168 on one target, invisible to every reading (#4122).
+- Close the anyio IDNA-2003 TLS spoofing advisory in all six lockfiles (#4266).
+- Oracle source connects under Native Network Encryption + release cut (#4271).
+- CP - Promote production to the image that knows HubSpot, and wire the two settings only dev had (#4282).
+- Cut 2026.09.21 and deploy it in preprod (#4285).

@@ -1,0 +1,61 @@
+---
+title: "v0.1.0-alpha.179 21/09/2026"
+---
+
+---
+
+**Description**: DP - Snowflake sinks over the xl threshold run 4 actor loops.
+
+### Changes
+
+- DP - Snowflake sinks over the xl threshold run 4 actor loops (#4104).
+- DP - Truncate history empties one table inside the job that reloads it (#4085).
+- Give the in-pod dev front a build directory of its own (#4128).
+- Worker - A JDBC target rebalance no longer waits on a lookup (#4138).
+- Worker - Bound a blocked tlog source, and state what it costs (#4135).
+- QA buttons sweep: 256/262 verdicts across 7 UIs, 15 bugs filed (#4136).
+- [TESTCLEAN] Subscription repository reads: run them against a real session (#4172).
+- [DOCSLIM] Part 2 of #4119: compact Args/Returns boilerplate in domains/services (#4173).
+- Lock the state a pipeline's two workers compute (#4170).
+- [FRONT] Wire the Oracle and SQL Server source forms to the shared credential pre-flight (#4166).
+- [ARCH] A lazily-loaded environment gets the deployment's broker, not a dev address (#4165).
+- Worker - Configure the two registry URLs Quarkus 3.37.3 will not boot without (#4144).
+- Worker - The loader logs through the platform logger, and the Job image can start (#4012).
+- DP - One Backfill modal for five entry points, and every number in it is the preview's (#4113).
+- DP - A backfill reports figures a user can act on, and says nothing when it has none (#4120).
+- Front - A HubSpot property select says its catalogue is loading (#4184).
+- DP - One backfill path is live at a time, and a connector on the Job path snapshots nothing (#4129).
+- A subscription routed to a topic that does not exist waits forever: 46 of 168 on one target, invisible to every reading (#4122).
+- DP - One corpus pins the target-table-name rule of the back end and the UI (#4182).
+- [FRONT] Wire the IBM i, Kafka and BigQuery source forms to the shared credential pre-flight (#4197).
+- Front - The mapper offers the source's columns before any event is produced (#4191).
+- [SEC] DP - Only a caller who may write a connector may list its source tables (#4199).
+- [DOCSLIM] Part 3 of #4119: compact Args/Returns boilerplate in validation and datamodel commands (#4205).
+- [TESTCLEAN] Harden the service-account route tests that cannot see a wrong identity (#4202).
+- DP - A pipeline with every delivery switched off reads paused, unless a worker is building or broken (#4201).
+- [ARCH] Part 2 of #4164: the env-request domain service stops speaking HTTP (#4196).
+- Back - Stop the config sync loop drifting forever on API-key deployments (#4190).
+- UC worker - end the frozen tables and the OOMKilled pods (#4185).
+- DP - Adding tables opens a sync run only where something would advance it (#4193).
+- [SEMANTIC] Part 1 of #4206: spell the pipeline-latency symbols `information`, not `informations` (#4207).
+- Worker - A record decodes with the layout it was written under (#4186).
+- Workers - No JVM Kafka client asks the broker for telemetry (#4167).
+- DP - Start, hold and stop a SQL Server backfill from the API (#4211).
+- A subscription's `target_table_name` is not always a table name, and nothing says so (#4183).
+- DP - Oracle source over TCPS: one-way TLS and mTLS wallet for Autonomous Database (#4214).
+- [FRONT] Converge the last four target forms onto the shared credential pre-flight (#4226).
+- [ARCH] Part 3 of #4164: the manual schema refresh reads a decrypted config, and checks who asked (#4224).
+- [TESTCLEAN] Part 1 of #4229: run the pipeline authorization gates against real SQL (#4230).
+- [SEMANTIC] Name the background-loop tick in the unit it is measured in (#4233).
+- [DOCSLIM] compact template docstrings and step banners in the SQLAlchemy repositories (#4236).
+- DP - A subscription's badge follows its target worker, and a workerless connector is live with no worker (#4228).
+- DP - One backfill path: delete the connector-orchestrated snapshot (#4216).
+- No CDB/PDB or RAC configuration: the Oracle source cannot capture from an Exadata/ExaCC-shaped database (#4221).
+- DP - The Backfill modal and its trigger follow the design (#4219).
+- Only a member of a datamodel's team may read it or refresh its schema (#4227).
+- UC worker - deliver a large table as an append-only changelog (#4251).
+- DP - Backfill from the three lists that lost it, behind one held primary (#4250).
+- UC worker - boot from pod env vars, so no target fetches its config over HTTP (#4259).
+- Close the anyio IDNA-2003 TLS spoofing advisory in all six lockfiles (#4266).
+- Worker - Recover the records a log backup carried away (#4222).
+- Oracle source connects under Native Network Encryption + release cut (#4271).

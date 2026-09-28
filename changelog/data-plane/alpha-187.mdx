@@ -1,0 +1,31 @@
+---
+title: "v0.1.0-alpha.187 25/09/2026"
+---
+
+---
+
+**Description**: E2E plan - the advanced-toggle test case no longer describes a control that exists.
+
+### Changes
+
+- E2E plan - the advanced-toggle test case no longer describes a control that exists (#4396).
+- Backfill v2 - an idle IBM i table with escaped columns can be seeded (#4403).
+- Subscriptions - name the target table after the source table (#4395).
+- [ARCH] The application layer raises domain errors instead of HTTPException (#4408).
+- [FRONT] Part 2 of #4358: the subscription wizard pages read through the services (#4413).
+- [SEC] Minting a service-account token rotates it instead of adding one (#4415).
+- Backfill v2 - wait out a fresh node's DNS, and skip a column name the source folds (#4402).
+- Mongo source - ticking a collection no longer collapses the table picker (#4416).
+- Mongo source - a declared field name must already be Avro-legal (#4405).
+- Mongo source - a BSON int64 that fits in 32 bits is declared int64 (#4404).
+- Backfill IBM i into Unity Catalog without overwriting CDC rows (#4390).
+- [TESTS] Pin what starting and stopping a connector actually writes (#4424) (#4425).
+- TESTCLEAN - retire the mock-only tests of two one-line IBM i delegates (#4426).
+- Tests - the back unit job in 5 minutes instead of 18 (#4422).
+- [SEMANTIC] Name the broker call budget in the unit it holds (#4427).
+- DP - A backfill can load into BigQuery, and the destination decides what convergence is (#4389).
+- Workers - a connector can run on more than one pod (#4393).
+- Subscriptions - deliver a target object without Popsink's metadata columns (#4417).
+- Orchestrator: warehouse connections (list, create, detail) (#4307).
+- DP - A CRM target can deliver one source topic into one object several times (#4447).
+- Release cut - data-plane 2026.09.25, chart 0.1.0-alpha.187 (#4460).
