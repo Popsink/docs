@@ -51,6 +51,11 @@
             "pages": ["limits", "alerting", "roadmap"]
           },
           {
+            "group": "Security",
+            "icon": "shield-halved",
+            "pages": ["security/sso"]
+          },
+          {
             "group": "Deployment",
             "icon": "server",
             "pages": [

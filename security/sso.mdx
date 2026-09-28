@@ -1,0 +1,283 @@
+---
+title: "Single sign-on (SSO)"
+description: "Sign in to Popsink with your company identity provider over SAML 2.0 or OpenID Connect: how it works, what to configure on your side, and how users and roles are handled."
+sidebarTitle: "Single sign-on"
+---
+
+With single sign-on, your users sign in to Popsink with their corporate
+account. They don't need a Popsink password. Authentication happens at **your**
+identity provider (IdP), so your password policy, MFA and conditional-access
+rules apply to Popsink as they do to your other applications.
+
+Popsink supports two protocols:
+
+| Protocol | Typical identity providers |
+| --- | --- |
+| **SAML 2.0** | Microsoft Entra ID (Azure AD), Okta, Google Workspace, JumpCloud, OneLogin, ADFS, Keycloak, and any SAML 2.0 compliant IdP |
+| **OpenID Connect (OIDC)** | Okta, Microsoft Entra ID, Keycloak, Auth0, and any OIDC-compliant provider |
+
+<Note>
+SSO is set up **with the Popsink team**. It isn't self-serve yet (see the
+[roadmap](/roadmap)). The IdP side takes about fifteen minutes. We activate the
+connection on our side as soon as we receive your metadata.
+</Note>
+
+## How it works
+
+Popsink authenticates users through [Clerk](https://clerk.com), our identity
+platform. Each SSO connection is tied to one or more **email domains** that you
+own, for example `acme.com`.
+
+1. A user opens the [Popsink console](https://control-plane.popsink.com) and
+   enters their work email, `jane@acme.com`.
+2. Popsink sees that `acme.com` has an SSO connection and redirects the browser
+   to your IdP.
+3. The user authenticates there, with MFA if your IdP asks for it.
+4. The IdP sends a signed SAML assertion or OIDC token back to Popsink. The
+   user lands in the console, signed in.
+
+This flow is **SP-initiated**: it starts from the Popsink sign-in page. Starting
+from the Popsink tile in your IdP's app portal (**IdP-initiated**) is off by
+default. We can enable it on request.
+
+<Warning>
+Once SSO is active for a domain, **every** user with an email on that domain
+must sign in through your IdP. Password and social sign-in stop working for
+those addresses. Existing Popsink accounts are kept and linked to the SSO
+identity by email, with all their organizations and roles.
+</Warning>
+
+## Before you start
+
+Have the following ready:
+
+- **Admin access to your IdP**, so you can create an application (SAML) or an
+  app registration / client (OIDC).
+- **The email domains** to route to SSO. You must own them, and Popsink may ask
+  you to prove ownership.
+- **A test user** on one of those domains, assigned to the application. You will
+  use it for the first sign-in.
+
+## Set up SSO
+
+<Steps>
+  <Step title="Request an SSO connection">
+    Email [support@popsink.com](mailto:support@popsink.com) with:
+
+    - your Popsink organization name,
+    - the email domain(s) to connect,
+    - the protocol (SAML or OIDC) and your identity provider.
+
+    We create the connection and reply with the **service provider values** you
+    need in the next step.
+  </Step>
+
+  <Step title="Create the application in your IdP">
+    Create the application with the values we sent. The settings for each
+    protocol are described below: [SAML 2.0](#saml-2-0) or
+    [OpenID Connect](#openid-connect).
+
+    Assign the users or groups who should have access to Popsink to the
+    application.
+  </Step>
+
+  <Step title="Send us your IdP details">
+    - **SAML:** the **IdP metadata URL**. Alternatively, send the metadata XML
+      file, or the SSO URL, IdP entity ID and signing certificate.
+    - **OIDC:** the **issuer / discovery URL**, the **client ID** and the
+      **client secret**.
+
+    <Warning>
+    Don't send an OIDC client secret in plain text by email. Ask us for a
+    secure channel, and we will send you a one-time link.
+    </Warning>
+  </Step>
+
+  <Step title="Test and go live">
+    We activate the connection. Then sign in with your test user at the
+    [Popsink console](https://control-plane.popsink.com) by entering its email
+    address. You should reach your IdP and come back signed in.
+
+    Once the test succeeds, SSO applies to everyone on the connected domains.
+  </Step>
+</Steps>
+
+## SAML 2.0
+
+### Values to enter in your IdP
+
+We send you these values when we create the connection. They are unique to it.
+
+| Popsink value | Also called in your IdP |
+| --- | --- |
+| **Assertion Consumer Service (ACS) URL** | Reply URL, Single sign-on URL, Recipient / Destination URL |
+| **Service Provider Entity ID** | Identifier, Audience URI, SP Entity ID |
+| **SP metadata URL** (optional) | Many IdPs can import it and fill in the two fields above automatically |
+
+Use these settings for the rest of the application:
+
+| Setting | Value |
+| --- | --- |
+| Name ID format | `EmailAddress` (`urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress`) |
+| Name ID value | The user's primary email address |
+| Response / assertion signing | Signed (SHA-256) |
+| Binding | HTTP-POST |
+
+### Attributes
+
+Popsink identifies users **by email address**, so the email must match the
+address used to invite them into Popsink.
+
+| Attribute | Required | Source in your IdP |
+| --- | --- | --- |
+| `mail` | Yes | User's email address |
+| `firstName` | No | User's first / given name |
+| `lastName` | No | User's last / family name |
+
+If your IdP already sends standard claim names, you don't need to rename them.
+For example, Entra ID sends
+`http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress`. Tell us
+which names you use and we will map them on our side.
+
+<Tabs>
+  <Tab title="Microsoft Entra ID">
+    1. In **Entra ID → Enterprise applications**, click **New application →
+       Create your own application** and choose *Integrate any other
+       application you don't find in the gallery (Non-gallery)*.
+    2. Open **Single sign-on → SAML**.
+    3. In **Basic SAML Configuration**, set **Identifier (Entity ID)** to the
+       Popsink SP Entity ID and **Reply URL** to the Popsink ACS URL.
+    4. Under **Attributes & Claims**, make sure the *Unique User Identifier
+       (Name ID)* is `user.mail` or `user.userprincipalname`, whichever holds
+       the user's real email address.
+    5. Under **Users and groups**, assign the users or groups who should have
+       access.
+    6. Copy the **App Federation Metadata Url** from the **SAML Certificates**
+       section and send it to us.
+  </Tab>
+  <Tab title="Okta">
+    1. In the Okta admin console, go to **Applications → Create App
+       Integration** and choose **SAML 2.0**.
+    2. Set **Single sign-on URL** to the Popsink ACS URL and **Audience URI (SP
+       Entity ID)** to the Popsink SP Entity ID.
+    3. Set **Name ID format** to `EmailAddress` and **Application username** to
+       `Email`.
+    4. Under **Attribute Statements**, add `mail` → `user.email`, `firstName` →
+       `user.firstName` and `lastName` → `user.lastName`.
+    5. Finish, then assign the users or groups under **Assignments**.
+    6. On the **Sign On** tab, copy the **Metadata URL** and send it to us.
+  </Tab>
+  <Tab title="Google Workspace">
+    1. In the Google Admin console, go to **Apps → Web and mobile apps → Add
+       app → Add custom SAML app**.
+    2. On the *Google Identity Provider details* screen, download the
+       **metadata** file. You will send it to us.
+    3. Set **ACS URL** to the Popsink ACS URL and **Entity ID** to the Popsink
+       SP Entity ID. Set **Name ID format** to `EMAIL` and **Name ID** to
+       *Basic Information → Primary email*.
+    4. Under **Attribute mapping**, map *Primary email* → `mail`, *First name* →
+       `firstName` and *Last name* → `lastName`.
+    5. Turn the app **ON** for the organizational units or groups that need
+       access. The change can take a few minutes to propagate.
+  </Tab>
+</Tabs>
+
+## OpenID Connect
+
+Create an OIDC application of type **web application** that uses the
+**authorization code** flow.
+
+| Setting | Value |
+| --- | --- |
+| Redirect URI / callback URL | The value we send you when we create the connection |
+| Scopes | `openid`, `email`, `profile` |
+| Client authentication | Client secret |
+
+The ID token must carry a verified `email` claim. `given_name` and
+`family_name` are used when present.
+
+Send us the **issuer URL** (the base of `/.well-known/openid-configuration`),
+the **client ID** and the **client secret**, over a secure channel.
+
+## Users, organizations and roles
+
+SSO controls **who can sign in**. **What they can access** is still managed in
+Popsink.
+
+- **The account is created at first sign-in.** Users don't need a Popsink
+  account beforehand.
+- **Access to an organization requires an invitation.** An organization admin
+  invites the user by email from the console. At the user's first SSO sign-in,
+  all pending invitations for that email are accepted, and the user gets the
+  role set on each one. A user who signs in without an invitation belongs to no
+  organization yet. They are offered to create one.
+- **Roles are managed in Popsink,** not in your IdP. Organizations have `admin`
+  and `user` roles, and environments have `admin`, `user` and `reader`. IdP
+  groups aren't mapped to Popsink roles, and SCIM provisioning isn't available
+  yet.
+
+### Removing access
+
+Unassigning a user from the application in your IdP, or disabling them there,
+blocks their next sign-in. A session that is already open stays valid until it
+expires. To cut access immediately, also **remove the member from the
+organization** in the Popsink console.
+
+## Self-hosted data planes
+
+On a [self-hosted deployment](/deployment/overview), the data plane has no login
+of its own. It sends the browser to the control plane, which signs the user in,
+through your SSO when your domain has it, and returns a short-lived access
+token to the data plane. SSO covers self-hosted data planes as well, with no
+extra configuration on the IdP side.
+
+For the redirect to come back, Popsink must allowlist the **URL of your data
+plane**, for example `https://popsink.internal.acme.com`. Include it in your SSO
+request, or send it when you register a new deployment.
+
+<Tip>
+A data plane reached through an IP address or a `kubectl port-forward` can't
+receive the SSO redirect. In that case, use the paste-token page at
+`/auth/token-login`. See
+[Identity and login](/deployment/architecture/control-data-plane#identity-and-login)
+for the full flow and the break-glass local account.
+</Tip>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="I'm asked for a password instead of being redirected to my IdP">
+    The connection isn't active for your email domain yet, or you typed an
+    address on a different domain (a subsidiary domain, an alias). Tell us
+    every domain your users sign in with.
+  </Accordion>
+
+  <Accordion title="My IdP shows an error before sending me back">
+    The ACS URL / Reply URL or the Entity ID doesn't exactly match the values we
+    sent you. Check for trailing slashes or `http` instead of `https`. Also check
+    that your user is assigned to the application.
+  </Accordion>
+
+  <Accordion title="I'm back on Popsink but sign-in fails">
+    Most often, the assertion carries no email or the wrong one, for example a
+    UPN that isn't a real mailbox. Check the Name ID and the `mail` attribute.
+    Also check that your IdP's signing certificate hasn't been rotated since you
+    sent us the metadata. If it has, send us the new metadata.
+  </Accordion>
+
+  <Accordion title="I'm signed in but I don't see my organization">
+    SSO signed you in, but nobody has invited your email address to the
+    organization yet. Ask an organization admin to invite you with the exact
+    address your IdP sends.
+  </Accordion>
+
+  <Accordion title="Our IdP signing certificate is about to expire">
+    Send us the new metadata before the old certificate expires. If your IdP
+    lets you publish both certificates for a while, do it, so that sign-in
+    keeps working during the switch.
+  </Accordion>
+</AccordionGroup>
+
+For anything else, contact [support@popsink.com](mailto:support@popsink.com)
+with the time of the attempt and the email address used. **Never** send
+passwords or full SAML responses.
