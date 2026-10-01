@@ -1,0 +1,1716 @@
+{
+  "updated_at": "2026-10-01T12:46:39Z",
+  "chart": "oci://ghcr.io/popsink/charts/data-plane",
+  "releases": [
+    {
+      "version": "0.1.0-alpha.195",
+      "digest": "sha256:4b4a6cc837578f4839476ca4e67d684b2873dacd855c65875cb5bdc339bc0475",
+      "published_at": "2026-09-30T17:18:55Z",
+      "data_plane": "2026.09.30",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.194",
+      "digest": "sha256:08800e2187579e0cc20396a8fe8d81e03cbbca72eaddb5a293db0a5ea765708e",
+      "published_at": "2026-09-29T09:47:02Z",
+      "data_plane": "2026.09.29",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.193",
+      "digest": "sha256:ca6bb6c9a91e0161222e0f768b26c942a00b4cdf33bfbc6d81bbfd7d421d363b",
+      "published_at": "2026-09-28T21:57:43Z",
+      "data_plane": "2026.09.28.1",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.192",
+      "digest": "sha256:779b30eb25d70dec72a842d2a908a8abaf2831f4d4233eb2710843d8563fd5fd",
+      "published_at": "2026-09-28T13:54:16Z",
+      "data_plane": "2026.09.28.1",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.191",
+      "digest": "sha256:364223870bbf2c548a58abd7b20e72217851789a7b97f1cf72a78147fb3daff8",
+      "published_at": "2026-09-28T10:30:49Z",
+      "data_plane": "2026.09.28",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.190",
+      "digest": "sha256:0e028fc5a56489a120b50617e097853de7e6ded95d9e71bd3ca197ea1b359ef5",
+      "published_at": "2026-09-25T13:20:52Z",
+      "data_plane": "2026.09.25.3",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.189",
+      "digest": "sha256:f9262cc1f8dc630feec90b66124367f18fb205e123adbb5636ede2dd13b93d55",
+      "published_at": "2026-09-25T12:45:34Z",
+      "data_plane": "2026.09.25.2",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.188",
+      "digest": "sha256:2e9e097add08a5936af0f079dfb295f8568fc44cff1bd4c02239da1b23ec99c8",
+      "published_at": "2026-09-25T08:25:14Z",
+      "data_plane": "2026.09.25.1",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.187",
+      "digest": "sha256:544ed9e82412d5beaa0aaf8e5cb5be2a40d0d29fa82c44e8bcaa3d1581d399a0",
+      "published_at": "2026-09-24T22:15:08Z",
+      "data_plane": "2026.09.25",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.186",
+      "digest": "sha256:3fe8334d2c1df54a023dd87b4c17e134d7d87df52c3f2df7d5f98e4e434f48d1",
+      "published_at": "2026-09-24T07:22:23Z",
+      "data_plane": "2026.09.24.1",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.185",
+      "digest": "sha256:d73378dba3f0d6b414b7dee02d0760139d15b5f95fe34695a271912de2c7f2a2",
+      "published_at": "2026-09-23T16:28:07Z",
+      "data_plane": "2026.09.23.2",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.183",
+      "digest": "sha256:dc26c35cf29d570da3036b820a215704468f561d8623a8006fdfa89dbfa07cde",
+      "published_at": "2026-09-23T12:00:51Z",
+      "data_plane": "2026.09.23",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.182",
+      "digest": "sha256:2d8236894bc6bb593b90f460b8b4943a6040b93835f22ab09bc87a65308cf78d",
+      "published_at": "2026-09-23T11:07:24Z",
+      "data_plane": "2026.09.22.1",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.181",
+      "digest": "sha256:12b3cda732099fe4815b919579e0e57e3fdc9e2597493f38f13c8cf011914042",
+      "published_at": "2026-09-22T20:55:52Z",
+      "data_plane": "2026.09.22",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.180",
+      "digest": "sha256:73259e483fa4f5864e3331126e4c77c04bb4c39c93196d016aab2ce1f287c56d",
+      "published_at": "2026-09-21T14:55:05Z",
+      "data_plane": "2026.09.21.1",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.179",
+      "digest": "sha256:6073f70f7bf4d05e164544e1f3af9c5d1711bb7bd9c028607b27df216d1a2a91",
+      "published_at": "2026-09-21T09:43:43Z",
+      "data_plane": "2026.09.21",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.178",
+      "digest": "sha256:9a174811273a66216372e2dadb2f59c00e8c9bdcdec2124ca16ee22c04221e27",
+      "published_at": "2026-09-15T16:17:48Z",
+      "data_plane": "2026.09.14",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.177",
+      "digest": "sha256:94596e1c4d525107e99669d2fa1643f9061a455394bb436fbb93078aa95adf5a",
+      "published_at": "2026-09-15T07:13:58Z",
+      "data_plane": "2026.09.14",
+      "broker": "1.0.0-alpha.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.176",
+      "digest": "sha256:cb336f20ee15c22c94dc2de6146217f3da06e4176d13a131c3b737e06c209795",
+      "published_at": "2026-09-11T16:30:40Z",
+      "data_plane": "2026.09.11",
+      "broker": "1.0.0-alpha.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.175",
+      "digest": "sha256:acad4a82afa9d2d7c43efb26c7681bf296cec33e8165cbe390dcf4d0cfcc2f3e",
+      "published_at": "2026-09-10T08:37:50Z",
+      "data_plane": "2026.09.09",
+      "broker": "1.0.0-alpha.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.174",
+      "digest": "sha256:6b14d20747f7af991f16e1fb6cb2077c10123f604312c8021aa0ac4ff4909d39",
+      "published_at": "2026-09-09T07:50:27Z",
+      "data_plane": "2026.09.08.1",
+      "broker": "1.0.0-alpha.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.173",
+      "digest": "sha256:77fcb2286732babc264acb40a19f07fdef4538cc79f27651366ee55ec77a6012",
+      "published_at": "2026-09-08T14:12:47Z",
+      "data_plane": "2026.09.08",
+      "broker": "1.0.0-alpha.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.172",
+      "digest": "sha256:851a2484bd83e34107c329c61197fa03fa31d96c936183243beba79fd5cf727d",
+      "published_at": "2026-09-07T14:43:08Z",
+      "data_plane": "2026.09.07",
+      "broker": "1.0.0-alpha.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.171",
+      "digest": "sha256:764e9ac48338aa02d3152b6939baafa3d0bdef0800e7e2a6847de717ed9e8171",
+      "published_at": "2026-09-07T09:53:47Z",
+      "data_plane": "2026.09.06",
+      "broker": "1.0.0-alpha.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.170",
+      "digest": "sha256:9296f96d526e71afe023a1f9cb266253f335ba0cf800bd0519882306917264df",
+      "published_at": "2026-09-03T21:27:30Z",
+      "data_plane": "2026.09.03",
+      "broker": "1.0.0-alpha.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.169",
+      "digest": "sha256:74275488225d4a85d564598ad99629c66ae2d83b3274a0380ad99460ada2ff1c",
+      "published_at": "2026-09-03T06:50:59Z",
+      "data_plane": "2026.09.02.1",
+      "broker": "1.0.0-alpha.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.168",
+      "digest": "sha256:6810d1737347ec67fce02d73d4387e1c973bf0070de2a09380f813091b5743fc",
+      "published_at": "2026-09-02T11:47:37Z",
+      "data_plane": "2026.09.02",
+      "broker": "1.0.0-alpha.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.167",
+      "digest": "sha256:be4b19a77567bfeb2d36f61b00a2ba5705fd51239dacabb01561040bc6a8f18c",
+      "published_at": "2026-09-01T10:45:45Z",
+      "data_plane": "2026.09.01",
+      "broker": "1.0.0-alpha.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.166",
+      "digest": "sha256:0af4239dc43abff1f08152ae6a54846e49573ac133a29c4af532aec4dec0cbb6",
+      "published_at": "2026-08-31T14:37:31Z",
+      "data_plane": "2026.08.31.1",
+      "broker": "1.0.0-alpha.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.165",
+      "digest": "sha256:26bdae660e91d6cc6a2bc04a3f9367de737d79f7836ac306c3686e2c735077fc",
+      "published_at": "2026-08-31T09:45:00Z",
+      "data_plane": "2026.08.31.1",
+      "broker": "1.0.0-alpha.1",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.164",
+      "digest": "sha256:3048c6415f237539e545961381e605edc88381c803d3f48bbbe11977a940c616",
+      "published_at": "2026-08-31T08:48:40Z",
+      "data_plane": "2026.08.28",
+      "broker": "1.0.0-alpha.1",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.163",
+      "digest": "sha256:677918e656b5c7f0f69274635902dba5c39ee248fca9a5998fccc399c1ff9899",
+      "published_at": "2026-08-30T08:11:43Z",
+      "data_plane": "2026.08.28",
+      "broker": "1.0.0-alpha.1",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.162",
+      "digest": "sha256:3d790ae4b1924a051b7c0379ac57d36c29e612737dc6e74d6a57d85b2d92b779",
+      "published_at": "2026-08-28T07:00:09Z",
+      "data_plane": "2026.08.27",
+      "broker": "1.0.0-alpha.1",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.161",
+      "digest": "sha256:ffe378feff08ff166e2b2c2890ceb58b95a3e92a7ea3ae8eb8464fbb95831527",
+      "published_at": "2026-08-26T08:21:03Z",
+      "data_plane": "2026.08.26",
+      "broker": "1.0.0-alpha.1",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.160",
+      "digest": "sha256:1fada01e9af98415b8a912865cdfa5483bb0a4f85cb0a0c99723076095fb95cc",
+      "published_at": "2026-08-24T12:25:21Z",
+      "data_plane": "2026.08.24.1",
+      "broker": "1.0.0-alpha.1",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.159",
+      "digest": "sha256:ee01b0a4c682053fb1c43e8a83ea7b1c883ac324792596f5cd030e54dd15174b",
+      "published_at": "2026-08-24T09:40:00Z",
+      "data_plane": "2026.08.24",
+      "broker": "1.0.0-alpha.1",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.158",
+      "digest": "sha256:313bbfe896e69b47b6f1d902edd06b6dbe3215399c985cc5510dd20cfa3410a8",
+      "published_at": "2026-08-24T07:04:28Z",
+      "data_plane": "2026.08.23",
+      "broker": "1.0.0-alpha.1",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.157",
+      "digest": "sha256:95de707a1f2be40b39136c8cb955af45e5adf654dbe921e81b1403ced6cef3fc",
+      "published_at": "2026-08-23T12:47:50Z",
+      "data_plane": "2026.08.20",
+      "broker": "1.0.0-alpha.1",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.156",
+      "digest": "sha256:86c682572d2743449a1621926beac97e60a3eb932d3a3a6039623389304deb2e",
+      "published_at": "2026-08-19T20:47:55Z",
+      "data_plane": "2026.08.19",
+      "broker": "1.0.0-alpha.1",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.155",
+      "digest": "sha256:6af3fc28608b3a8326a7d54a812d480a71d0474b457737091736b0afe849f1b7",
+      "published_at": "2026-08-18T21:09:10Z",
+      "data_plane": "2026.08.13.1",
+      "broker": "1.0.0-alpha.1",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.154",
+      "digest": "sha256:4d51de94d76aa501b67805e2cc6bd06032bec4b023ae2eed364cb79324b8dfc9",
+      "published_at": "2026-08-13T11:54:34Z",
+      "data_plane": "2026.08.13",
+      "broker": "0.7.0-beta.39",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.153",
+      "digest": "sha256:7ea5c9587309bb7fead939d7d63b6000f31800df86c5ee175fab8d6326c10970",
+      "published_at": "2026-08-12T16:23:05Z",
+      "data_plane": "2026.08.12.1",
+      "broker": "0.7.0-beta.39",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.152",
+      "digest": "sha256:a0733ea5ca6409a9a3c798fdc4962577e211ac7f815b68cc209549170e1aaf61",
+      "published_at": "2026-08-12T08:32:04Z",
+      "data_plane": "2026.08.12",
+      "broker": "0.7.0-beta.39",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.151",
+      "digest": "sha256:5ff6a62402b1a674c2a4484889c0409fa093f26bf4ad44dbf2fff6a1263b9aa8",
+      "published_at": "2026-08-10T13:29:37Z",
+      "data_plane": "2026.08.10",
+      "broker": "0.7.0-beta.39",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.150",
+      "digest": "sha256:6018483ada3571751ba4b31a062c0593e51759470e356080f538c2d4ab890ed5",
+      "published_at": "2026-08-10T11:54:57Z",
+      "data_plane": "2026.08.07.1",
+      "broker": "0.7.0-beta.39",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.149",
+      "digest": "sha256:0fd5dd7ed64559e41e6568a314fc895e23c5c18637c08bba06e9876f022e6389",
+      "published_at": "2026-08-07T11:38:30Z",
+      "data_plane": "2026.08.07",
+      "broker": "0.7.0-beta.39",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.148",
+      "digest": "sha256:ba4eb3e48047784e06e7ee5f2785992202d7779ec7980d5cffe3db224da55f0a",
+      "published_at": "2026-08-07T11:30:01Z",
+      "data_plane": "2026.08.05.4",
+      "broker": "0.7.0-beta.39",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.147",
+      "digest": "sha256:2883a2138245a7eece7fc4b862b0ab02c84470f7b10f4f53bdeabe34aa0d4a93",
+      "published_at": "2026-08-07T09:43:47Z",
+      "data_plane": "2026.08.05.4",
+      "broker": "0.7.0-beta.39",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.146",
+      "digest": "sha256:457825edaf187e2b9521f7b65f1a9152c8b1e90aec08c9a3d1d56f5b18adc7f4",
+      "published_at": "2026-08-05T07:06:34Z",
+      "data_plane": "2026.08.05.4",
+      "broker": "0.7.0-beta.36",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.145",
+      "digest": "sha256:6585ba46d78b8e9b918fec2352724dcc6d836d27adc4f8b4efe20361ab72574c",
+      "published_at": "2026-08-05T06:32:59Z",
+      "data_plane": "2026.08.04.4",
+      "broker": "0.7.0-beta.36",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.143",
+      "digest": "sha256:2900721e37a11b2181f7fb46708cc30e358eeb8acb5b77fedafed675a5384e09",
+      "published_at": "2026-08-04T22:11:51Z",
+      "data_plane": "2026.08.04.4",
+      "broker": "0.7.0-beta.36",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.142",
+      "digest": "sha256:c2b42bf5922c98d80c5225768cc78ee21ed73c25c68f43b65fd44ea503d57e7d",
+      "published_at": "2026-08-04T22:08:43Z",
+      "data_plane": "2026.08.04.4",
+      "broker": "0.7.0-beta.36",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.141",
+      "digest": "sha256:e89ee783c99825f36d13df6f93c0b2f0c0d218311bb20721f922d2d56e4c72d4",
+      "published_at": "2026-08-04T22:05:37Z",
+      "data_plane": "2026.08.04.4",
+      "broker": "0.7.0-beta.36",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.140",
+      "digest": "sha256:380e6eccc9eaa0899d07208cba4402677c3f0f95dac05c2b26f060033f9ba3c9",
+      "published_at": "2026-08-04T15:31:21Z",
+      "data_plane": "2026.08.04.4",
+      "broker": "0.7.0-beta.27",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.139",
+      "digest": "sha256:5231e118ecc84fbc2956de424dd1c4b23bd8e1d3ce1cc3de436fdb832eef77ea",
+      "published_at": "2026-08-04T10:56:59Z",
+      "data_plane": "2026.08.04.3",
+      "broker": "0.7.0-beta.27",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.138",
+      "digest": "sha256:9ebfc53881b6af26bd91490f8cd2d2770b7408ae4fd562a06619b7919ec1ea3b",
+      "published_at": "2026-08-04T08:30:22Z",
+      "data_plane": "2026.08.04.2",
+      "broker": "0.7.0-beta.27",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.137",
+      "digest": "sha256:f64a1b154826be722e2f6f2b24c5e24eaa0cde38679ec7bfc54e5fcaa1e50332",
+      "published_at": "2026-08-04T08:07:57Z",
+      "data_plane": "2026.08.01",
+      "broker": "0.7.0-beta.27",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.136",
+      "digest": "sha256:a286413299391d5c5e7f1f63fb74bad2ed1e2ae739b81080471e9474eaf9d906",
+      "published_at": "2026-08-04T07:54:58Z",
+      "data_plane": "2026.08.01",
+      "broker": "0.7.0-beta.27",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.135",
+      "digest": "sha256:f4405208f43ac9344abac3832544331d2cce5c4bcff75627711825f6c22ee885",
+      "published_at": "2026-08-01T11:56:20Z",
+      "data_plane": "2026.08.01",
+      "broker": "0.7.0-beta.27",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.134",
+      "digest": "sha256:86ea3cb672dfb8d8740492570ef9603febe61d1ceee5c3684ba87b653511212c",
+      "published_at": "2026-07-31T15:33:34Z",
+      "data_plane": "2026.07.31.1",
+      "broker": "0.7.0-beta.27",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.133",
+      "digest": "sha256:42095cdc83f8a0d4a57595991a83159e0e84f6eeab512dfaba728e6d276bd7e1",
+      "published_at": "2026-07-31T07:55:10Z",
+      "data_plane": "2026.07.31",
+      "broker": "0.7.0-beta.27",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.132",
+      "digest": "sha256:d8a26730c35571da44a2ffbe6011ea43108db37fd244277355267b5c236d7a06",
+      "published_at": "2026-07-30T12:22:08Z",
+      "data_plane": "2026.07.30.2",
+      "broker": "0.7.0-beta.27",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.130",
+      "digest": "sha256:e57732a533cd6777599997e78fe7acc11d11071663bd1b5f7a5848ce21e14451",
+      "published_at": "2026-07-30T11:10:11Z",
+      "data_plane": "2026.07.30.2",
+      "broker": "0.7.0-beta.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.129",
+      "digest": "sha256:8a8d25c2a9856efc027d394b21217fe7455777858323db0586a10ad995e865ba",
+      "published_at": "2026-07-30T09:47:28Z",
+      "data_plane": "2026.07.30.1",
+      "broker": "0.7.0-beta.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.128",
+      "digest": "sha256:2da8e1bc19587442b95fd45ce463afe803a7ed818993d16769d76471f62d52b9",
+      "published_at": "2026-07-30T09:05:46Z",
+      "data_plane": "2026.07.30",
+      "broker": "0.7.0-beta.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.127",
+      "digest": "sha256:f626770f0378df8b3ef599522dc941ba8d3cdd2255626ef445fff6ec2e080d49",
+      "published_at": "2026-07-30T08:13:16Z",
+      "data_plane": "2026.07.27.1",
+      "broker": "0.7.0-beta.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.126",
+      "digest": "sha256:0e009835eef1da1db939ab2036b477c0dd574db22381c577f92c13bd93ad4ea8",
+      "published_at": "2026-07-27T11:12:19Z",
+      "data_plane": "2026.07.27.1",
+      "broker": "0.7.0-beta.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.125",
+      "digest": "sha256:e2155857212e1d3c51903c39c9522c05de55b469bf2a35165173dc676d9be089",
+      "published_at": "2026-07-27T10:11:25Z",
+      "data_plane": "2026.07.27",
+      "broker": "0.7.0-beta.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.124",
+      "digest": "sha256:55e0108797be7352d744f38df0a3b8049e8ba8f5149c837a21b910075fabf13b",
+      "published_at": "2026-07-23T15:01:15Z",
+      "data_plane": "2026.07.23.1",
+      "broker": "0.7.0-beta.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.123",
+      "digest": "sha256:67509c5c0d0f17246317adc57717b7b87ec3b2eed72d00037d371065d56f52f8",
+      "published_at": "2026-07-23T09:23:54Z",
+      "data_plane": "2026.07.23",
+      "broker": "0.7.0-beta.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.122",
+      "digest": "sha256:149d8fe22088b5964745889d8eea3c4350b8466d636d486b4986b2213348c4c2",
+      "published_at": "2026-07-21T13:30:14Z",
+      "data_plane": "2026.07.21",
+      "broker": "0.7.0-beta.10",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.121",
+      "digest": "sha256:c36ba9400e258e61f5f2991760f9d0264cef4793b60bc4fc714dccd093fe6c84",
+      "published_at": "2026-07-18T06:36:22Z",
+      "data_plane": "2026.07.17",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.120",
+      "digest": "sha256:7c4afe836990c624cae40f6dc0defc103800a5befbf94009e7a7223bd536e83c",
+      "published_at": "2026-07-17T07:14:42Z",
+      "data_plane": "2026.07.16.2",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.119",
+      "digest": "sha256:88a72c56001aa87d29bf705e873e032338dfb576e64942c1ccac8687420e280b",
+      "published_at": "2026-07-16T20:26:27Z",
+      "data_plane": "2026.07.16.1",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.118",
+      "digest": "sha256:fdfbf0ebfec0aac75f12ee83bd5166b2e22d156b9eb200abffacb5eb56ba03e0",
+      "published_at": "2026-07-16T13:08:27Z",
+      "data_plane": "2026.07.16",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.117",
+      "digest": "sha256:0a924391a962bceaa819e338aea0afc0c333066a36defaaa0cd89cf9e6d80345",
+      "published_at": "2026-07-16T09:12:09Z",
+      "data_plane": "2026.07.15",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.116",
+      "digest": "sha256:7883b039a35a65d3fb5286dcb453974d44e0ee9ca5a252b618c8cf7adff4c6ca",
+      "published_at": "2026-07-15T09:41:02Z",
+      "data_plane": "2026.07.09",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.115",
+      "digest": "sha256:29cd88f978b26e4520ceda0f18164f63ee9372db50c8fa9362f0152edc24638e",
+      "published_at": "2026-07-09T08:45:07Z",
+      "data_plane": "2026.07.07.1",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.114",
+      "digest": "sha256:e9b3afee727b8bfb8b28ad1a8fc2d9aabd53f4da2e1d1d0b5225f2c54cb9e33e",
+      "published_at": "2026-07-06T12:34:27Z",
+      "data_plane": "2026.07.07",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.113",
+      "digest": "sha256:876b085752a8114597be641e27c81888a6854f858f5add1795ca61a8406ad8c5",
+      "published_at": "2026-07-06T09:12:08Z",
+      "data_plane": "2026.07.06",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.112",
+      "digest": "sha256:8271dca82cb74bb13304c86804ea14f090cd6144012d81a2fca568f917bc661c",
+      "published_at": "2026-07-03T08:39:33Z",
+      "data_plane": "2026.07.02.1",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.111",
+      "digest": "sha256:a7df40c524c71b4a856ab468c9e1981158513d14257ee5eccd56cb6da0803597",
+      "published_at": "2026-07-02T09:36:55Z",
+      "data_plane": "2026.07.02",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.4.0"
+    },
+    {
+      "version": "0.1.0-alpha.110",
+      "digest": "sha256:268d61313f19ff12e967f54ae01d4b4ae6ac071994ea97f6355f92238aa440fd",
+      "published_at": "2026-07-01T12:46:27Z",
+      "data_plane": "2026.07.01.6",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.109",
+      "digest": "sha256:a5c997c1f1c98fbf7c3742686972d2577ae419221daf0dd2336a02c0c6590181",
+      "published_at": "2026-07-01T11:58:24Z",
+      "data_plane": "2026.07.01.5",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.108",
+      "digest": "sha256:3abe827ff8eb2b9a073702ce42761cf75b2bf64011dbdd8cd2d00ad8245b2a7b",
+      "published_at": "2026-07-01T11:26:28Z",
+      "data_plane": "2026.07.01.4",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.107",
+      "digest": "sha256:6480f20d02be5a14274c8a4649a6b21d12d9197a244c575f1bc73fe27ed34690",
+      "published_at": "2026-07-01T08:31:20Z",
+      "data_plane": "2026.07.01.3",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.106",
+      "digest": "sha256:9fb92971f95b2a83f4eb4b5ebc1c842719dfc1f39328cea3604d4156e235da90",
+      "published_at": "2026-07-01T08:24:08Z",
+      "data_plane": "2026.07.01.2",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.105",
+      "digest": "sha256:fc1dd9739969bce69f5f6dbef98267635a502d9002580f3bd1255e958911b36c",
+      "published_at": "2026-07-01T08:06:39Z",
+      "data_plane": "2026.07.01.1",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.104",
+      "digest": "sha256:a7d62c059be2c6effb331a7e9f4ecd2c8aa377fd36206463577d7cba31ab0570",
+      "published_at": "2026-07-01T06:32:49Z",
+      "data_plane": "2026.07.01",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.103",
+      "digest": "sha256:26099540b2b3010e85941533878721bdf90d750704aa0db99a1c8579dd861066",
+      "published_at": "2026-06-30T07:45:32Z",
+      "data_plane": "2026.06.29",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.102",
+      "digest": "sha256:56ca8d456b207ad02d20342302f0f398bfbaae10e5cb616e4ed14b9232f6df59",
+      "published_at": "2026-06-26T14:28:01Z",
+      "data_plane": "2026.06.26",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.101",
+      "digest": "sha256:1793b72e09298dbb927cb55c6d09c870127e911df668b9aebbed24f53c4cd9f7",
+      "published_at": "2026-06-25T22:04:01Z",
+      "data_plane": "2026.06.25",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.100",
+      "digest": "sha256:b0344ed7b9b865954b2c5ffb1a27374909f6798fc8f8af18c5780ad6c1907822",
+      "published_at": "2026-06-25T07:50:25Z",
+      "data_plane": "2026.06.24.1",
+      "broker": "0.7.0-beta.6",
+      "kotatsu": "0.3.2",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.99",
+      "digest": "sha256:44f1739c4f9438163c9e4533b5d7db57417cc5ccd434122ef24cd2ad3ec70857",
+      "published_at": "2026-06-24T10:07:47Z",
+      "data_plane": "2026.06.24",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.98",
+      "digest": "sha256:3bcacb1f07f66bfc80b935db23c28512a4b48557255b37b065f3aa605d816c49",
+      "published_at": "2026-06-23T16:07:09Z",
+      "data_plane": "2026.06.23",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.97",
+      "digest": "sha256:a47ac6b7aef67146c8dbaf079c3a65d462647f624e50bd61feb82dfcf3afd8df",
+      "published_at": "2026-06-23T12:07:43Z",
+      "data_plane": "2026.06.23",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.96",
+      "digest": "sha256:d90219d8147b9f3310316ba02a81a59bc31fda5b61e74c2cd6ffe1485ca41095",
+      "published_at": "2026-06-22T12:24:45Z",
+      "data_plane": "2026.06.22.1",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.95",
+      "digest": "sha256:d1c280947a110c59cb53a7f4ad828beb401dbf3b076b21c7398f6805a7afcbc7",
+      "published_at": "2026-06-22T11:34:05Z",
+      "data_plane": "2026.06.22",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.94",
+      "digest": "sha256:7b5fdef15aa34274202bc288817101a83d20498d838b6f76bedfcd71a21021c0",
+      "published_at": "2026-06-21T11:48:02Z",
+      "data_plane": "2026.06.21",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.93",
+      "digest": "sha256:535cb66d5ee24046dab8171258043d07a449bf8619098d0e12aa8fc997b37f1e",
+      "published_at": "2026-06-19T08:53:04Z",
+      "data_plane": "2026.06.19",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.92",
+      "digest": "sha256:ff0860e7a5d4dfccb1906b263c3b8fcfe8458678193022e0427092cac3c21487",
+      "published_at": "2026-06-18T11:37:05Z",
+      "data_plane": "2026.06.18",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.91",
+      "digest": "sha256:40031c423f0e210dc711113c1f5771aef8b34585023b0e3c39707287fcb7fa2a",
+      "published_at": "2026-06-18T09:58:45Z",
+      "data_plane": "2026.06.17",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": "0.3.3"
+    },
+    {
+      "version": "0.1.0-alpha.90",
+      "digest": "sha256:0210c23d6a2d8cd1f5082f4867851012796ade1172c80fbc4f434f44416f95af",
+      "published_at": "2026-06-16T19:00:44Z",
+      "data_plane": "2026.06.16.5",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.89",
+      "digest": "sha256:781dbada9919af9c5e02eeace47389b82d47c04d91fae805276de1b1d06e1cc2",
+      "published_at": "2026-06-16T15:59:25Z",
+      "data_plane": "2026.06.16.4",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.88",
+      "digest": "sha256:bd741fcd854f64818e901970b9eee6918494cc4e0470bd641747ac137e8dc3df",
+      "published_at": "2026-06-16T11:22:51Z",
+      "data_plane": "2026.06.16.3",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.87",
+      "digest": "sha256:ffffa778d53c3a040d2ce769a4a720a18c0ce921f782c97ebe62df052a56044a",
+      "published_at": "2026-06-16T10:22:44Z",
+      "data_plane": "2026.06.16.2",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.86",
+      "digest": "sha256:c6dadc43d48d757606c7bf19afe227b6a961e6fff3280ce063db616a40426b14",
+      "published_at": "2026-06-16T08:59:22Z",
+      "data_plane": "2026.06.16.1",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.85",
+      "digest": "sha256:ec7ef0f45be173ca839990ec8140ad8bb4eb60e272abd40e0910fba668a5250e",
+      "published_at": "2026-06-16T08:31:06Z",
+      "data_plane": "2026.06.16",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.84",
+      "digest": "sha256:da7981205938bc35e325a5145fbde81424f89fa66a62bd53bef693e43b6b73ea",
+      "published_at": "2026-06-15T15:35:23Z",
+      "data_plane": "2026.06.15.2",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.83",
+      "digest": "sha256:087c10062b3b1b498841cc7fffbe0e5d200ed7d1b28c7495e58ee1c62824b6bd",
+      "published_at": "2026-06-15T13:32:50Z",
+      "data_plane": "2026.06.15.1",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.82",
+      "digest": "sha256:b3107f8e3c8047a70b169914b499b37ade5ee105ad0edcb4fb848c2e737b0d2a",
+      "published_at": "2026-06-15T07:55:07Z",
+      "data_plane": "2026.06.15",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.81",
+      "digest": "sha256:11693bac2786fa950aa4bdae51dfe9f9ddc4d68c6ff01f19eafd74bf2118e797",
+      "published_at": "2026-06-15T07:15:22Z",
+      "data_plane": "2026.06.12",
+      "broker": "0.6.2",
+      "kotatsu": "0.2.1",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.80",
+      "digest": "sha256:7c25386fdabd41b2ea6a8432698a45b6dbb128a8bcde6cccb00ece1341db9f05",
+      "published_at": "2026-06-11T22:13:13Z",
+      "data_plane": "2026.06.11.2",
+      "broker": "0.6.1",
+      "kotatsu": "0.2.0",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.79",
+      "digest": "sha256:2de0e62465d016fa938b6af0ddd9d5f3968f8224b19541fcc4390ef1db0ab6bb",
+      "published_at": "2026-06-11T21:21:55Z",
+      "data_plane": "2026.06.11.1",
+      "broker": "0.6.1",
+      "kotatsu": "0.2.0",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.78",
+      "digest": "sha256:0378420f451cb1aba9ac0c0fca37e28f3caa7f57c98e1035b7c12738493c60c2",
+      "published_at": "2026-06-11T18:56:35Z",
+      "data_plane": "2026.06.11",
+      "broker": "0.6.1",
+      "kotatsu": "0.2.0",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.77",
+      "digest": "sha256:341ec9f569b8ea0e4516fc99756fcd91fbf0ba1b725eb19d8930f98f50806857",
+      "published_at": "2026-06-11T16:24:19Z",
+      "data_plane": "2026.06.08.2",
+      "broker": "0.6.1",
+      "kotatsu": "0.2.0",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.76",
+      "digest": "sha256:7111b33a2591eeeae1bb2ea69980e8eac8abace60e9ac01a2654a92954a75a1d",
+      "published_at": "2026-06-11T09:06:54Z",
+      "data_plane": "2026.06.08.2",
+      "broker": "0.6.0",
+      "kotatsu": "0.2.0",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.75",
+      "digest": "sha256:9fcb7b4890da207df96f3f92d54924119d50e15757493d771930fb93289a5c39",
+      "published_at": "2026-06-09T08:18:56Z",
+      "data_plane": "2026.06.08.2",
+      "broker": "0.6.0",
+      "kotatsu": "0.2.0",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.74",
+      "digest": "sha256:0e5b2b4e15f55b5c6e43d7f11e1774271dff4c2ee47a531aa7dff89f94537a3e",
+      "published_at": "2026-06-09T07:41:19Z",
+      "data_plane": "2026.06.08.2",
+      "broker": "0.6.0",
+      "kotatsu": "0.1.0",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.73",
+      "digest": "sha256:be0461fecb563532d8b2c95cf7edcbce7b81f0868170c6577e64e40a2da74c6b",
+      "published_at": "2026-06-08T11:20:55Z",
+      "data_plane": "2026.06.08.1",
+      "broker": "0.6.0",
+      "kotatsu": "0.1.0",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.72",
+      "digest": "sha256:56824060c65158d299f40853906f415586621dca6e523b042584dcfd6a3ae98a",
+      "published_at": "2026-06-08T09:56:13Z",
+      "data_plane": "2026.06.08",
+      "broker": "0.6.0",
+      "kotatsu": "0.1.0",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.71",
+      "digest": "sha256:c010e27eebbb10a3a4a3b8eae9680d12208e8bd7dd1e2413a502ab3364f285ad",
+      "published_at": "2026-06-04T09:28:23Z",
+      "data_plane": "2026.06.04",
+      "broker": "0.6.0",
+      "kotatsu": "0.1.0",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.70",
+      "digest": "sha256:323f716b0f1978ab7bf6df199144d656e263e152a368efcbcc066487a557a2bd",
+      "published_at": "2026-06-03T14:38:03Z",
+      "data_plane": "2026.06.03",
+      "broker": "0.6.0",
+      "kotatsu": "0.1.0",
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.69",
+      "digest": "sha256:4076aaa76d784875e23381ee19872743c8f0ba06134fecf4791c704ca569de7c",
+      "published_at": "2026-06-02T20:15:08Z",
+      "data_plane": "2026.06.02.2",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.68",
+      "digest": "sha256:50a9fb3c3118829d08eac9e65997b71aa71d5deee2fc9dacc3378238aaef3ae6",
+      "published_at": "2026-06-02T15:07:52Z",
+      "data_plane": "2026.06.02.1",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.67",
+      "digest": "sha256:2bc50862ab27a342b0e7027cb0fcaf0604576d7d8f22f1b2930d3418dfec2add",
+      "published_at": "2026-06-02T12:45:25Z",
+      "data_plane": "2026.06.02",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.66",
+      "digest": "sha256:8d63e6f45da8708199bb4adae0c1a3a24762c4fa796222886e748ccb83224abe",
+      "published_at": "2026-06-01T14:23:14Z",
+      "data_plane": "2026.06.01",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.65",
+      "digest": "sha256:30ca81a2b64eeac30f8001f620af8cba5d3b91fb69e3ff8d180ceea1bf8af174",
+      "published_at": "2026-05-29T12:26:12Z",
+      "data_plane": "2026.05.29.1",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.64",
+      "digest": "sha256:6d0a821f0f15c16100b598ac1643d04b242bc656ccda5875888c8efb86af20c7",
+      "published_at": "2026-05-29T10:54:20Z",
+      "data_plane": "2026.05.29",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.63",
+      "digest": "sha256:377209b551c587d85ecc8418979b197cb1a3108e868e0edd05f8764f21908960",
+      "published_at": "2026-05-28T20:23:09Z",
+      "data_plane": "2026.05.28",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.62",
+      "digest": "sha256:7494f572eb230e51cff2f3de3a6d263234d6cc8bcabacd1444fe742acf35b235",
+      "published_at": "2026-05-19T16:08:09Z",
+      "data_plane": "2026.05.18",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.61",
+      "digest": "sha256:b0c8005f654748d76f562b319d591487e7e872b4279a587fb70675ab77a326a7",
+      "published_at": "2026-05-18T12:44:44Z",
+      "data_plane": "2026.05.18",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.60",
+      "digest": "sha256:64a3478d345598905bf181f1bd31fd3b416ed2c90886384b0d1d3111b258947c",
+      "published_at": "2026-05-13T16:18:36Z",
+      "data_plane": "2026.05.12",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.59",
+      "digest": "sha256:0fb20712e1f481968b160a0136eb0edfe27a271e694a67fbe923f480c4c193e2",
+      "published_at": "2026-05-06T15:27:22Z",
+      "data_plane": "2026.05.05",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.58",
+      "digest": "sha256:9dedbf3e1bb460afd8974e8fc693546ec88b4db90484b2e774e4b6d31c48b0de",
+      "published_at": "2026-05-05T13:18:23Z",
+      "data_plane": "2026.05.05",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.57",
+      "digest": "sha256:7d6561d542484fe91b3d91a4a28094f39628dfbd86ebd555394e0cd868ba7952",
+      "published_at": "2026-05-04T19:28:41Z",
+      "data_plane": "2026.05.04.1",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.56",
+      "digest": "sha256:2d9d37a3a7b3b57af5a0937ab4118f13703fed4720b4ea32df1a60deda671274",
+      "published_at": "2026-05-04T13:55:15Z",
+      "data_plane": "2026.05.04",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.55",
+      "digest": "sha256:43392896212fc8541b374580894f2473429919e768960e1d606a8b8c604fe78f",
+      "published_at": "2026-04-29T08:39:25Z",
+      "data_plane": "2026.04.28",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.54",
+      "digest": "sha256:d5f2e7e42a93f4cf20b612e1930527641be0e58624702449a9670cedbb270c1a",
+      "published_at": "2026-04-28T07:18:02Z",
+      "data_plane": "2026.04.27.1",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.53",
+      "digest": "sha256:5a41386b1c3b368fe7af8f100542aa14ee868c4d4be876494ceb52ddb5c2477e",
+      "published_at": "2026-04-27T10:53:19Z",
+      "data_plane": "2026.04.27",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.52",
+      "digest": "sha256:b5a31fbce3b73b1a5107a76165581cb9e912bf969c30a039aeee6771cf5bdef8",
+      "published_at": "2026-04-27T07:08:13Z",
+      "data_plane": "2026.04.24.2",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.51",
+      "digest": "sha256:29f0b45cbe9299840d90b2f6392e41db055f36dbe485996ed3e86361abb79511",
+      "published_at": "2026-04-24T13:05:45Z",
+      "data_plane": "2026.04.24.1",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.50",
+      "digest": "sha256:54b0ef306fb04f40433bbeb3be1881b7e140d9e18b635cfde8a87205a49e5ea8",
+      "published_at": "2026-04-24T09:33:06Z",
+      "data_plane": "2026.04.24",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.49",
+      "digest": "sha256:8a6913be0a455f873c7d41a6d8787056ae92a55aada6c7f4d8d7016062d29d14",
+      "published_at": "2026-04-23T19:10:14Z",
+      "data_plane": "2026.04.23.2",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.48",
+      "digest": "sha256:96b633b6997cef2d2192daefd2553943411c7e0e2bcdca610a45e3a8b82199a7",
+      "published_at": "2026-04-23T13:57:42Z",
+      "data_plane": "2026.04.23.2",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.47",
+      "digest": "sha256:d8cbd292e147940b750d67d35a528d5116681f6edd609851293de0d91c9aaf74",
+      "published_at": "2026-04-23T11:05:29Z",
+      "data_plane": "2026.04.23.1",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.46",
+      "digest": "sha256:d8e495605d9705191b51c6dc4f8a75c08d3f96acff90b01c997cb9009f4b6e23",
+      "published_at": "2026-04-23T07:19:28Z",
+      "data_plane": "2026.04.23",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.45",
+      "digest": "sha256:177d4a4a85ed02df7cd8b92377e984297cda14477d91e0022116059fa5b81acd",
+      "published_at": "2026-04-22T08:38:27Z",
+      "data_plane": "2026.04.22",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.44",
+      "digest": "sha256:9a2c079767a0c7d59ad02738ff75d3f058a83147f98ba31050d93255c4649613",
+      "published_at": "2026-04-17T15:26:22Z",
+      "data_plane": "2026.04.17.2",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.43",
+      "digest": "sha256:6919faa32e9413f19e537fcb541590a79501c04457470b72a7e59c5246e658cc",
+      "published_at": "2026-04-17T14:24:18Z",
+      "data_plane": "2026.04.17.1",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.42",
+      "digest": "sha256:d0e9d9d5fd4ecd4d7f911d4276796a404698f97e1e3f11f1f24bc2f56def3369",
+      "published_at": "2026-04-17T12:36:40Z",
+      "data_plane": "2026.04.17",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.41",
+      "digest": "sha256:42490a78687a41f4d7a6c2db928ae339fcd6a22fae842c91e722d8bb5b839fbc",
+      "published_at": "2026-04-16T10:58:09Z",
+      "data_plane": "2026.04.16.1",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.40",
+      "digest": "sha256:b3deaf1c896844d727b70e39a2a8096c6ebb37e6c1e7e5c1a51daee1b60d234e",
+      "published_at": "2026-04-16T09:53:01Z",
+      "data_plane": "2026.04.16",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.39",
+      "digest": "sha256:eca0bdcce533b621fbee615a6f755c229a404b10ba47d19faca4e13561f55725",
+      "published_at": "2026-04-15T16:08:54Z",
+      "data_plane": "2026.04.15.1",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.38",
+      "digest": "sha256:fdf209d216de164bf28bca473614d6b182a0ce3d52c66e049927f616eec1c870",
+      "published_at": "2026-04-15T14:58:23Z",
+      "data_plane": "2026.04.15.1",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.37",
+      "digest": "sha256:4f9b1d491850069eff2b3ca61065aeb32c13426cd8826e0cf219dea466048d1b",
+      "published_at": "2026-04-15T12:41:09Z",
+      "data_plane": "2026.04.15",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.36",
+      "digest": "sha256:4babd18a895addc2d3acdebcddc15e832e8e3e557cf94df0b45652c1fa29a83f",
+      "published_at": "2026-04-14T14:15:29Z",
+      "data_plane": "2026.04.08",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.35",
+      "digest": "sha256:a41563268b63931b6f8c6ab2f1b4a9f7940ef9e577c471240bc4abc5be1561a5",
+      "published_at": "2026-04-14T12:31:51Z",
+      "data_plane": "2026.04.08",
+      "broker": "0.6.0",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.34",
+      "digest": "sha256:04f4bcdefe816c5b3b8c4b2f80e8c6f1d819b79b7a2f595b922114afa6344f6e",
+      "published_at": "2026-04-14T12:18:23Z",
+      "data_plane": "2026.04.08",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.33",
+      "digest": "sha256:031436eddb49156ad989a1c6d43e43f5cf3c3680a4aad0586d1478d20eb7d2ff",
+      "published_at": "2026-04-14T10:22:38Z",
+      "data_plane": "2026.04.08",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.32",
+      "digest": "sha256:40878df1906612f350f9e2a49c0d0fa40d817f0d51e9b5ed199393eb8813b931",
+      "published_at": "2026-04-14T08:56:51Z",
+      "data_plane": "2026.04.08",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.31",
+      "digest": "sha256:7c9ac42686a3c07cbdb882f243c9050b22a3990aa5c272f63015a255363e419e",
+      "published_at": "2026-04-13T16:15:50Z",
+      "data_plane": "2026.04.08",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.30",
+      "digest": "sha256:166cc46e86b169e6539a281ba73c718f86af5a4ef74c708f1ff91da72ffb9752",
+      "published_at": "2026-04-10T19:53:33Z",
+      "data_plane": "2026.04.08",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.28",
+      "digest": "sha256:d2e32d7ef0adcb4f2e3a09dea177b0aba661da3831549cc2c3ee50ff2c879684",
+      "published_at": "2026-04-10T15:28:53Z",
+      "data_plane": "2026.04.08",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.27",
+      "digest": "sha256:aa0f097a64de0e8c7319bdf1c7644d7af1c7356df6b386cfd6dd30ebfd0ca071",
+      "published_at": "2026-04-10T14:34:58Z",
+      "data_plane": "2026.04.08",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.26",
+      "digest": "sha256:b4712e4ae2247ebd1df9ff0b5049deecd0a6ce6724ad146f818c925dc8f14f74",
+      "published_at": "2026-04-10T12:49:04Z",
+      "data_plane": "2026.04.08",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.25",
+      "digest": "sha256:a8b7f4f04587662aeb3ca15f67f5f50186a0425214c028fb445fa31d70e861cd",
+      "published_at": "2026-04-09T08:24:11Z",
+      "data_plane": "2026.04.08",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.24",
+      "digest": "sha256:bc8897190304fa03d7392c6fcbb1d8ea3fc6b6e378eb5fd15120db1b11c044e3",
+      "published_at": "2026-04-07T09:25:32Z",
+      "data_plane": "2026.04.07",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.23",
+      "digest": "sha256:9d839139dfab5e6d07639b731a44704ebf8a4d9a058264ecd9fcf1f9514361d5",
+      "published_at": "2026-04-01T10:04:36Z",
+      "data_plane": "2026.04.01.1",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.22",
+      "digest": "sha256:7bdc00a2375d6dd9d4dc1133b2e739c280f265d11733098b56d9133fb40853aa",
+      "published_at": "2026-04-01T09:52:16Z",
+      "data_plane": "2026.04.01",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.21",
+      "digest": "sha256:387867b664a5c31056cb7cd92e162bfcb1951f68e103c8355284e8559e4135c6",
+      "published_at": "2026-03-30T15:50:29Z",
+      "data_plane": "2026.03.30.1",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.20",
+      "digest": "sha256:77417a7d6497893119854ca6ebf7e83961015b33b0aa6b14b31fd8a095b7be9a",
+      "published_at": "2026-03-30T09:08:03Z",
+      "data_plane": "2026.03.26",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.19",
+      "digest": "sha256:990b76e1301686ea5522496e40bb72ff5e9ed85f28a7f6109bad23b7ac7fa9bb",
+      "published_at": "2026-03-27T14:02:50Z",
+      "data_plane": "2026.03.26",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.18",
+      "digest": "sha256:f98f19351aacc6ba4eb282f2f24d7f800b8117ac6c0f44291c6105e099d19f52",
+      "published_at": "2026-03-24T12:26:23Z",
+      "data_plane": "2026.03.09",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.17",
+      "digest": "sha256:e04dcc35098dc1cd040a4b94889dc761fbba892abc20494604459a15279259a5",
+      "published_at": "2026-03-05T15:01:14Z",
+      "data_plane": "2026.03.05",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.16",
+      "digest": "sha256:dbb92576c28dc6720537063c6ac29e9285442961cef340728bc64660b4add4c4",
+      "published_at": "2026-03-03T10:10:30Z",
+      "data_plane": "2026.02.27",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.15",
+      "digest": "sha256:fee66f115349d042ff10984aa943c6e43631a1bd4076da18f245b711512a1798",
+      "published_at": "2026-02-27T14:28:33Z",
+      "data_plane": "2026.02.25",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.14",
+      "digest": "sha256:7592072792c9612c9d639887f03b3801f11e933fde40c46b506ab94a811fb686",
+      "published_at": "2026-02-25T14:37:15Z",
+      "data_plane": "2026.02.25",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.13",
+      "digest": "sha256:abbe0883d2d3bf012912ddcc496bc9ab8a36851e09577ee6693a0eefc0fda7b8",
+      "published_at": "2026-02-25T10:14:31Z",
+      "data_plane": "2026.02.17",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.12",
+      "digest": "sha256:bbe1852a833789951c65d88f4627f3e2596283e0ce0b333482473b725fc977f2",
+      "published_at": "2026-02-18T10:41:33Z",
+      "data_plane": "2026.02.17",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.11",
+      "digest": "sha256:a4f9d5781bcca74903643f8595636a71e6a57c71459a8fdb06e66194e5d20901",
+      "published_at": "2026-02-17T15:51:19Z",
+      "data_plane": "2026.02.17",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.10",
+      "digest": "sha256:7aa8b7b9967461516cef080a54298e81e3fbde2965362cc20c1690c4345cb23e",
+      "published_at": "2026-02-09T11:16:09Z",
+      "data_plane": "2026.02.09",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.9",
+      "digest": "sha256:7765434ee71f1e2f388e510b1b590aca464e1c4ab1f8d145089451db6c4ea4e5",
+      "published_at": "2026-02-09T10:38:25Z",
+      "data_plane": "2026.02.09",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.8",
+      "digest": "sha256:86bf47ea0f9bf16f06fb7452831ead2e0c8c7d33abf76f77605d9acf8e9c3a89",
+      "published_at": "2026-02-03T17:32:15Z",
+      "data_plane": "2026.01.30.1",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.7",
+      "digest": "sha256:d5fbf1b3043c645feae6708f8d94a614bd25e3968c029bf58406a460bc4bb880",
+      "published_at": "2026-02-03T14:08:59Z",
+      "data_plane": "2026.01.30.1",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.6",
+      "digest": "sha256:e21132b0d96c3ffee679138c75dbf5a17127a53bf526889508f31f75491f11ce",
+      "published_at": "2026-02-03T09:00:30Z",
+      "data_plane": "2026.01.30.1",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.5",
+      "digest": "sha256:b7bec7f060d8d425165dd4a2bfb56c86d28777b5b8b155eba1b15ed4dfeb744d",
+      "published_at": "2026-02-02T14:37:33Z",
+      "data_plane": "2026.01.30.1",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.4",
+      "digest": "sha256:2859b622ea9e44f17041758e4fcb8b348b71a14c70667f772e579021332324ae",
+      "published_at": "2026-01-30T15:47:24Z",
+      "data_plane": "2026.01.30.1",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.3",
+      "digest": "sha256:06b4041e4f7c5de7b095df019ddb0467929c2fb74a79237a3d87ab7fe2f8dc65",
+      "published_at": "2026-01-30T12:42:59Z",
+      "data_plane": "2026.01.30",
+      "broker": "0.5.11",
+      "kotatsu": null,
+      "kora": null
+    },
+    {
+      "version": "0.1.0-alpha.2",
+      "digest": "sha256:ba2748a1b4efa4f730cee697af13a90e79ea82e3977bccaf112833491a588896",
+      "published_at": "2026-01-27T13:18:53Z",
+      "data_plane": "2026.01.26",
+      "broker": "0.5.10",
+      "kotatsu": null,
+      "kora": null
+    }
+  ]
+}

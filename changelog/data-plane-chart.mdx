@@ -1,0 +1,231 @@
+---
+title: "Data plane chart releases"
+description: "Every published version of the data-plane Helm chart, when it was published, and which component versions it ships."
+sidebarTitle: "Chart releases"
+mode: "wide"
+---
+
+Every version of the `oci://ghcr.io/popsink/charts/data-plane` Helm chart,
+newest first, with the component versions each one installs. The table is
+regenerated daily from the registry itself, so a version appears here as soon
+as it is published.
+
+<Warning>
+This page is a history, not an upgrade target. The version a deployment should
+run is the one the control plane reports for it — see
+[Which version to run](/deployment/operate/upgrades#which-version-to-run).
+</Warning>
+
+- **Data plane**, **Broker (Tansu)** and **Kotatsu** are the image tags the
+  chart's `values.yaml` sets by default (`image.tag`, `tansu.image.tag`,
+  `kotatsu.image.tag`). **Kora chart** is the version of the bundled Kora
+  sub-chart.
+- A tag in **bold** changed since the previous chart version. Before moving the
+  broker tag on an existing bucket, read the upgrade notes on `tansu.image.tag`
+  in the chart's `values.yaml` — see [Upgrades](/deployment/operate/upgrades#kubernetes).
+- A chart version links to its release notes, the list of changes it
+  shipped. Notes are published weekly, so the newest versions may not have a
+  link yet.
+
+## Versions
+
+{/* CHART_RELEASES_TABLE:START */}
+| Chart | Published | Data plane | Broker (Tansu) | Kotatsu | Kora chart |
+| --- | --- | --- | --- | --- | --- |
+| `0.1.0-alpha.195` | 2026-09-30 | **2026.09.30** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| `0.1.0-alpha.194` | 2026-09-29 | **2026.09.29** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| `0.1.0-alpha.193` | 2026-09-28 | 2026.09.28.1 | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| `0.1.0-alpha.192` | 2026-09-28 | **2026.09.28.1** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| `0.1.0-alpha.191` | 2026-09-28 | **2026.09.28** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| [`0.1.0-alpha.190`](/changelog/data-plane/alpha-190) | 2026-09-25 | **2026.09.25.3** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| [`0.1.0-alpha.189`](/changelog/data-plane/alpha-189) | 2026-09-25 | **2026.09.25.2** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| [`0.1.0-alpha.188`](/changelog/data-plane/alpha-188) | 2026-09-25 | **2026.09.25.1** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| [`0.1.0-alpha.187`](/changelog/data-plane/alpha-187) | 2026-09-24 | **2026.09.25** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| [`0.1.0-alpha.186`](/changelog/data-plane/alpha-186) | 2026-09-24 | **2026.09.24.1** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| [`0.1.0-alpha.185`](/changelog/data-plane/alpha-185) | 2026-09-23 | **2026.09.23.2** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| [`0.1.0-alpha.183`](/changelog/data-plane/alpha-183) | 2026-09-23 | **2026.09.23** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| [`0.1.0-alpha.182`](/changelog/data-plane/alpha-182) | 2026-09-23 | **2026.09.22.1** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| [`0.1.0-alpha.181`](/changelog/data-plane/alpha-181) | 2026-09-22 | **2026.09.22** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| [`0.1.0-alpha.180`](/changelog/data-plane/alpha-180) | 2026-09-21 | **2026.09.21.1** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| [`0.1.0-alpha.179`](/changelog/data-plane/alpha-179) | 2026-09-21 | **2026.09.21** | 1.0.0-alpha.20 | 0.11.0 | 0.5.0 |
+| [`0.1.0-alpha.178`](/changelog/data-plane/alpha-178) | 2026-09-15 | 2026.09.14 | **1.0.0-alpha.20** | **0.11.0** | **0.5.0** |
+| [`0.1.0-alpha.177`](/changelog/data-plane/alpha-177) | 2026-09-15 | **2026.09.14** | 1.0.0-alpha.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.176`](/changelog/data-plane/alpha-176) | 2026-09-11 | **2026.09.11** | 1.0.0-alpha.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.175`](/changelog/data-plane/alpha-175) | 2026-09-10 | **2026.09.09** | 1.0.0-alpha.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.174`](/changelog/data-plane/alpha-174) | 2026-09-09 | **2026.09.08.1** | 1.0.0-alpha.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.173`](/changelog/data-plane/alpha-173) | 2026-09-08 | **2026.09.08** | 1.0.0-alpha.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.172`](/changelog/data-plane/alpha-172) | 2026-09-07 | **2026.09.07** | 1.0.0-alpha.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.171`](/changelog/data-plane/alpha-171) | 2026-09-07 | **2026.09.06** | 1.0.0-alpha.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.170`](/changelog/data-plane/alpha-170) | 2026-09-03 | **2026.09.03** | 1.0.0-alpha.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.169`](/changelog/data-plane/alpha-169) | 2026-09-03 | **2026.09.02.1** | 1.0.0-alpha.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.168`](/changelog/data-plane/alpha-168) | 2026-09-02 | **2026.09.02** | 1.0.0-alpha.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.167`](/changelog/data-plane/alpha-167) | 2026-09-01 | **2026.09.01** | 1.0.0-alpha.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.166`](/changelog/data-plane/alpha-166) | 2026-08-31 | 2026.08.31.1 | **1.0.0-alpha.10** | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.165`](/changelog/data-plane/alpha-165) | 2026-08-31 | **2026.08.31.1** | 1.0.0-alpha.1 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.164`](/changelog/data-plane/alpha-164) | 2026-08-31 | 2026.08.28 | 1.0.0-alpha.1 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.163`](/changelog/data-plane/alpha-163) | 2026-08-30 | **2026.08.28** | 1.0.0-alpha.1 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.162`](/changelog/data-plane/alpha-162) | 2026-08-28 | **2026.08.27** | 1.0.0-alpha.1 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.161`](/changelog/data-plane/alpha-161) | 2026-08-26 | **2026.08.26** | 1.0.0-alpha.1 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.160`](/changelog/data-plane/alpha-160) | 2026-08-24 | **2026.08.24.1** | 1.0.0-alpha.1 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.159`](/changelog/data-plane/alpha-159) | 2026-08-24 | **2026.08.24** | 1.0.0-alpha.1 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.158`](/changelog/data-plane/alpha-158) | 2026-08-24 | **2026.08.23** | 1.0.0-alpha.1 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.157`](/changelog/data-plane/alpha-157) | 2026-08-23 | **2026.08.20** | 1.0.0-alpha.1 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.156`](/changelog/data-plane/alpha-156) | 2026-08-19 | **2026.08.19** | 1.0.0-alpha.1 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.155`](/changelog/data-plane/alpha-155) | 2026-08-18 | **2026.08.13.1** | **1.0.0-alpha.1** | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.154`](/changelog/data-plane/alpha-154) | 2026-08-13 | **2026.08.13** | 0.7.0-beta.39 | 0.3.2 | 0.4.0 |
+| `0.1.0-alpha.153` | 2026-08-12 | **2026.08.12.1** | 0.7.0-beta.39 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.152`](/changelog/data-plane/alpha-152) | 2026-08-12 | **2026.08.12** | 0.7.0-beta.39 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.151`](/changelog/data-plane/alpha-151) | 2026-08-10 | **2026.08.10** | 0.7.0-beta.39 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.150`](/changelog/data-plane/alpha-150) | 2026-08-10 | **2026.08.07.1** | 0.7.0-beta.39 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.149`](/changelog/data-plane/alpha-149) | 2026-08-07 | **2026.08.07** | 0.7.0-beta.39 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.148`](/changelog/data-plane/alpha-148) | 2026-08-07 | 2026.08.05.4 | 0.7.0-beta.39 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.147`](/changelog/data-plane/alpha-147) | 2026-08-07 | 2026.08.05.4 | **0.7.0-beta.39** | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.146`](/changelog/data-plane/alpha-146) | 2026-08-05 | **2026.08.05.4** | 0.7.0-beta.36 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.145`](/changelog/data-plane/alpha-145) | 2026-08-05 | 2026.08.04.4 | 0.7.0-beta.36 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.143`](/changelog/data-plane/alpha-143) | 2026-08-04 | 2026.08.04.4 | 0.7.0-beta.36 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.142`](/changelog/data-plane/alpha-142) | 2026-08-04 | 2026.08.04.4 | 0.7.0-beta.36 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.141`](/changelog/data-plane/alpha-141) | 2026-08-04 | 2026.08.04.4 | **0.7.0-beta.36** | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.140`](/changelog/data-plane/alpha-140) | 2026-08-04 | **2026.08.04.4** | 0.7.0-beta.27 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.139`](/changelog/data-plane/alpha-139) | 2026-08-04 | **2026.08.04.3** | 0.7.0-beta.27 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.138`](/changelog/data-plane/alpha-138) | 2026-08-04 | **2026.08.04.2** | 0.7.0-beta.27 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.137`](/changelog/data-plane/alpha-137) | 2026-08-04 | 2026.08.01 | 0.7.0-beta.27 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.136`](/changelog/data-plane/alpha-136) | 2026-08-04 | 2026.08.01 | 0.7.0-beta.27 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.135`](/changelog/data-plane/alpha-135) | 2026-08-01 | **2026.08.01** | 0.7.0-beta.27 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.134`](/changelog/data-plane/alpha-134) | 2026-07-31 | **2026.07.31.1** | 0.7.0-beta.27 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.133`](/changelog/data-plane/alpha-133) | 2026-07-31 | **2026.07.31** | 0.7.0-beta.27 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.132`](/changelog/data-plane/alpha-132) | 2026-07-30 | 2026.07.30.2 | **0.7.0-beta.27** | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.130`](/changelog/data-plane/alpha-130) | 2026-07-30 | **2026.07.30.2** | 0.7.0-beta.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.129`](/changelog/data-plane/alpha-129) | 2026-07-30 | **2026.07.30.1** | 0.7.0-beta.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.128`](/changelog/data-plane/alpha-128) | 2026-07-30 | **2026.07.30** | 0.7.0-beta.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.127`](/changelog/data-plane/alpha-127) | 2026-07-30 | 2026.07.27.1 | 0.7.0-beta.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.126`](/changelog/data-plane/alpha-126) | 2026-07-27 | **2026.07.27.1** | 0.7.0-beta.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.125`](/changelog/data-plane/alpha-125) | 2026-07-27 | **2026.07.27** | 0.7.0-beta.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.124`](/changelog/data-plane/alpha-124) | 2026-07-23 | **2026.07.23.1** | 0.7.0-beta.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.123`](/changelog/data-plane/alpha-123) | 2026-07-23 | **2026.07.23** | 0.7.0-beta.10 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.122`](/changelog/data-plane/alpha-122) | 2026-07-21 | **2026.07.21** | **0.7.0-beta.10** | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.121`](/changelog/data-plane/alpha-121) | 2026-07-18 | **2026.07.17** | 0.7.0-beta.6 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.120`](/changelog/data-plane/alpha-120) | 2026-07-17 | **2026.07.16.2** | 0.7.0-beta.6 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.119`](/changelog/data-plane/alpha-119) | 2026-07-16 | **2026.07.16.1** | 0.7.0-beta.6 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.118`](/changelog/data-plane/alpha-118) | 2026-07-16 | **2026.07.16** | 0.7.0-beta.6 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.117`](/changelog/data-plane/alpha-117) | 2026-07-16 | **2026.07.15** | 0.7.0-beta.6 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.116`](/changelog/data-plane/alpha-116) | 2026-07-15 | **2026.07.09** | 0.7.0-beta.6 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.115`](/changelog/data-plane/alpha-115) | 2026-07-09 | **2026.07.07.1** | 0.7.0-beta.6 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.114`](/changelog/data-plane/alpha-114) | 2026-07-06 | **2026.07.07** | 0.7.0-beta.6 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.113`](/changelog/data-plane/alpha-113) | 2026-07-06 | **2026.07.06** | 0.7.0-beta.6 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.112`](/changelog/data-plane/alpha-112) | 2026-07-03 | **2026.07.02.1** | 0.7.0-beta.6 | 0.3.2 | 0.4.0 |
+| [`0.1.0-alpha.111`](/changelog/data-plane/alpha-111) | 2026-07-02 | **2026.07.02** | 0.7.0-beta.6 | 0.3.2 | **0.4.0** |
+| [`0.1.0-alpha.110`](/changelog/data-plane/alpha-110) | 2026-07-01 | **2026.07.01.6** | 0.7.0-beta.6 | 0.3.2 | 0.3.3 |
+| [`0.1.0-alpha.109`](/changelog/data-plane/alpha-109) | 2026-07-01 | **2026.07.01.5** | 0.7.0-beta.6 | 0.3.2 | 0.3.3 |
+| [`0.1.0-alpha.108`](/changelog/data-plane/alpha-108) | 2026-07-01 | **2026.07.01.4** | 0.7.0-beta.6 | 0.3.2 | 0.3.3 |
+| [`0.1.0-alpha.107`](/changelog/data-plane/alpha-107) | 2026-07-01 | **2026.07.01.3** | 0.7.0-beta.6 | 0.3.2 | 0.3.3 |
+| [`0.1.0-alpha.106`](/changelog/data-plane/alpha-106) | 2026-07-01 | **2026.07.01.2** | 0.7.0-beta.6 | 0.3.2 | 0.3.3 |
+| [`0.1.0-alpha.105`](/changelog/data-plane/alpha-105) | 2026-07-01 | **2026.07.01.1** | 0.7.0-beta.6 | 0.3.2 | 0.3.3 |
+| [`0.1.0-alpha.104`](/changelog/data-plane/alpha-104) | 2026-07-01 | **2026.07.01** | 0.7.0-beta.6 | 0.3.2 | 0.3.3 |
+| [`0.1.0-alpha.103`](/changelog/data-plane/alpha-103) | 2026-06-30 | **2026.06.29** | 0.7.0-beta.6 | 0.3.2 | 0.3.3 |
+| [`0.1.0-alpha.102`](/changelog/data-plane/alpha-102) | 2026-06-26 | **2026.06.26** | 0.7.0-beta.6 | 0.3.2 | 0.3.3 |
+| [`0.1.0-alpha.101`](/changelog/data-plane/alpha-101) | 2026-06-25 | **2026.06.25** | 0.7.0-beta.6 | 0.3.2 | 0.3.3 |
+| [`0.1.0-alpha.100`](/changelog/data-plane/alpha-100) | 2026-06-25 | **2026.06.24.1** | **0.7.0-beta.6** | **0.3.2** | 0.3.3 |
+| [`0.1.0-alpha.99`](/changelog/data-plane/alpha-99) | 2026-06-24 | **2026.06.24** | 0.6.2 | 0.2.1 | 0.3.3 |
+| [`0.1.0-alpha.98`](/changelog/data-plane/alpha-98) | 2026-06-23 | 2026.06.23 | 0.6.2 | 0.2.1 | 0.3.3 |
+| [`0.1.0-alpha.97`](/changelog/data-plane/alpha-97) | 2026-06-23 | **2026.06.23** | 0.6.2 | 0.2.1 | 0.3.3 |
+| [`0.1.0-alpha.96`](/changelog/data-plane/alpha-96) | 2026-06-22 | **2026.06.22.1** | 0.6.2 | 0.2.1 | 0.3.3 |
+| [`0.1.0-alpha.95`](/changelog/data-plane/alpha-95) | 2026-06-22 | **2026.06.22** | 0.6.2 | 0.2.1 | 0.3.3 |
+| [`0.1.0-alpha.94`](/changelog/data-plane/alpha-94) | 2026-06-21 | **2026.06.21** | 0.6.2 | 0.2.1 | 0.3.3 |
+| [`0.1.0-alpha.93`](/changelog/data-plane/alpha-93) | 2026-06-19 | **2026.06.19** | 0.6.2 | 0.2.1 | 0.3.3 |
+| [`0.1.0-alpha.92`](/changelog/data-plane/alpha-92) | 2026-06-18 | **2026.06.18** | 0.6.2 | 0.2.1 | 0.3.3 |
+| [`0.1.0-alpha.91`](/changelog/data-plane/alpha-91) | 2026-06-18 | **2026.06.17** | 0.6.2 | 0.2.1 | **0.3.3** |
+| [`0.1.0-alpha.90`](/changelog/data-plane/alpha-90) | 2026-06-16 | **2026.06.16.5** | 0.6.2 | 0.2.1 | — |
+| [`0.1.0-alpha.89`](/changelog/data-plane/alpha-89) | 2026-06-16 | **2026.06.16.4** | 0.6.2 | 0.2.1 | — |
+| [`0.1.0-alpha.88`](/changelog/data-plane/alpha-88) | 2026-06-16 | **2026.06.16.3** | 0.6.2 | 0.2.1 | — |
+| [`0.1.0-alpha.87`](/changelog/data-plane/alpha-87) | 2026-06-16 | **2026.06.16.2** | 0.6.2 | 0.2.1 | — |
+| [`0.1.0-alpha.86`](/changelog/data-plane/alpha-86) | 2026-06-16 | **2026.06.16.1** | 0.6.2 | 0.2.1 | — |
+| [`0.1.0-alpha.85`](/changelog/data-plane/alpha-85) | 2026-06-16 | **2026.06.16** | 0.6.2 | 0.2.1 | — |
+| [`0.1.0-alpha.84`](/changelog/data-plane/alpha-84) | 2026-06-15 | **2026.06.15.2** | 0.6.2 | 0.2.1 | — |
+| [`0.1.0-alpha.83`](/changelog/data-plane/alpha-83) | 2026-06-15 | **2026.06.15.1** | 0.6.2 | 0.2.1 | — |
+| [`0.1.0-alpha.82`](/changelog/data-plane/alpha-82) | 2026-06-15 | **2026.06.15** | 0.6.2 | 0.2.1 | — |
+| [`0.1.0-alpha.81`](/changelog/data-plane/alpha-81) | 2026-06-15 | **2026.06.12** | **0.6.2** | **0.2.1** | — |
+| [`0.1.0-alpha.80`](/changelog/data-plane/alpha-80) | 2026-06-11 | **2026.06.11.2** | 0.6.1 | 0.2.0 | — |
+| [`0.1.0-alpha.79`](/changelog/data-plane/alpha-79) | 2026-06-11 | **2026.06.11.1** | 0.6.1 | 0.2.0 | — |
+| [`0.1.0-alpha.78`](/changelog/data-plane/alpha-78) | 2026-06-11 | **2026.06.11** | 0.6.1 | 0.2.0 | — |
+| [`0.1.0-alpha.77`](/changelog/data-plane/alpha-77) | 2026-06-11 | 2026.06.08.2 | **0.6.1** | 0.2.0 | — |
+| [`0.1.0-alpha.76`](/changelog/data-plane/alpha-76) | 2026-06-11 | 2026.06.08.2 | 0.6.0 | 0.2.0 | — |
+| [`0.1.0-alpha.75`](/changelog/data-plane/alpha-75) | 2026-06-09 | 2026.06.08.2 | 0.6.0 | **0.2.0** | — |
+| [`0.1.0-alpha.74`](/changelog/data-plane/alpha-74) | 2026-06-09 | **2026.06.08.2** | 0.6.0 | 0.1.0 | — |
+| [`0.1.0-alpha.73`](/changelog/data-plane/alpha-73) | 2026-06-08 | **2026.06.08.1** | 0.6.0 | 0.1.0 | — |
+| [`0.1.0-alpha.72`](/changelog/data-plane/alpha-72) | 2026-06-08 | **2026.06.08** | 0.6.0 | 0.1.0 | — |
+| [`0.1.0-alpha.71`](/changelog/data-plane/alpha-71) | 2026-06-04 | **2026.06.04** | 0.6.0 | 0.1.0 | — |
+| [`0.1.0-alpha.70`](/changelog/data-plane/alpha-70) | 2026-06-03 | **2026.06.03** | 0.6.0 | **0.1.0** | — |
+| [`0.1.0-alpha.69`](/changelog/data-plane/alpha-69) | 2026-06-02 | **2026.06.02.2** | 0.6.0 | — | — |
+| [`0.1.0-alpha.68`](/changelog/data-plane/alpha-68) | 2026-06-02 | **2026.06.02.1** | 0.6.0 | — | — |
+| [`0.1.0-alpha.67`](/changelog/data-plane/alpha-67) | 2026-06-02 | **2026.06.02** | 0.6.0 | — | — |
+| [`0.1.0-alpha.66`](/changelog/data-plane/alpha-66) | 2026-06-01 | **2026.06.01** | 0.6.0 | — | — |
+| [`0.1.0-alpha.65`](/changelog/data-plane/alpha-65) | 2026-05-29 | **2026.05.29.1** | 0.6.0 | — | — |
+| [`0.1.0-alpha.64`](/changelog/data-plane/alpha-64) | 2026-05-29 | **2026.05.29** | 0.6.0 | — | — |
+| [`0.1.0-alpha.63`](/changelog/data-plane/alpha-63) | 2026-05-28 | **2026.05.28** | 0.6.0 | — | — |
+| [`0.1.0-alpha.62`](/changelog/data-plane/alpha-62) | 2026-05-19 | 2026.05.18 | 0.6.0 | — | — |
+| [`0.1.0-alpha.61`](/changelog/data-plane/alpha-61) | 2026-05-18 | **2026.05.18** | 0.6.0 | — | — |
+| [`0.1.0-alpha.60`](/changelog/data-plane/alpha-60) | 2026-05-13 | **2026.05.12** | 0.6.0 | — | — |
+| [`0.1.0-alpha.59`](/changelog/data-plane/alpha-59) | 2026-05-06 | 2026.05.05 | 0.6.0 | — | — |
+| [`0.1.0-alpha.58`](/changelog/data-plane/alpha-58) | 2026-05-05 | **2026.05.05** | 0.6.0 | — | — |
+| [`0.1.0-alpha.57`](/changelog/data-plane/alpha-57) | 2026-05-04 | **2026.05.04.1** | 0.6.0 | — | — |
+| [`0.1.0-alpha.56`](/changelog/data-plane/alpha-56) | 2026-05-04 | **2026.05.04** | 0.6.0 | — | — |
+| [`0.1.0-alpha.55`](/changelog/data-plane/alpha-55) | 2026-04-29 | **2026.04.28** | 0.6.0 | — | — |
+| [`0.1.0-alpha.54`](/changelog/data-plane/alpha-54) | 2026-04-28 | **2026.04.27.1** | 0.6.0 | — | — |
+| [`0.1.0-alpha.53`](/changelog/data-plane/alpha-53) | 2026-04-27 | **2026.04.27** | 0.6.0 | — | — |
+| [`0.1.0-alpha.52`](/changelog/data-plane/alpha-52) | 2026-04-27 | **2026.04.24.2** | 0.6.0 | — | — |
+| [`0.1.0-alpha.51`](/changelog/data-plane/alpha-51) | 2026-04-24 | **2026.04.24.1** | 0.6.0 | — | — |
+| [`0.1.0-alpha.50`](/changelog/data-plane/alpha-50) | 2026-04-24 | **2026.04.24** | 0.6.0 | — | — |
+| [`0.1.0-alpha.49`](/changelog/data-plane/alpha-49) | 2026-04-23 | 2026.04.23.2 | 0.6.0 | — | — |
+| [`0.1.0-alpha.48`](/changelog/data-plane/alpha-48) | 2026-04-23 | **2026.04.23.2** | 0.6.0 | — | — |
+| [`0.1.0-alpha.47`](/changelog/data-plane/alpha-47) | 2026-04-23 | **2026.04.23.1** | 0.6.0 | — | — |
+| [`0.1.0-alpha.46`](/changelog/data-plane/alpha-46) | 2026-04-23 | **2026.04.23** | 0.6.0 | — | — |
+| [`0.1.0-alpha.45`](/changelog/data-plane/alpha-45) | 2026-04-22 | **2026.04.22** | 0.6.0 | — | — |
+| [`0.1.0-alpha.44`](/changelog/data-plane/alpha-44) | 2026-04-17 | **2026.04.17.2** | 0.6.0 | — | — |
+| [`0.1.0-alpha.43`](/changelog/data-plane/alpha-43) | 2026-04-17 | **2026.04.17.1** | 0.6.0 | — | — |
+| [`0.1.0-alpha.42`](/changelog/data-plane/alpha-42) | 2026-04-17 | **2026.04.17** | 0.6.0 | — | — |
+| [`0.1.0-alpha.41`](/changelog/data-plane/alpha-41) | 2026-04-16 | **2026.04.16.1** | 0.6.0 | — | — |
+| [`0.1.0-alpha.40`](/changelog/data-plane/alpha-40) | 2026-04-16 | **2026.04.16** | 0.6.0 | — | — |
+| [`0.1.0-alpha.39`](/changelog/data-plane/alpha-39) | 2026-04-15 | 2026.04.15.1 | 0.6.0 | — | — |
+| [`0.1.0-alpha.38`](/changelog/data-plane/alpha-38) | 2026-04-15 | **2026.04.15.1** | 0.6.0 | — | — |
+| [`0.1.0-alpha.37`](/changelog/data-plane/alpha-37) | 2026-04-15 | **2026.04.15** | 0.6.0 | — | — |
+| [`0.1.0-alpha.36`](/changelog/data-plane/alpha-36) | 2026-04-14 | 2026.04.08 | 0.6.0 | — | — |
+| [`0.1.0-alpha.35`](/changelog/data-plane/alpha-35) | 2026-04-14 | 2026.04.08 | **0.6.0** | — | — |
+| [`0.1.0-alpha.34`](/changelog/data-plane/alpha-34) | 2026-04-14 | 2026.04.08 | 0.5.11 | — | — |
+| [`0.1.0-alpha.33`](/changelog/data-plane/alpha-33) | 2026-04-14 | 2026.04.08 | 0.5.11 | — | — |
+| [`0.1.0-alpha.32`](/changelog/data-plane/alpha-32) | 2026-04-14 | 2026.04.08 | 0.5.11 | — | — |
+| [`0.1.0-alpha.31`](/changelog/data-plane/alpha-31) | 2026-04-13 | 2026.04.08 | 0.5.11 | — | — |
+| [`0.1.0-alpha.30`](/changelog/data-plane/alpha-30) | 2026-04-10 | 2026.04.08 | 0.5.11 | — | — |
+| [`0.1.0-alpha.28`](/changelog/data-plane/alpha-28) | 2026-04-10 | 2026.04.08 | 0.5.11 | — | — |
+| [`0.1.0-alpha.27`](/changelog/data-plane/alpha-27) | 2026-04-10 | 2026.04.08 | 0.5.11 | — | — |
+| [`0.1.0-alpha.26`](/changelog/data-plane/alpha-26) | 2026-04-10 | 2026.04.08 | 0.5.11 | — | — |
+| [`0.1.0-alpha.25`](/changelog/data-plane/alpha-25) | 2026-04-09 | **2026.04.08** | 0.5.11 | — | — |
+| [`0.1.0-alpha.24`](/changelog/data-plane/alpha-24) | 2026-04-07 | **2026.04.07** | 0.5.11 | — | — |
+| [`0.1.0-alpha.23`](/changelog/data-plane/alpha-23) | 2026-04-01 | **2026.04.01.1** | 0.5.11 | — | — |
+| [`0.1.0-alpha.22`](/changelog/data-plane/alpha-22) | 2026-04-01 | **2026.04.01** | 0.5.11 | — | — |
+| [`0.1.0-alpha.21`](/changelog/data-plane/alpha-21) | 2026-03-30 | **2026.03.30.1** | 0.5.11 | — | — |
+| [`0.1.0-alpha.20`](/changelog/data-plane/alpha-20) | 2026-03-30 | 2026.03.26 | 0.5.11 | — | — |
+| [`0.1.0-alpha.19`](/changelog/data-plane/alpha-19) | 2026-03-27 | **2026.03.26** | 0.5.11 | — | — |
+| [`0.1.0-alpha.18`](/changelog/data-plane/alpha-18) | 2026-03-24 | **2026.03.09** | 0.5.11 | — | — |
+| [`0.1.0-alpha.17`](/changelog/data-plane/alpha-17) | 2026-03-05 | **2026.03.05** | 0.5.11 | — | — |
+| [`0.1.0-alpha.16`](/changelog/data-plane/alpha-16) | 2026-03-03 | **2026.02.27** | 0.5.11 | — | — |
+| [`0.1.0-alpha.15`](/changelog/data-plane/alpha-15) | 2026-02-27 | 2026.02.25 | 0.5.11 | — | — |
+| [`0.1.0-alpha.14`](/changelog/data-plane/alpha-14) | 2026-02-25 | **2026.02.25** | 0.5.11 | — | — |
+| [`0.1.0-alpha.13`](/changelog/data-plane/alpha-13) | 2026-02-25 | 2026.02.17 | 0.5.11 | — | — |
+| [`0.1.0-alpha.12`](/changelog/data-plane/alpha-12) | 2026-02-18 | 2026.02.17 | 0.5.11 | — | — |
+| [`0.1.0-alpha.11`](/changelog/data-plane/alpha-11) | 2026-02-17 | **2026.02.17** | 0.5.11 | — | — |
+| [`0.1.0-alpha.10`](/changelog/data-plane/alpha-10) | 2026-02-09 | 2026.02.09 | 0.5.11 | — | — |
+| [`0.1.0-alpha.9`](/changelog/data-plane/alpha-9) | 2026-02-09 | **2026.02.09** | 0.5.11 | — | — |
+| [`0.1.0-alpha.8`](/changelog/data-plane/alpha-8) | 2026-02-03 | 2026.01.30.1 | 0.5.11 | — | — |
+| [`0.1.0-alpha.7`](/changelog/data-plane/alpha-7) | 2026-02-03 | 2026.01.30.1 | 0.5.11 | — | — |
+| [`0.1.0-alpha.6`](/changelog/data-plane/alpha-6) | 2026-02-03 | 2026.01.30.1 | 0.5.11 | — | — |
+| [`0.1.0-alpha.5`](/changelog/data-plane/alpha-5) | 2026-02-02 | 2026.01.30.1 | 0.5.11 | — | — |
+| [`0.1.0-alpha.4`](/changelog/data-plane/alpha-4) | 2026-01-30 | **2026.01.30.1** | 0.5.11 | — | — |
+| [`0.1.0-alpha.3`](/changelog/data-plane/alpha-3) | 2026-01-30 | **2026.01.30** | **0.5.11** | — | — |
+| [`0.1.0-alpha.2`](/changelog/data-plane/alpha-2) | 2026-01-27 | 2026.01.26 | 0.5.10 | — | — |
+{/* CHART_RELEASES_TABLE:END */}
+
+<Tip>
+Automating against this list? The same data is published as JSON at
+[`/public/data-plane-chart-releases.json`](/public/data-plane-chart-releases.json),
+kept in sync with the table above.
+</Tip>
