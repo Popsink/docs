@@ -225,6 +225,7 @@
             "group": "Changelog",
             "icon": "history",
             "pages": [
+              "changelog/data-plane-chart",
               {
                 "group": "Data Plane",
                 "pages": [

@@ -23,6 +23,10 @@ still supported, from the data plane's
 [heartbeat](/deployment/architecture/control-data-plane#the-heartbeat). That
 report is the source of truth for what to upgrade to.
 
+Every published chart version, and the component versions it ships, is listed
+in [Data plane chart releases](/changelog/data-plane-chart) — useful to see what
+an upgrade moves, not to pick the target.
+
 In `STANDALONE` mode there is no control plane to ask: upgrades are fully
 manual, via signed offline bundles.
 

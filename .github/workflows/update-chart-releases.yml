@@ -1,0 +1,44 @@
+name: Update chart releases
+
+on:
+  schedule:
+    - cron: "43 6 * * *" # daily, off the hour to dodge GH Actions cron congestion
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-chart-releases
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The chart is public on GHCR: the script pulls an anonymous token,
+      # no registry credentials needed.
+      - name: Fetch published chart versions and sync docs
+        id: sync
+        run: python3 .github/scripts/update_chart_releases.py
+
+      - name: Open pull request
+        if: steps.sync.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore(changelog): sync data-plane chart releases"
+          title: "chore(changelog): sync data-plane chart releases"
+          body: |
+            Automated sync of `changelog/data-plane-chart.mdx` and
+            `public/data-plane-chart-releases.json` against the versions of
+            `oci://ghcr.io/popsink/charts/data-plane` published on GHCR.
+          branch: automated/update-chart-releases
+          delete-branch: true
+          labels: automation
+          add-paths: |
+            public/data-plane-chart-releases.json
+            changelog/data-plane-chart.mdx
