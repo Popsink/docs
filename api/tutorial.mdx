@@ -1,255 +1,235 @@
 ---
 title: "API tutorial"
-description: "Drive Popsink programmatically: register, authenticate, then create environments, teams, connectors and pipelines over the REST API."
+description: "Drive Popsink programmatically: authenticate, then create connectors, subscribe their data models to targets and operate the workers over the REST API."
 sidebarTitle: "Tutorial"
 ---
 
-## 🚀 Quick Start
+This guide walks through the full lifecycle of a replication over the Popsink REST API: authenticate, pick an environment and a team, create a source and a target connector, subscribe the source's data models to the target, then start and monitor the workers.
 
-**For the impatient:** Here's the minimum you need to know:
+<Note>
+Every Popsink instance serves its own live OpenAPI schema. It is the source of truth for request and response shapes:
+
+- Swagger UI: `https://<your-instance>/api/docs`
+- OpenAPI spec: `https://<your-instance>/api/openapi.json`
+</Note>
+
+## Quick start
 
 ```bash
-# 1. Create a user
-curl -X POST "https://your-server/api/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"secure123","is_active":true}' -k
+export POPSINK_URL="https://<tenant>.<region>.popsink.com"
 
-# 2. Login to get your token
-curl -X POST "https://your-server/api/auth/jwt/login" \
+# 1. Get a token (email + password)
+TOKEN=$(curl -sS -X POST "$POPSINK_URL/api/auth/jwt/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d 'username=user@example.com&password=secure123' -k
+  --data-urlencode "username=user@example.com" \
+  --data-urlencode "password=secure123" | jq -r .access_token)
 
-# 3. Use the token in all subsequent requests
-curl -X GET "https://your-server/api/pipelines/" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" -k
+# 2. Use it on every call
+curl -sS "$POPSINK_URL/api/envs/" -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
 
-## ✅ Prerequisites
+## Concepts
 
-### What You Need
-
-- **Access to a Popsink server** (e.g., `https://popsink.your-company.com`)
-- **A terminal or API client** (curl, Postman, HTTPie, etc.)
-- **5-15 minutes** to complete this guide
-
-### Basic Concepts
+```
+environment
+  └── team
+        ├── source connector          reads a source system (CDC, batch or Kafka)
+        │     └── data model          one per replicated table / collection / topic
+        │           └── subscription  delivery of that data model to one target
+        └── target connector          writes to the destination
+```
 
 | Concept | Description |
 |---------|-------------|
-| **Environment** | A workspace that contains teams and their resources |
-| **Team** | A group of users working together on pipelines |
-| **Pipeline** | A data processing flow from source to target |
-| **Connector** | A connection to a data source or destination |
-| **Subscription** | Configuration for how data flows through a pipeline |
-| **DataModel** | Schema and configuration for data transformation |
+| **Environment** | Top-level scope. Nearly every list endpoint is filtered by environment |
+| **Team** | A group of users inside an environment. Connectors belong to a team |
+| **Connector** | A source or a target, identified by its `connector_type` (e.g. `POSTGRES_SOURCE`, `SNOWFLAKE_TARGET`) |
+| **Data model** | One stream produced by a source connector: a table, a collection or a Kafka topic. Created automatically from the source's table list |
+| **Subscription** | Delivers one data model to one target connector, with its target table, column mapping, backfill and error-table settings |
 
 ---
 
-## 🔍 API Overview
+## API overview
 
-### Base URL Structure
+### Base URL
+
+All endpoints live under `/api`:
 
 ```
-https://your-server/api/
+https://<tenant>.<region>.popsink.com/api/
 ```
+
+Trailing slashes are part of the path: use `/connectors/`, not `/connectors`.
 
 ### Authentication
 
-All API endpoints (except registration and login) require a **Bearer token** in the `Authorization` header:
+Every endpoint except login requires a bearer token:
 
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### Response Format
+### Pagination
 
-All responses are in **JSON** format:
+List endpoints are paginated with `page` (starting at `1`) and `size` (default `50`, max `100`). They return:
 
 ```json
 {
-  "id": "uuid-here",
-  "name": "resource-name",
-  "created_at": "2025-11-19T10:00:00Z"
+  "items": [ ... ],
+  "total": 132,
+  "page": 1,
+  "size": 50,
+  "pages": 3
 }
 ```
 
-### HTTP Status Codes
+### Idempotent creation
 
-| Code | Meaning | When You'll See It |
+`POST /envs/`, `POST /teams/` and `POST /connectors/` accept an `Idempotency-Key` header. A retried call with the same key and body returns the original response instead of creating a duplicate:
+
+```bash
+-H "Idempotency-Key: 7f9c2ba4-e88f-11ee-a951-0242ac120002"
+```
+
+### HTTP status codes
+
+| Code | Meaning | When you'll see it |
 |------|---------|-------------------|
-| `200` | Success | GET, PATCH operations |
-| `201` | Created | POST operations that create resources |
-| `202` | Accepted | Async operations (start/pause pipeline) |
-| `204` | No Content | DELETE operations |
-| `400` | Bad Request | Invalid input data |
-| `401` | Unauthorized | Missing or invalid token |
-| `403` | Forbidden | Insufficient permissions |
-| `404` | Not Found | Resource doesn't exist |
-| `422` | Validation Error | Data doesn't meet requirements |
+| `200` | Success | `GET`, `PATCH` |
+| `201` | Created | `POST` that creates a resource |
+| `202` | Accepted | Asynchronous operations (start/stop a connector, a data model or a subscription) |
+| `204` | No Content | `DELETE`, bulk member creation |
+| `400` | Bad Request | Wrong password, invalid input |
+| `401` | Unauthorized | Missing or expired token |
+| `403` | Forbidden | You are not a member of the team that owns the resource |
+| `404` | Not Found | Unknown resource |
+| `409` | Conflict | A resource with the same name already exists |
+| `422` | Validation Error | The body does not match the schema |
+| `429` | Too Many Requests | Too many failed login attempts |
 
 ---
 
-## 🔐 Authentication Flow
+## Step 1: Authenticate
 
-```
-┌─────────────┐
-│   Register  │  POST /auth/register
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│    Login    │  POST /auth/jwt/login
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│  Get Token  │  Save this token!
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│  Use Token  │  All API requests
-└─────────────┘
-```
+You can get a token in two ways.
 
----
-
-## 📖 Step-by-Step Tutorial
-
-### Step 1: User Registration
-
-**What:** Create your user account
-**When:** First time using the API
-**Required:** Email and password
-
-#### Request
+### Option A: email and password
 
 ```bash
-curl -X POST "https://your-server/api/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "john.doe@company.com",
-    "password": "MySecurePassword123!",
-    "is_active": true,
-    "is_superuser": false,
-    "is_verified": false
-  }' -k
-```
-
-#### Field Descriptions
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `email` | string | ✅ | Your email address (must be unique) |
-| `password` | string | ✅ | Your password (min 8 characters recommended) |
-| `is_active` | boolean | ✅ | Set to `true` to activate the account immediately |
-| `is_superuser` | boolean | ⬜ | Admin privileges (default: `false`) |
-| `is_verified` | boolean | ⬜ | Email verification status (default: `false`) |
-
-#### Response (201 Created)
-
-```json
-{
-  "id": "3b0c298a-062e-42d1-a01b-277fa66908da",
-  "email": "john.doe@company.com",
-  "is_active": true,
-  "is_superuser": false,
-  "is_verified": false,
-  "active_env_id": null
-}
-```
-
-#### 📝 Save This
-
-```
-USER_ID=3b0c298a-062e-42d1-a01b-277fa66908da
-EMAIL=john.doe@company.com
-PASSWORD=MySecurePassword123!
-```
-
----
-
-### Step 2: User Login
-
-**What:** Authenticate and get your access token
-**When:** Before making any authenticated API calls
-**Token Lifetime:** Configurable (typically 24 hours)
-
-#### Request
-
-```bash
-curl -X POST "https://your-server/api/auth/jwt/login" \
+curl -X POST "$POPSINK_URL/api/auth/jwt/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d 'username=john.doe@company.com&password=MySecurePassword123!' -k
+  --data-urlencode "username=john.doe@company.com" \
+  --data-urlencode "password=MySecurePassword123!"
 ```
 
-#### Response (200 OK)
+**Response (200 OK):**
 
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzYjBjMjk4YS0wNjJlLTQyZDEtYTAxYi0yNzdmYTY2OTA4ZGEiLCJhdWQiOlsiZmFzdGFwaS11c2VyczphdXRoIl0sImV4cCI6MTcwMDAwMDAwMH0.signature",
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "token_type": "bearer"
 }
 ```
 
-#### 📝 Save This
-
-```
-TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-#### Using Your Token
-
-From now on, include this header in **every request**:
+When the access token expires, exchange the refresh token for a new pair:
 
 ```bash
--H "Authorization: Bearer $TOKEN"
+curl -X POST "$POPSINK_URL/api/auth/jwt/refresh" \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "'"$REFRESH_TOKEN"'"}'
 ```
+
+### Option B: organization API key (self-hosted)
+
+Create an API key in the control plane under **Dashboard → API keys → Create**. It starts with `psk_`, is shown once, and grants access to a chosen set of environments.
+
+```bash
+curl -X POST "$POPSINK_URL/api/auth/jwt/login-from-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"api_key": "'"$POPSINK_API_KEY"'"}'
+```
+
+The returned token lasts **10 minutes** and comes with no refresh token: exchange the key again when you get a `401`.
+
+<Warning>
+API-key login only works on deployments running in self-hosted mode. Otherwise it returns `400 This endpoint is only available in SELF_HOSTED mode`. Check `GET /api/config/deployment` → `deployment_mode`.
+</Warning>
+
+### Creating a user
+
+`POST /auth/register` creates a user with an email and a password. It only exists when the deployment allows self-registration (otherwise it returns `404`). The server decides the `is_active`, `is_superuser` and `is_verified` flags itself and ignores them in the body.
+
+```bash
+curl -X POST "$POPSINK_URL/api/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "jane.smith@company.com", "password": "SecurePass456!"}'
+```
+
+From now on, every example sends `-H "Authorization: Bearer $TOKEN"`.
 
 ---
 
-### Step 3: Environment Setup
+## Step 2: Pick an environment
 
-**What:** Create a workspace for your teams and pipelines
-**When:** After logging in, before creating teams
-**Permissions:** Any authenticated user can create an environment
-
-#### Request
+List the environments you can reach:
 
 ```bash
-curl -X POST "https://your-server/api/envs/" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "production-environment",
-    "description": "Production data processing environment",
-    "use_retention": true
-  }' -k
+curl "$POPSINK_URL/api/envs/" -H "Authorization: Bearer $TOKEN"
 ```
-
-#### Field Descriptions
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | ✅ | Environment name (must be unique) |
-| `description` | string | ⬜ | Description of the environment's purpose |
-| `use_retention` | boolean | ⬜ | Enable data retention policies (default: `false`) |
-
-#### Response (201 Created)
 
 ```json
 {
-  "id": "d455a981-be17-455e-a03c-4d9c3224db72",
-  "name": "production-environment",
-  "description": "Production data processing environment",
-  "use_retention": true,
-  "retention_configuration": null
+  "items": [
+    { "id": "d455a981-be17-455e-a03c-4d9c3224db72", "name": "production" }
+  ],
+  "total": 1, "page": 1, "size": 50, "pages": 1
 }
 ```
 
-#### 📝 Save This
+Endpoints that take no `env` / `env_id` parameter use your **active environment**. Set it explicitly:
+
+```bash
+curl -X PATCH "$POPSINK_URL/api/users/me" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"active_env_id": "d455a981-be17-455e-a03c-4d9c3224db72"}'
+```
+
+### Creating an environment
+
+An environment needs the Kafka broker that stores its retention (used for replay and lifecycle management):
+
+```bash
+curl -X POST "$POPSINK_URL/api/envs/" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "production",
+    "retention_configuration": {
+      "bootstrap_server": "broker.kafka.svc:9092",
+      "security_protocol": "SASL_SSL",
+      "sasl_mechanism": "SCRAM-SHA-512",
+      "sasl_username": "popsink",
+      "sasl_password": "broker-password"
+    }
+  }'
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | ✅ | Environment name |
+| `retention_configuration.bootstrap_server` | string | ✅ | Broker address |
+| `retention_configuration.security_protocol` | string | ✅ | `PLAINTEXT`, `SASL_PLAINTEXT`, `SASL_SSL`, `SSL` |
+| `retention_configuration.sasl_mechanism` | string | ✅ | `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, `GSSAPI`, `OAUTHBEARER` |
+| `retention_configuration.sasl_username` | string \| null | ✅ | SASL username (`null` without SASL) |
+| `retention_configuration.sasl_password` | string \| null | ✅ | SASL password (`null` without SASL) |
+| `retention_configuration.ca_cert` / `cert` / `key` | string | ⬜ | TLS / mutual TLS material |
+| `retention_configuration.group_id` | string | ⬜ | Consumer group |
+
+The response never returns the broker credentials.
 
 ```
 ENV_ID=d455a981-be17-455e-a03c-4d9c3224db72
@@ -257,43 +237,43 @@ ENV_ID=d455a981-be17-455e-a03c-4d9c3224db72
 
 ---
 
-### Step 4: Team Creation
-
-**What:** Create a team within your environment
-**When:** After creating an environment
-**Ownership:** The creator automatically becomes a team owner
-
-#### Request
+## Step 3: Create a team
 
 ```bash
-curl -X POST "https://your-server/api/teams/" \
+curl -X POST "$POPSINK_URL/api/teams/" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Data Engineering Team",
-    "description": "Team responsible for ETL pipelines"
-  }' -k
+    "name": "data-engineering",
+    "description": "Team responsible for the CDC pipelines",
+    "env_id": "'"$ENV_ID"'"
+  }'
 ```
 
-#### Field Descriptions
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | ✅ | Team name (unique within environment) |
-| `description` | string | ⬜ | Purpose and responsibilities of the team |
-
-#### Response (201 Created)
+**Response (201 Created):**
 
 ```json
 {
   "id": "881e0fce-5caa-4f5c-82c6-5eb883c47100",
-  "name": "Data Engineering Team",
-  "description": "Team responsible for ETL pipelines",
+  "name": "data-engineering",
+  "description": "Team responsible for the CDC pipelines",
   "env_id": "d455a981-be17-455e-a03c-4d9c3224db72"
 }
 ```
 
-#### 📝 Save This
+Add users as owners (admins of the team) or members. Users who already belong to the team are skipped:
+
+```bash
+curl -X POST "$POPSINK_URL/api/teams/$TEAM_ID/members/bulk" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "owners": ["3b0c298a-062e-42d1-a01b-277fa66908da"],
+    "members": ["32d4b09d-4527-40d5-923b-e166d85cb459"]
+  }'
+```
+
+**Response:** `204 No Content`. List them with `GET /teams/$TEAM_ID/members`.
 
 ```
 TEAM_ID=881e0fce-5caa-4f5c-82c6-5eb883c47100
@@ -301,1205 +281,1066 @@ TEAM_ID=881e0fce-5caa-4f5c-82c6-5eb883c47100
 
 ---
 
-### Step 5: Team Member Management
+## Step 4: Check the source credentials
 
-**What:** Add users to your team
-**When:** After creating a team
-**Permissions:** Only team owners can add members
-
-#### 5.1: Create Additional Users (Optional)
-
-If you need to invite teammates, first create their accounts:
+Each connector type has pre-flight endpoints that test a configuration **before** you save it. They take the same body as the connector's `json_configuration` (see [Connector configurations](#connector-configurations)):
 
 ```bash
-curl -X POST "https://your-server/api/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "jane.smith@company.com",
-    "password": "SecurePass456!",
-    "is_active": true
-  }' -k
-```
-
-**Response:**
-```json
-{
-  "id": "32d4b09d-4527-40d5-923b-e166d85cb459",
-  "email": "jane.smith@company.com",
-  "is_active": true
-}
-```
-
-#### 5.2: Add Members to Team
-
-```bash
-curl -X POST "https://your-server/api/teams/$TEAM_ID/members/bulk" \
+curl -X POST "$POPSINK_URL/api/postgres-source/check-credentials" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "members": [
-      "32d4b09d-4527-40d5-923b-e166d85cb459"
-    ]
-  }' -k
+    "host": "pg.company.com",
+    "port": 5432,
+    "database": "shop",
+    "user": "popsink",
+    "password": "pg-password"
+  }'
 ```
 
-#### Response (204 No Content)
+```json
+{ "is_success": true, "message": "Credentials are valid." }
+```
 
-Success! The members have been added to your team.
-
-#### 5.3: List Team Members
+Then list the tables you can capture:
 
 ```bash
-curl -X GET "https://your-server/api/teams/$TEAM_ID/members" \
-  -H "Authorization: Bearer $TOKEN" -k
-```
-
-**Response:**
-```json
-[
-  {
-    "id": "3b0c298a-062e-42d1-a01b-277fa66908da",
-    "email": "john.doe@company.com",
-    "role": "owner"
-  },
-  {
-    "id": "32d4b09d-4527-40d5-923b-e166d85cb459",
-    "email": "jane.smith@company.com",
-    "role": "member"
-  }
-]
+curl -X POST "$POPSINK_URL/api/postgres-source/list-tables" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "host": "pg.company.com", "port": 5432, "database": "shop", "user": "popsink", "password": "pg-password" }'
 ```
 
 ---
 
-### Step 6: Pipeline Creation
-
-**What:** Create a data pipeline with source and target connectors
-**When:** After team setup
-**Permissions:** Team members with write access
-
-#### 🎯 Understanding Pipeline Structure (V2 - Flattened)
-
-The new API uses a **flattened structure** instead of nested `json_configuration`. You can:
-
-1. **Use existing connectors** by specifying their IDs
-2. **Create new connectors** by providing name, type, and config
-3. **Mix both** (e.g., existing source + new target)
-
-#### Option A: Create Pipeline with New Connectors
+## Step 5: Create the source connector
 
 ```bash
-curl -X POST "https://your-server/api/pipelines/" \
+curl -X POST "$POPSINK_URL/api/connectors/" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "kafka-to-oracle-pipeline",
-    "team_id": "'$TEAM_ID'",
-
-    "source_name": "kafka-events-source",
-    "source_type": "KAFKA_SOURCE",
-    "source_config": {
-      "topic": "user-events",
-      "bootstrap_servers": "kafka.company.com:9092",
-      "consumer_group_id": "pipeline-consumer",
-      "sasl_username": "kafka_user",
-      "sasl_password": "kafka_pass",
-      "sasl_mechanism": "PLAIN",
-      "security_protocol": "SASL_SSL"
-    },
-
-    "target_name": "oracle-warehouse",
-    "target_type": "ORACLE_TARGET",
-    "target_config": {
-      "host": "oracle.company.com",
-      "port": "1521",
-      "database": "ORCL",
-      "server_name": "XE",
-      "server_id": "oraclesrv01",
-      "user": "etl_user",
-      "password": "etl_pass"
-    },
-
-    "subscription_target_table_name": "events",
-    "subscription_backfill": false,
-    "subscription_mapper_config": [
-      {
-        "key": "user_id",
-        "path": "$.user_id",
-        "cast": "string",
-        "primary_key": true,
-        "nullable": false
-      },
-      {
-        "key": "event_type",
-        "path": "$.event_type",
-        "cast": "string",
-        "primary_key": false,
-        "nullable": false
-      }
-    ]
-  }' -k
+    "name": "shop-postgres",
+    "connector_type": "POSTGRES_SOURCE",
+    "team_id": "'"$TEAM_ID"'",
+    "json_configuration": {
+      "host": "pg.company.com",
+      "port": 5432,
+      "database": "shop",
+      "schema": "public",
+      "user": "popsink",
+      "password": { "valueFrom": { "secretName": "shop-pg", "key": "password" } },
+      "whitelist": "public.orders,public.customers"
+    }
+  }'
 ```
-
-#### Option B: Create Pipeline with Existing Connectors
-
-```bash
-curl -X POST "https://your-server/api/pipelines/" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "reuse-connectors-pipeline",
-    "team_id": "'$TEAM_ID'",
-
-    "existing_source_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
-    "existing_target_id": "f6e5d4c3-b2a1-4c5d-9e8f-5d4c3b2a1f0e",
-
-    "subscription_target_table_name": "events_copy",
-    "subscription_backfill": true
-  }' -k
-```
-
-#### Pipeline Configuration Fields
-
-##### Core Fields
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | string | ✅ | Pipeline name (unique within team, alphanumeric with `-` and `_` only, max 255 chars) |
-| `team_id` | UUID | ✅ | Team that owns this pipeline |
+| `name` | string | ✅ | Connector name |
+| `connector_type` | string | ✅ | One of the [connector types](#connector-types) |
+| `team_id` | UUID | ✅ | Team that owns the connector |
+| `json_configuration` | object | ✅ | Type-specific configuration (see [Connector configurations](#connector-configurations)) |
 
-##### Source Connector (Choose ONE approach)
-
-**Approach 1: Use Existing Connector**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `existing_source_id` | UUID | ID of an existing source connector |
-
-**Approach 2: Create New Connector**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `source_name` | string | Name for the new source connector |
-| `source_type` | string | Connector type: `KAFKA_SOURCE` |
-| `source_config` | object | Configuration specific to the connector type |
-
-##### Target Connector (Choose ONE approach)
-
-**Approach 1: Use Existing Connector**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `existing_target_id` | UUID | ID of an existing target connector |
-
-**Approach 2: Create New Connector**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `target_name` | string | Name for the new target connector |
-| `target_type` | string | Connector type: `KAFKA_TARGET`, `ORACLE_TARGET` |
-| `target_config` | object | Configuration specific to the connector type |
-
-##### Data Model Configuration (Optional)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `datamodel_source_topic` | string | Source topic for the data model |
-| `datamodel_target_topic` | string | Target topic for the data model |
-| `datamodel_error_table_enabled` | boolean | Enable error table for data model |
-| `datamodel_error_table_name` | string | Name of the error table |
-| `datamodel_error_table_target_id` | UUID | Target connector for error table |
-
-##### Subscription Configuration (Optional)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `subscription_target_table_name` | string | Target table name in the destination |
-| `subscription_backfill` | boolean | Whether to backfill historical data |
-| `subscription_mapper_config` | array | Column mapping configuration (see Mapper Config below) |
-| `subscription_consumer_id` | string | Consumer ID (auto-generated if not provided) |
-| `subscription_error_table_enabled` | boolean | Enable error table for subscription |
-| `subscription_error_table_name` | string | Name of the subscription error table |
-| `subscription_error_table_target_id` | UUID | Target connector for subscription errors |
-
-##### Mapper Configuration
-
-Each mapper config entry:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `key` | string | Column name |
-| `path` | string | JSON path to extract value (e.g., `$.field.nested`) |
-| `static` | string | Static value (alternative to path) |
-| `cast` | string | Data type: `string`, `int`, `float`, `bool`, `date`, `datetime`, `time` |
-| `cast_format` | string | Format for casting (e.g., date format) |
-| `primary_key` | boolean | Is this a primary key column |
-| `nullable` | boolean | Can this column be null |
-
-#### Response (201 Created)
+**Response (201 Created):**
 
 ```json
 {
-  "id": "5efd3d63-a6eb-4b0c-afe9-6ee1d8f5f820",
-  "name": "kafka-to-oracle-pipeline",
-  "state": "draft",
-  "version": 1,
+  "id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+  "name": "shop-postgres",
+  "connector_type": "POSTGRES_SOURCE",
   "team_id": "881e0fce-5caa-4f5c-82c6-5eb883c47100",
-  "team_name": "Data Engineering Team",
-
-  "existing_source_id": null,
-  "source_name": "kafka-events-source",
-  "source_type": "KAFKA_SOURCE",
-  "source_config": { "topic": "user-events", ... },
-
-  "existing_target_id": null,
-  "target_name": "oracle-warehouse",
-  "target_type": "ORACLE_TARGET",
-  "target_config": { "host": "oracle.company.com", ... },
-
-  "subscription_target_table_name": "events",
-  "subscription_backfill": false,
-  "subscription_mapper_config": [...],
-
-  "created_at": "2025-11-19T10:30:00Z",
-  "updated_at": "2025-11-19T10:30:00Z"
+  "json_configuration": {
+    "host": "pg.company.com",
+    "port": 5432,
+    "database": "shop",
+    "schema": "public",
+    "user": "popsink",
+    "password": { "valueFrom": { "secretName": "shop-pg", "key": "password" } },
+    "whitelist": "public.orders,public.customers"
+  },
+  "items_count": 0,
+  "status": "paused",
+  "topics_config_key": "whitelist",
+  "target_destination_kind": null,
+  "config_hash": "3f1c..."
 }
 ```
 
-#### 📝 Save This
+Popsink creates **one data model per entry** of the table list, named `{connector name}_{entry}`. The list is `whitelist` for database sources and `topic` for Kafka (`topics_config_key` tells you which). A CDC source with an empty table list is refused.
 
 ```
-PIPELINE_ID=5efd3d63-a6eb-4b0c-afe9-6ee1d8f5f820
+SOURCE_ID=a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d
 ```
 
-#### 🔍 Available Connector Types
+List the data models it produced:
 
-**Sources:**
-- `KAFKA_SOURCE` - Apache Kafka
+```bash
+curl "$POPSINK_URL/api/datamodels/?source_connector_id=$SOURCE_ID" \
+  -H "Authorization: Bearer $TOKEN"
+```
 
-**Targets:**
-- `KAFKA_TARGET` - Apache Kafka
-- `ORACLE_TARGET` - Oracle database
+```json
+{
+  "items": [
+    {
+      "id": "0c7e6a1e-2b1f-4e7a-9a43-5d2f8b1c9e01",
+      "name": "shop-postgres_public.orders",
+      "source_name": "shop-postgres",
+      "source_schema": "public",
+      "source_table": "orders",
+      "default_target_table": "orders",
+      "status": "paused",
+      "enabled": true,
+      "subscription_count": 0
+    },
+    { "id": "7d1f...", "name": "shop-postgres_public.customers", "...": "..." }
+  ],
+  "total": 2, "page": 1, "size": 50, "pages": 1
+}
+```
 
-**Jobs:**
-- `JOB_SMT` - Single Message Transform (for data transformations)
+To capture more tables later, `PATCH` the connector with a longer `whitelist`: the new entries become new data models.
 
 ---
 
-### Step 7: Pipeline Updates
+## Step 6: Create the target connector
 
-**What:** Modify an existing pipeline
-**When:** Need to change configuration or settings
-**Permissions:** Team members with write access
-
-#### Update Pipeline Configuration
+Same endpoint, with a target type:
 
 ```bash
-curl -X PATCH "https://your-server/api/pipelines/$PIPELINE_ID" \
+curl -X POST "$POPSINK_URL/api/connectors/" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "updated-pipeline-name",
-    "source_config": {
-      "topic": "new-topic",
-      "bootstrap_servers": "kafka.company.com:9092",
-      "consumer_group_id": "updated-consumer"
-    },
-    "subscription_backfill": true
-  }' -k
+    "name": "analytics-snowflake",
+    "connector_type": "SNOWFLAKE_TARGET",
+    "team_id": "'"$TEAM_ID"'",
+    "json_configuration": {
+      "account": "myorg-myaccount",
+      "user": "POPSINK",
+      "role": "POPSINK_ROLE",
+      "warehouse": "POPSINK_WH",
+      "database": "ANALYTICS",
+      "schema": "RAW",
+      "private_key": { "valueFrom": { "secretName": "snowflake", "key": "private-key" } }
+    }
+  }'
 ```
 
-#### 💡 Update Patterns
-
-**Pattern 1: Update Only Name**
-```json
-{
-  "name": "new-pipeline-name"
-}
 ```
-
-**Pattern 2: Switch to Existing Connector**
-```json
-{
-  "existing_source_id": "new-connector-uuid",
-  "source_name": null,
-  "source_type": null,
-  "source_config": null
-}
-```
-
-**Pattern 3: Update Subscription Config**
-```json
-{
-  "subscription_target_table_name": "new_table",
-  "subscription_backfill": true,
-  "subscription_mapper_config": [...]
-}
-```
-
-#### Response (200 OK)
-
-Returns the updated pipeline with all fields.
-
----
-
-### Step 8: Pipeline Control
-
-**What:** Start, pause, or check pipeline status
-**When:** After pipeline creation and configuration
-**States:** `draft` → `building` → `live` → `paused` / `error`
-
-#### 8.1: Start Pipeline
-
-```bash
-curl -X POST "https://your-server/api/pipelines/$PIPELINE_ID/start" \
-  -H "Authorization: Bearer $TOKEN" -k
-```
-
-**Response (202 Accepted):**
-```json
-"BUILDING"
-```
-
-The pipeline transitions through these states:
-1. `draft` - Initial state, configuration in progress
-2. `building` - Pipeline is being deployed
-3. `live` - Pipeline is running and processing data
-
-#### 8.2: Pause Pipeline
-
-```bash
-curl -X POST "https://your-server/api/pipelines/$PIPELINE_ID/pause" \
-  -H "Authorization: Bearer $TOKEN" -k
-```
-
-**Response (202 Accepted):**
-```json
-"PAUSED"
-```
-
-#### 8.3: Check Pipeline Status
-
-```bash
-curl -X GET "https://your-server/api/pipelines/$PIPELINE_ID" \
-  -H "Authorization: Bearer $TOKEN" -k
-```
-
-**Response (200 OK):**
-```json
-{
-  "id": "5efd3d63-a6eb-4b0c-afe9-6ee1d8f5f820",
-  "name": "kafka-to-oracle-pipeline",
-  "state": "live",
-  "version": 1,
-  "created_at": "2025-11-19T10:30:00Z",
-  "updated_at": "2025-11-19T10:45:00Z"
-}
-```
-
-#### 8.4: Get Pipeline Logs (WebSocket)
-
-```javascript
-// WebSocket connection example
-const ws = new WebSocket(
-  `wss://your-server/api/pipelines/${PIPELINE_ID}/logs`,
-  ['Authorization', `Bearer ${TOKEN}`]
-);
-
-ws.onmessage = (event) => {
-  console.log('Log:', event.data);
-};
-```
-
-#### Pipeline State Diagram
-
-```
-     ┌──────┐
-     │DRAFT │ (initial state)
-     └───┬──┘
-         │ start
-         ▼
-   ┌─────────┐
-   │BUILDING │ (deployment in progress)
-   └────┬────┘
-        │ (automatic)
-        ▼
-     ┌──────┐
-     │ LIVE │ (processing data)
-     └───┬──┘
-         │
-         │ pause
-         ▼
-    ┌────────┐
-    │ PAUSED │
-    └───┬────┘
-        │
-      resume
-        │
-        ▼
-   ┌─────────┐
-   │BUILDING │
-   └─────────┘
+TARGET_ID=f6e5d4c3-b2a1-4c5d-9e8f-5d4c3b2a1f0e
 ```
 
 ---
 
-## 🛠️ Testing Tools
+## Step 7: Subscribe the data models to the target
 
-### Option 1: cURL (Command Line)
-
-**Pros:** Available everywhere, scriptable
-**Cons:** Verbose, requires manual token management
+A subscription delivers one data model to one target connector:
 
 ```bash
-# Set variables for easy reuse
-export SERVER="https://your-server"
-export TOKEN="your-token-here"
-
-# Make a request
-curl -X GET "$SERVER/api/pipelines/" \
-  -H "Authorization: Bearer $TOKEN" -k
+curl -X POST "$POPSINK_URL/api/subscriptions/" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "orders-to-snowflake",
+    "datamodel_id": "0c7e6a1e-2b1f-4e7a-9a43-5d2f8b1c9e01",
+    "target_connector_id": "'"$TARGET_ID"'",
+    "target_table_name": "ORDERS",
+    "backfill": true
+  }'
 ```
 
-### Option 2: HTTPie (Command Line - User Friendly)
+**Response (201 Created):**
 
-**Pros:** Simpler syntax, better output
-**Cons:** Requires installation
+```json
+{ "id": "5efd3d63-a6eb-4b0c-afe9-6ee1d8f5f820" }
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | ✅ | Subscription name |
+| `datamodel_id` | UUID | ✅ | Data model to deliver |
+| `target_connector_id` | UUID | ✅ | Target connector to write to |
+| `target_table_name` | string | ⬜ | Destination table (or topic for a Kafka target). Omit it to use the data model's `default_target_table` |
+| `backfill` | boolean | ⬜ | Load the existing rows before streaming changes (default: `false`) |
+| `smt_config` | array | ⬜ | Column mapping (see [Mapper configuration](#mapper-configuration)). Omit it to deliver the columns as they are |
+| `consumer_id` | string | ⬜ | Consumer group ID (auto-generated if not provided) |
+| `error_table_enabled` | boolean | ⬜ | Write rejected records to an error table (default: `false`) |
+| `error_table_name` | string | ⬜ | Name of the error table |
+
+To deliver one data model to several targets at once:
 
 ```bash
-# Install
-pip install httpie
-
-# Use
-http GET https://your-server/api/pipelines/ \
-  Authorization:"Bearer $TOKEN"
+curl -X POST "$POPSINK_URL/api/subscriptions/subscribe-all" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "datamodel_id": "0c7e6a1e-2b1f-4e7a-9a43-5d2f8b1c9e01",
+    "target_connector_ids": ["f6e5d4c3-b2a1-4c5d-9e8f-5d4c3b2a1f0e", "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"]
+  }'
 ```
 
-### Option 3: Postman (GUI)
+```json
+{ "ids": ["5efd3d63-...", "b71c09e2-..."] }
+```
 
-**Pros:** Visual interface, request collections
-**Cons:** Requires download
+### Mapper configuration
 
-1. Download Postman
-2. Create a new request
-3. Set method (GET, POST, etc.)
-4. Enter URL: `https://your-server/api/pipelines/`
-5. Add header: `Authorization: Bearer YOUR_TOKEN`
-6. Add JSON body for POST/PATCH
-7. Click "Send"
+`smt_config` is a list of output columns. Each entry:
 
-### Option 4: Python Script
+| Field | Type | Description |
+|-------|------|-------------|
+| `key` | string | Output column name (required) |
+| `path` | string | JSON path of the source value (e.g. `$.customer.id`) |
+| `static` | string | Static value, instead of `path` |
+| `static_on` | string | `always` or `create`: when the static value is written (default: `always`) |
+| `cast` | string | `string`, `int`, `float`, `bool`, `date`, `datetime`, `time` |
+| `cast_format` | string | Format used by the cast (e.g. a date format) |
+| `primary_key` | boolean | Column is part of the primary key (default: `false`) |
+| `nullable` | boolean | Column accepts nulls (default: `true`) |
+| `concatenate_fields` | array | Build the value by concatenating several fields |
+| `hash_method` | string | Hash the value: `md5`, `sha256`, `sha512` |
+| `encrypt_method` / `encrypt_key` | string | Encrypt the value with `aes-256-gcm` |
 
-**Pros:** Full programming capabilities
-**Cons:** Requires Python knowledge
+```json
+"smt_config": [
+  { "key": "order_id", "path": "$.id", "cast": "int", "primary_key": true, "nullable": false },
+  { "key": "customer_email", "path": "$.email", "hash_method": "sha256" },
+  { "key": "created_at", "path": "$.created_at", "cast": "datetime" },
+  { "key": "source", "static": "shop" }
+]
+```
 
-```python
-import requests
+Test a mapping on a sample message with `POST /smt/process_mapper` (`config`, `table_name`, `message`) before you save it.
 
-# Configuration
-SERVER = "https://your-server"
-TOKEN = "your-token-here"
+---
 
-headers = {
-    "Authorization": f"Bearer {TOKEN}",
-    "Content-Type": "application/json"
-}
+## Step 8: Start and monitor
 
-# Get all pipelines
-response = requests.get(
-    f"{SERVER}/api/pipelines/",
-    headers=headers,
-    verify=False  # Only for self-signed certificates
-)
+### Start the workers
 
-print(response.json())
+Connectors are created `paused`. Start the source, then the target:
 
-# Create a pipeline
-pipeline_data = {
-    "name": "my-pipeline",
-    "team_id": "your-team-id",
-    "source_name": "my-source",
-    "source_type": "KAFKA_SOURCE",
-    "source_config": {...}
-}
+```bash
+curl -X POST "$POPSINK_URL/api/connectors/$SOURCE_ID/start" -H "Authorization: Bearer $TOKEN"
+curl -X POST "$POPSINK_URL/api/connectors/$TARGET_ID/start" -H "Authorization: Bearer $TOKEN"
+```
 
-response = requests.post(
-    f"{SERVER}/api/pipelines/",
-    headers=headers,
-    json=pipeline_data,
-    verify=False
-)
+Both return `202 Accepted` before the worker converges. Poll the connector until `status` is `live` (or `error`):
 
-print(response.json())
+```bash
+curl "$POPSINK_URL/api/connectors/$SOURCE_ID" -H "Authorization: Bearer $TOKEN" | jq .status
+```
+
+| State | Meaning |
+|-------|---------|
+| `paused` | No worker running |
+| `building` | The worker is starting |
+| `live` | The worker is running |
+| `degraded` | Some of the connector's worker shards are up, others are down |
+| `stopping` | A stop was accepted and the worker is draining |
+| `error` | The worker failed; check the logs |
+
+Stop a connector with `POST /connectors/{id}/stop`: it reads `stopping`, then `paused` once the worker is gone.
+
+### Enable or disable a single table
+
+You can disable one data model or one subscription without stopping the connector. Popsink restarts the worker automatically to apply the change:
+
+| Action | Endpoint |
+|--------|----------|
+| Stop capturing a table | `POST /datamodels/{id}/stop` |
+| Resume capturing a table | `POST /datamodels/{id}/start` |
+| Stop delivering to a target | `POST /subscriptions/{id}/pause` |
+| Resume delivering to a target | `POST /subscriptions/{id}/start` |
+
+### Monitor
+
+```bash
+# Worker logs (add ?filter_ids=<datamodel or subscription ids> to narrow them)
+curl "$POPSINK_URL/api/connectors/$SOURCE_ID/logs" -H "Authorization: Bearer $TOKEN"
+
+# Data models in error in an environment
+curl "$POPSINK_URL/api/datamodels/?env=$ENV_ID&state=error" -H "Authorization: Bearer $TOKEN"
+
+# Throughput and freshness of one data model
+curl "$POPSINK_URL/api/datamodels/$DATAMODEL_ID/monitoring" -H "Authorization: Bearer $TOKEN"
+
+# Production metrics of a source over the last day
+curl "$POPSINK_URL/api/workers/production-metrics?since=2026-10-01T00:00:00Z&connector_id=$SOURCE_ID" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
 
-## 📚 API Reference
+## Step 9: Update a connector or a subscription
 
-### Authentication Endpoints
+### Connector
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/auth/register` | Create a new user account |
-| `POST` | `/auth/jwt/login` | Login and get access token |
-| `POST` | `/auth/jwt/logout` | Logout (invalidate token) |
-| `POST` | `/auth/forgot-password` | Request password reset |
-| `POST` | `/auth/reset-password` | Reset password with token |
+`PATCH /connectors/{id}` accepts `name`, `json_configuration` and `team_id`. **`json_configuration` is replaced as a whole, not merged**: send the full object, since any key you omit is dropped.
 
-### User Endpoints
+```bash
+curl -X PATCH "$POPSINK_URL/api/connectors/$SOURCE_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "json_configuration": {
+      "host": "pg.company.com",
+      "port": 5432,
+      "database": "shop",
+      "schema": "public",
+      "user": "popsink",
+      "password": { "valueFrom": { "secretName": "shop-pg", "key": "password" } },
+      "whitelist": "public.orders,public.customers,public.invoices"
+    }
+  }'
+```
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/users` | List all users (paginated) |
-| `GET` | `/users/{id}` | Get user details |
-| `PATCH` | `/users/{id}` | Update user |
-| `DELETE` | `/users/{id}` | Delete user |
-| `POST` | `/users/me/change-password` | Change current user's password |
-| `POST` | `/users/me/service-account-token` | Create service account token |
-| `GET` | `/users/export-all` | Export all data (admin only) |
-| `POST` | `/users/import-all` | Import all data (admin only) |
+A `PATCH` never shrinks the table list: entries you omit from `whitelist` / `topic` are kept. To stop capturing a table for good, delete its data model (`DELETE /datamodels/{id}`). `connector_type` can't change.
 
-### Environment Endpoints
+### Subscription
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/envs/` | List all environments (paginated) |
-| `POST` | `/envs/` | Create a new environment |
-| `GET` | `/envs/{id}` | Get environment details |
-| `GET` | `/envs/filter-one?name={name}` | Get environment by name |
-| `PATCH` | `/envs/{id}` | Update environment |
-| `DELETE` | `/envs/{id}` | Delete environment |
-| `POST` | `/envs/check-byok-credentials` | Check BYOK credentials |
+All fields of `PATCH /subscriptions/{id}` are optional. The target worker restarts to apply the change. The column mapping is called `mapper_config` here:
 
-### Team Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/teams/` | List all teams (paginated) |
-| `POST` | `/teams/` | Create a new team |
-| `GET` | `/teams/{id}` | Get team details |
-| `GET` | `/teams/filter-one?name={name}` | Get team by name |
-| `PATCH` | `/teams/{id}` | Update team |
-| `DELETE` | `/teams/{id}` | Delete team |
-
-### Team Member Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/teams/{id}/members` | List team members |
-| `POST` | `/teams/{id}/members/bulk` | Add multiple members |
-| `DELETE` | `/teams/{id}/members/{user_id}` | Remove a member |
-
-### Pipeline Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/pipelines/` | List all pipelines (paginated) |
-| `GET` | `/pipelines/count-status` | Count pipelines by status |
-| `POST` | `/pipelines/` | Create a new pipeline |
-| `GET` | `/pipelines/{id}` | Get pipeline details |
-| `GET` | `/pipelines/filter-one?name={name}` | Get pipeline by name |
-| `PATCH` | `/pipelines/{id}` | Update pipeline |
-| `DELETE` | `/pipelines/{id}` | Delete pipeline |
-| `POST` | `/pipelines/{id}/start` | Start pipeline (202) |
-| `POST` | `/pipelines/{id}/pause` | Pause pipeline (202) |
-| `WebSocket` | `/pipelines/{id}/logs` | Stream pipeline logs |
-| `GET` | `/pipelines/{id}/status` | Get pipeline status (deprecated) |
-| `GET` | `/pipelines/{id}/configuration` | Export pipeline config |
-| `POST` | `/pipelines/{id}/configuration` | Import pipeline config |
-| `GET` | `/pipelines/{id}/worker-config` | Get worker config |
-| `GET` | `/pipelines/status/all-non-draft` | List non-draft pipelines with status |
-| `GET` | `/pipelines/{id}/latency-informations` | Get pipeline latency info |
-
-### Connector Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/connectors/source-config` | List source configurations |
-| `GET` | `/connectors/target-config` | List target configurations |
-| `GET` | `/connectors/filter-one?name={name}` | Get connector by name |
-| `GET` | `/connectors/{id}` | Get connector by ID |
-| `GET` | `/connectors/{id}/source-worker-config` | Get source worker config |
-| `GET` | `/connectors/{id}/target-worker-config` | Get target worker config |
-| `POST` | `/connectors/` | Create connector |
-| `PATCH` | `/connectors/{id}` | Update connector |
-| `DELETE` | `/connectors/{id}` | Delete connector |
-| `POST` | `/connectors/{id}/start` | Start connector worker (202) |
-| `POST` | `/connectors/{id}/stop` | Stop connector worker (202) |
-| `WebSocket` | `/connectors/{id}/logs` | Stream connector logs |
-
-### Subscription Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/subscriptions/` | List subscriptions (paginated) |
-| `GET` | `/subscriptions/{id}` | Get subscription details |
-| `POST` | `/subscriptions/` | Create subscription |
-| `POST` | `/subscriptions/subscribe-all` | Bulk create subscriptions |
-| `PATCH` | `/subscriptions/{id}` | Update subscription |
-| `DELETE` | `/subscriptions/{id}` | Delete subscription |
-| `POST` | `/subscriptions/{id}/start` | Start subscription (202) |
-| `POST` | `/subscriptions/{id}/pause` | Pause subscription (202) |
-
-### DataModel Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/datamodels/` | List datamodels (paginated) |
-| `GET` | `/datamodels/{id}` | Get datamodel by ID |
-| `GET` | `/datamodels/{id}/monitoring` | Get datamodel monitoring |
-| `GET` | `/datamodels/{id}/schema` | Get datamodel schema |
-| `PATCH` | `/datamodels/{id}/error-table` | Update error table config |
-| `DELETE` | `/datamodels/{id}` | Delete datamodel |
-
-### SMT/Transformation Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/smt/process_mapper` | Process mapper transformation |
-
-### Connector Type Specific Endpoints
-
-#### Kafka Source
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/connector-types/kafka-source/check-credentials` | Check Kafka source credentials |
-| `POST` | `/connector-types/kafka-source/fetch-messages` | Fetch messages from Kafka |
-| `POST` | `/connector-types/kafka-source/list-topics` | List Kafka topics |
-
-#### Oracle Target
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/connector-types/oracle-target/check-credentials` | Check Oracle target credentials |
+```bash
+curl -X PATCH "$POPSINK_URL/api/subscriptions/$SUBSCRIPTION_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target_table_name": "ORDERS_V2",
+    "mapper_config": [
+      { "key": "order_id", "path": "$.id", "cast": "int", "primary_key": true, "nullable": false }
+    ]
+  }'
+```
 
 ---
 
-## 🔧 Connector Configurations
+## Step 10: Backfill
+
+Reload existing rows into the destinations. Preview first with `POST /backfills/preview`, then trigger:
+
+```bash
+curl -X POST "$POPSINK_URL/api/backfills/" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "datamodel_ids": ["0c7e6a1e-2b1f-4e7a-9a43-5d2f8b1c9e01"] }'
+```
+
+You can scope a backfill with `source_connector_ids`, `datamodel_ids` and `target_connector_ids`. Follow it with `GET /backfills/status?source_connector_id=<SOURCE_ID>`, and cancel it with `POST /backfills/{run_id}/cancel`.
+
+<Warning>
+`"truncate_history": true` empties every destination table before reloading it. It is the only option that deletes data in your warehouse.
+</Warning>
+
+---
+
+## Connector configurations
+
+The `json_configuration` of a connector depends on its type. The examples below cover the most common ones. `GET /connector-types/` returns every type with its form fields, and the `POST /<type>/check-credentials` body in the [OpenAPI schema](#support) documents each field.
+
+### Secrets
+
+Any sensitive field (passwords, private keys, tokens, service-account JSON) accepts either an inline value or a reference to a Kubernetes secret that already exists in the worker namespace:
+
+```json
+"password": { "valueFrom": { "secretName": "shop-pg", "key": "password" } }
+```
+
+Popsink never stores the referenced value: the worker pod reads it at runtime. We recommend this pattern for API and Terraform consumers. Inline secrets work too, but every read returns them as `"<redacted>"`. `GET /k8s-secrets` lists the secrets available in the worker namespace.
+
+When you re-test an existing connector whose secrets come back as `"<redacted>"`, add `?connector_id=<CONNECTOR_ID>` to its `check-credentials` call: Popsink uses the stored secrets instead of the redacted values.
+
+### SSH tunnel
+
+Database sources (PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, IBM i) can connect through an SSH bastion:
+
+```json
+"ssh_tunnel": true,
+"ssh_host": "bastion.company.com",
+"ssh_port": 22,
+"ssh_user": "popsink",
+"ssh_private_key": { "valueFrom": { "secretName": "bastion", "key": "id_rsa_b64" } }
+```
+
+`ssh_private_key` is the **base64-encoded** private key.
+
+---
 
 ### KAFKA_SOURCE Configuration
 
+[Kafka source documentation](/connectors/source/kafka)
+
 ```json
 {
-  "topic": "user-events",
-  "consumer_group_id": "pipeline-consumer",
   "bootstrap_servers": "kafka1:9092,kafka2:9092",
   "security_protocol": "SASL_SSL",
-  "sasl_mechanism": "PLAIN",
+  "sasl_mechanism": "SCRAM-SHA-512",
   "sasl_username": "kafka_user",
   "sasl_password": "kafka_pass",
+  "topic": "user-events,order-events",
+  "consumer_group_id": "pipeline-consumer",
   "include_metadata": false
 }
 ```
 
-**Field Descriptions:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `bootstrap_servers` | string | ✅ | Comma-separated `host:port` brokers |
+| `security_protocol` | string | ✅ | `PLAINTEXT`, `SASL_PLAINTEXT`, `SASL_SSL`, `SSL` |
+| `sasl_mechanism` | string | ✅ | `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, `GSSAPI`, `OAUTHBEARER`. Always send it: it is ignored with `PLAINTEXT` or `SSL` |
+| `sasl_username` | string \| null | ✅ | SASL username. The key must be present; set it to `null` without SASL |
+| `sasl_password` | string \| secret \| null | ✅ | SASL password. The key must be present; set it to `null` without SASL |
+| `topic` | string | ✅ | Topics to consume, comma-separated. One data model per topic |
+| `consumer_group_id` | string | ⬜ | Consumer group (auto-generated if not provided) |
+| `include_metadata` | boolean | ⬜ | Add the Kafka metadata (topic, partition, offset, timestamp) to every event (default: `false`) |
+| `ca_cert` | string | ⬜ | CA certificate of the brokers (PEM or base64-encoded PEM) |
+| `cert` | string | ⬜ | Client certificate for mutual TLS |
+| `key` | string \| secret | ⬜ | Client private key for mutual TLS |
+
+Pre-flight endpoints:
+
+| Endpoint | Response |
+|----------|----------|
+| `POST /kafka-source/check-credentials` | `{"is_success": true, "message": "Credentials are valid."}` |
+| `POST /kafka-source/list-topics` | `{"topics": ["user-events", "order-events"]}` |
+| `POST /kafka-source/fetch-messages` | `{"messages": [ ... ]}` |
+
+`fetch-messages` previews messages. Its body takes exactly one of these shapes: `{"datamodelId": "..."}`, `{"connectorId": "...", "source_topic": "user-events"}`, or the inline configuration above.
+
+---
+
+### POSTGRES_SOURCE Configuration
+
+[PostgreSQL source documentation](/connectors/source/postgres)
+
+```json
+{
+  "host": "pg.company.com",
+  "port": 5432,
+  "database": "shop",
+  "schema": "public",
+  "user": "popsink",
+  "password": "pg-password",
+  "whitelist": "public.orders,public.customers",
+  "publication_name": "popsink_pub",
+  "replication_slot_name": "popsink_slot"
+}
+```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `topic` | string | ✅ | Kafka topic to consume from |
-| `bootstrap_servers` | string | ✅ | Comma-separated list of Kafka brokers |
-| `consumer_group_id` | string | ⬜ | Consumer group ID (auto-generated if not provided) |
-| `security_protocol` | string | ⬜ | `PLAINTEXT`, `SASL_PLAINTEXT`, `SASL_SSL`, `SSL` |
-| `sasl_mechanism` | string | ⬜ | `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, `GSSAPI`, `OAUTHBEARER` |
-| `sasl_username` | string | ⬜ | SASL username (required if using SASL) |
-| `sasl_password` | string | ⬜ | SASL password (required if using SASL) |
-| `include_metadata` | boolean | ⬜ | Include Kafka metadata in messages (default: false) |
+| `host` | string | ✅ | Hostname or IP address |
+| `port` | integer | ⬜ | Port (default: `5432`) |
+| `database` | string | ✅ | Database name |
+| `schema` | string | ⬜ | Schema to list tables from (default: `public`) |
+| `user` | string | ✅ | User with replication privileges |
+| `password` | string \| secret | ✅ | Password |
+| `whitelist` | string | ✅ | Tables to capture, comma-separated, as `schema.table` |
+| `publication_name` | string | ⬜ | Publication to use |
+| `replication_slot_name` | string | ⬜ | Replication slot to use |
+| `ssh_*` | | ⬜ | See [SSH tunnel](#ssh-tunnel) |
+
+Pre-flight: `POST /postgres-source/check-credentials`, `/list-tables`, `/fetch-schema`.
+
+---
+
+### MYSQL_SOURCE Configuration
+
+[MySQL source documentation](/connectors/source/mysql). `MARIADB_SOURCE` takes the same fields.
+
+```json
+{
+  "host": "mysql.company.com",
+  "port": 3306,
+  "database": "shop",
+  "user": "popsink",
+  "password": "mysql-password",
+  "whitelist": "shop.orders,shop.customers",
+  "encrypt": true,
+  "trust_server_certificate": false
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `host` | string | ✅ | Hostname or IP address |
+| `port` | integer | ⬜ | Port (default: `3306`) |
+| `database` | string | ✅ | Database (the binlog must be enabled on the server) |
+| `user` | string | ✅ | User with replication privileges |
+| `password` | string \| secret | ✅ | Password |
+| `whitelist` | string | ✅ | Tables to capture, comma-separated, as `database.table` or `table` |
+| `encrypt` | boolean | ⬜ | Connect over TLS (default: `true`) |
+| `trust_server_certificate` | boolean | ⬜ | Skip the server certificate check (default: `true`) |
+| `snapshot_locking_mode` | string | ⬜ | `none` (default) or `minimal` (needs `RELOAD` and `LOCK TABLES`) |
+| `ssh_*` | | ⬜ | See [SSH tunnel](#ssh-tunnel) |
+
+Pre-flight: `POST /mysql-source/check-credentials`, `/list-tables`, `/fetch-schema` (`/mariadb-source/...` for MariaDB).
+
+---
+
+### MSSQL_SOURCE Configuration
+
+[SQL Server source documentation](/connectors/source/mssql)
+
+```json
+{
+  "host": "sqlserver.company.com",
+  "port": 1433,
+  "database": "Shop",
+  "user": "popsink",
+  "password": "mssql-password",
+  "whitelist": "dbo.Orders,dbo.Customers",
+  "encrypt": true,
+  "trust_server_certificate": false
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `host` | string | ✅ | Hostname or IP address |
+| `port` | integer | ⬜ | Port (default: `1433`) |
+| `database` | string | ✅ | Database (CDC must be enabled on it) |
+| `user` | string | ✅ | SQL Server login |
+| `password` | string \| secret | ✅ | Password |
+| `whitelist` | string | ✅ | Tables to capture, comma-separated, as `schema.table` (`dbo` if omitted) |
+| `encrypt` | boolean | ⬜ | Encrypt the JDBC connection (default: `true`) |
+| `trust_server_certificate` | boolean | ⬜ | Accept a self-signed certificate (default: `true`) |
+| `ssh_*` | | ⬜ | See [SSH tunnel](#ssh-tunnel) |
+
+Pre-flight: `POST /mssql-source/check-credentials`, `/list-tables`, `/fetch-schema`. To read the transaction log without CDC tables, use `MSSQL_LOG_SOURCE` (`/mssql-log-source/...`).
+
+---
+
+### ORACLE_SOURCE Configuration
+
+[Oracle source documentation](/connectors/source/oracle)
+
+```json
+{
+  "host": "oracle.company.com",
+  "port": 1521,
+  "service_name": "ORCLCDB",
+  "pdb_name": "ORCLPDB1",
+  "user": "c##popsink",
+  "password": "oracle-password",
+  "whitelist": "SALES.ORDERS,SALES.CUSTOMERS"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `host` | string | ✅ | Hostname or IP address |
+| `port` | integer | ⬜ | Listener port (default: `1521`) |
+| `service_name` | string | ✅ or `sid` | Service name. Provide this **or** `sid` |
+| `sid` | string | ✅ or `service_name` | SID of a legacy database |
+| `pdb_name` | string | ⬜ | Pluggable database to capture from (multitenant only) |
+| `user` | string | ✅ | User |
+| `password` | string \| secret | ✅ | Password |
+| `whitelist` | string | ✅ | Tables to capture, comma-separated, as `SCHEMA.TABLE` |
+| `encrypt` | boolean | ⬜ | Connect over TCPS (default: `false`) |
+| `wallet` / `wallet_password` | string \| secret | ⬜ | Base64-encoded wallet zip and its password, for mTLS or a private CA |
+| `poll_interval_ms` | integer | ⬜ | Polling interval (default: `2000`) |
+| `ssh_*` | | ⬜ | See [SSH tunnel](#ssh-tunnel) |
+
+Pre-flight: `POST /oracle-source/check-credentials`, `/list-tables`, `/fetch-schema`.
+
+---
+
+### IBMI_SOURCE Configuration
+
+[IBM i source documentation](/connectors/source/ibmi)
+
+```json
+{
+  "host": "ibmi.company.com",
+  "port": 446,
+  "user": "POPSINK",
+  "password": "ibmi-password",
+  "schemas": ["SALESLIB"],
+  "whitelist": "SALESLIB.ORDERS,SALESLIB.CUSTOMERS",
+  "char_trim_mode": "both"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `host` | string | ✅ | Hostname or IP address |
+| `port` | integer | ⬜ | DRDA port (default: `446`) |
+| `user` | string | ✅ | User |
+| `password` | string \| secret | ✅ | Password |
+| `schemas` | array | ✅ | Libraries to capture from. They must all journal to the same journal |
+| `whitelist` | string | ✅ | Tables to capture, comma-separated, as `LIB.TABLE` |
+| `char_trim_mode` | string | ⬜ | How CHAR/VARCHAR values are trimmed: `both` (default), `leading`, `trailing`, `none` |
+| `unicode_escape` | boolean | ⬜ | Escape column names Avro refuses (`ORD#` → `ORD_u0023`, decoded back by the target) (default: `true`) |
+| `incremental_load` | boolean | ⬜ | Enable per-table incremental load (default: `false`) |
+| `poll_interval_ms` | integer | ⬜ | Polling interval (default: `2000`) |
+| `ssh_*` | | ⬜ | See [SSH tunnel](#ssh-tunnel) |
+
+Pre-flight: `POST /ibmi-source/check-credentials`, `/list-tables`, `/fetch-schema`.
+
+---
+
+### MONGO_SOURCE Configuration
+
+[MongoDB source documentation](/connectors/source/mongodb)
+
+```json
+{
+  "connection_string": "mongodb+srv://cluster0.example.mongodb.net/",
+  "database": "shop",
+  "user": "popsink",
+  "password": "mongo-password",
+  "auth_source": "admin",
+  "whitelist": "orders,customers",
+  "collection_schemas": {
+    "orders": { "_id": "objectid", "total": "double", "created_at": "timestamp" },
+    "customers": { "_id": "objectid", "email": "string" }
+  }
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `connection_string` | string | ✅ | MongoDB URI **without** credentials (replica set or `mongodb+srv://`) |
+| `database` | string | ✅ | Database holding the collections |
+| `user` | string | ✅ | User |
+| `password` | string \| secret | ✅ | Password |
+| `auth_source` | string | ⬜ | Authentication database (default: `admin`) |
+| `whitelist` | string | ✅ | Collections to capture, comma-separated |
+| `collection_schemas` | object | ⬜ | Columns of each collection: `{collection: {field: type}}`. Types: `string`, `int32`, `int64`, `double`, `bool`, `timestamp`, `binary`, `objectid`, `json`. Every collection needs `_id`; undeclared fields arrive in the `__undeclared` column |
+
+Pre-flight: `POST /mongo-source/check-credentials`, `/list-collections`, `/fetch-schema` (samples a collection to propose its columns).
+
+---
+
+### SNOWFLAKE_TARGET Configuration
+
+[Snowflake target documentation](/connectors/target/snowflake)
+
+```json
+{
+  "account": "myorg-myaccount",
+  "user": "POPSINK",
+  "role": "POPSINK_ROLE",
+  "warehouse": "POPSINK_WH",
+  "database": "ANALYTICS",
+  "schema": "RAW",
+  "private_key": "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC...",
+  "use_dynamic_tables": true
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `account` | string | ✅ | Account identifier (e.g. `myorg-myaccount`) |
+| `user` | string | ✅ | Key-pair user |
+| `role` | string | ✅ | Role |
+| `database` | string | ✅ | Database |
+| `schema` | string | ✅ | Schema |
+| `private_key` | string \| secret | ✅ | Private key body, without the `BEGIN` / `END` lines |
+| `private_key_passphrase` | string \| secret | ⬜ | Passphrase of an encrypted PKCS#8 key |
+| `warehouse` | string | ⬜ | Warehouse used to build the dynamic (merge) tables |
+| `use_dynamic_tables` | boolean | ⬜ | Build dynamic (merge) tables; `false` keeps the target append-only (default: `true`) |
+
+Pre-flight: `POST /snowflake-target/check-credentials`, `/warehouses`.
+
+---
+
+### BIGQUERY_TARGET Configuration
+
+[BigQuery target documentation](/connectors/target/bigquery)
+
+```json
+{
+  "service_account": "{\"type\": \"service_account\", \"project_id\": \"my-project\", ...}",
+  "project": "my-project",
+  "dataset": "popsink_raw"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `service_account` | string \| secret | ✅ | Full content of the service-account JSON key, as a string |
+| `dataset` | string | ✅ | Existing dataset (Popsink creates tables, not datasets) |
+| `project` | string | ⬜ | Project ID (taken from the key's `project_id` when empty) |
+
+Pre-flight: `POST /bigquery-target/check-credentials`.
+
+---
+
+### POSTGRES_TARGET Configuration
+
+[PostgreSQL target documentation](/connectors/target/postgres). `MSSQL_TARGET` takes the same fields (default port `1433`, default schema `dbo`).
+
+```json
+{
+  "host": "warehouse.company.com",
+  "port": "5432",
+  "database": "analytics",
+  "schema": "raw",
+  "user": "popsink",
+  "password": "pg-password"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `host` | string | ✅ | Hostname or IP address |
+| `port` | string | ⬜ | Port (default: `5432`) |
+| `database` | string | ✅ | Database |
+| `schema` | string | ⬜ | Target schema (default: `public`) |
+| `user` | string | ✅ | User |
+| `password` | string \| secret | ✅ | Password |
+
+Pre-flight: `POST /postgres-target/check-credentials` (`/mssql-target/...` for SQL Server).
 
 ---
 
 ### KAFKA_TARGET Configuration
 
+[Kafka target documentation](/connectors/target/kafka)
+
 ```json
 {
-  "bootstrap_server": "kafka1:9092",
+  "bootstrap_servers": "kafka1:9092,kafka2:9092",
   "security_protocol": "SASL_SSL",
   "sasl_mechanism": "PLAIN",
   "sasl_username": "kafka_user",
-  "sasl_password": "kafka_pass",
-  "ca_cert": "",
-  "group_id": "consumer-group"
+  "sasl_password": "kafka_pass"
 }
 ```
 
-**Field Descriptions:**
-
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `bootstrap_server` | string | ✅ | Kafka broker address |
-| `security_protocol` | string | ⬜ | `PLAINTEXT`, `SASL_PLAINTEXT`, `SASL_SSL`, `SSL` |
-| `sasl_mechanism` | string | ⬜ | `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, `GSSAPI`, `OAUTHBEARER` |
-| `sasl_username` | string | ⬜ | SASL username |
-| `sasl_password` | string | ⬜ | SASL password |
-| `ca_cert` | string | ⬜ | CA certificate for SSL |
-| `group_id` | string | ⬜ | Consumer group ID |
+| `bootstrap_servers` | string | ✅ | Comma-separated `host:port` brokers |
+| `security_protocol` | string | ✅ | `PLAINTEXT`, `SASL_PLAINTEXT`, `SASL_SSL`, `SSL` |
+| `sasl_mechanism` | string | ✅ | `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, `GSSAPI`, `OAUTHBEARER` |
+| `sasl_username` | string \| null | ✅ | SASL username (`null` without SASL) |
+| `sasl_password` | string \| secret \| null | ✅ | SASL password (`null` without SASL) |
+
+For a Kafka target, the subscription's `target_table_name` is the output topic.
 
 ---
 
-### ORACLE_TARGET Configuration
+### ELASTICSEARCH_TARGET Configuration
+
+[Elasticsearch target documentation](/connectors/target/elasticsearch)
 
 ```json
 {
-  "database": "ORCL",
-  "user": "etl_user",
-  "password": "etl_pass",
-  "host": "oracle.company.com",
-  "port": "1521",
-  "server_name": "XE",
-  "server_id": "oraclesrv01"
+  "url": "https://es.company.com:9200",
+  "auth_method": "api_key",
+  "api_key": "VnVhQ2ZHY0JDZGJrUW0tZTVhT3g6dWkybHAyYXhUTm1zeWFrdzl0dk5udw==",
+  "verify_ssl": true
 }
 ```
 
-**Field Descriptions:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `url` | string | ✅ | Server URL |
+| `auth_method` | string | ⬜ | `basic` (default), `api_key` or `none` |
+| `username` / `password` | string / secret | With `basic` | Basic authentication |
+| `api_key` | string \| secret | With `api_key` | Base64-encoded API key |
+| `verify_ssl` | boolean | ⬜ | Verify the TLS certificate (default: `true`) |
+
+Pre-flight: `POST /elasticsearch-target/check-credentials`.
+
+---
+
+### WEBHOOK_TARGET Configuration
+
+[Webhook target documentation](/connectors/target/webhook)
+
+```json
+{
+  "host": "https://example.com/webhook",
+  "token": "my-webhook-token",
+  "authentication_type": "BEARER",
+  "request_method": "POST"
+}
+```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `database` | string | ✅ | Oracle database name |
-| `user` | string | ✅ | Username for Oracle |
-| `password` | string | ✅ | Password for Oracle |
-| `host` | string | ✅ | Hostname or IP address |
-| `port` | string | ✅ | Port number (typically `1521`) |
-| `server_name` | string | ✅ | Service name (e.g., `XE`) |
-| `server_id` | string | ✅ | Server identifier/SID |
+| `host` | string | ✅ | Webhook URL |
+| `token` | string \| secret | ⬜ | Authentication token |
+| `authentication_type` | string | ⬜ | `BEARER` (token in the `Authorization` header, default) or `URL` (token as a query parameter) |
+| `request_method` | string | ⬜ | `POST` (default) or `GET` |
+
+Pre-flight: `POST /webhook-target/check-credentials`.
 
 ---
 
-**Mapper Column Config :**
+### Connector types
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `key` | string | Column name in target |
-| `path` | string | JSON path to extract value (e.g., `$.field.nested`) |
-| `static` | string | Static value (alternative to path) |
-| `cast` | string | Cast to: `string`, `int`, `float`, `bool`, `date`, `datetime`, `time` |
-| `cast_format` | string | Format for casting (e.g., date format) |
-| `primary_key` | boolean | Is this a primary key column |
-| `nullable` | boolean | Can this column be null |
-
----
-
-## 🎯 Common Patterns
-
-### Pattern 1: List Resources with Filters
-
-```bash
-# Get all pipelines in a specific state
-curl -X GET "https://your-server/api/pipelines/?state=live" \
-  -H "Authorization: Bearer $TOKEN" -k
-
-# Get pipelines for a specific team
-curl -X GET "https://your-server/api/pipelines/?team_id=$TEAM_ID" \
-  -H "Authorization: Bearer $TOKEN" -k
-
-# Search pipelines by name
-curl -X GET "https://your-server/api/pipelines/?search=kafka" \
-  -H "Authorization: Bearer $TOKEN" -k
-```
-
-### Pattern 2: Pagination
-
-```bash
-# Get first page (default 50 items)
-curl -X GET "https://your-server/api/pipelines/?skip=0&limit=50" \
-  -H "Authorization: Bearer $TOKEN" -k
-
-# Get second page
-curl -X GET "https://your-server/api/pipelines/?skip=50&limit=50" \
-  -H "Authorization: Bearer $TOKEN" -k
-```
-
-### Pattern 3: Error Handling
-
-```python
-import requests
-
-try:
-    response = requests.get(
-        "https://your-server/api/pipelines/",
-        headers={"Authorization": f"Bearer {TOKEN}"},
-        verify=False
-    )
-    response.raise_for_status()  # Raises exception for 4xx/5xx
-    data = response.json()
-except requests.exceptions.HTTPError as e:
-    print(f"HTTP Error: {e}")
-    print(f"Response: {e.response.text}")
-except requests.exceptions.ConnectionError as e:
-    print(f"Connection Error: {e}")
-except Exception as e:
-    print(f"Error: {e}")
-```
-
-### Pattern 4: Bulk Operations
-
-```python
-# Create multiple pipelines
-pipeline_configs = [
-    {"name": "pipeline-1", "team_id": TEAM_ID, ...},
-    {"name": "pipeline-2", "team_id": TEAM_ID, ...},
-    {"name": "pipeline-3", "team_id": TEAM_ID, ...}
-]
-
-for config in pipeline_configs:
-    response = requests.post(
-        f"{SERVER}/api/pipelines/",
-        headers=headers,
-        json=config
-    )
-    print(f"Created: {response.json()['id']}")
-```
-
-### Pattern 5: Test Connector Credentials Before Creating
-
-```bash
-# Test Kafka source credentials
-curl -X POST "https://your-server/api/connector-types/kafka-source/check-credentials" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "bootstrap_servers": "kafka:9092",
-    "topic": "test-topic",
-    "security_protocol": "PLAINTEXT"
-  }' -k
-
-# Test Oracle target credentials
-curl -X POST "https://your-server/api/connector-types/oracle-target/check-credentials" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "host": "oracle.company.com",
-    "port": "1521",
-    "database": "ORCL",
-    "user": "etl_user",
-    "password": "etl_pass",
-    "server_name": "XE",
-    "server_id": "oraclesrv01"
-  }' -k
-```
+| Category | Types |
+|----------|-------|
+| **Database sources (CDC)** | `POSTGRES_SOURCE`, `MYSQL_SOURCE`, `MARIADB_SOURCE`, `MSSQL_SOURCE`, `MSSQL_LOG_SOURCE`, `ORACLE_SOURCE`, `IBMI_SOURCE`, `MONGO_SOURCE` |
+| **Database sources (batch)** | `POSTGRES_DLT_SOURCE`, `MYSQL_DLT_SOURCE`, `MSSQL_DLT_SOURCE`, `ORACLE_DLT_SOURCE`, `IBMI_DLT_SOURCE` |
+| **Warehouse sources** | `SNOWFLAKE_SOURCE`, `BIGQUERY_SOURCE` |
+| **SaaS sources** | `SALESFORCE_SOURCE`, `HUBSPOT_SOURCE`, `ZENDESK_SOURCE`, `SHOPIFY_SOURCE`, `PIPEDRIVE_SOURCE`, `GOOGLE_ADS_SOURCE`, `FACEBOOK_ADS_SOURCE`, `SHAREPOINT_SOURCE`, `DLT_SOURCE` |
+| **Other sources** | `KAFKA_SOURCE`, `FILESYSTEM_DLT_SOURCE`, `DATAGEN_SOURCE`, `POPSINK_SOURCE` |
+| **Targets** | `SNOWFLAKE_TARGET`, `BIGQUERY_TARGET`, `POSTGRES_TARGET`, `MSSQL_TARGET`, `ORACLE_TARGET`, `KAFKA_TARGET`, `ICEBERG_TARGET`, `POLARIS_TARGET`, `UNITY_CATALOG_TARGET`, `ELASTICSEARCH_TARGET`, `WEBHOOK_TARGET`, `HUBSPOT_TARGET` |
 
 ---
 
-## 🐛 Troubleshooting
+## API reference
 
-### Issue: "401 Unauthorized"
+The main endpoints, relative to `/api`. See `/api/docs` on your instance for the full list.
 
-**Cause:** Token is missing, expired, or invalid
+### Authentication
 
-**Solution:**
-1. Check that you included the `Authorization` header
-2. Verify the token format: `Bearer YOUR_TOKEN`
-3. Log in again to get a fresh token
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/jwt/login` | Exchange email + password for an access and a refresh token |
+| `POST` | `/auth/jwt/refresh` | Exchange a refresh token for a new pair |
+| `POST` | `/auth/jwt/login-from-api-key` | Exchange an organization API key for a 10-minute token (self-hosted) |
+| `POST` | `/auth/jwt/logout` | Log out |
+| `POST` | `/auth/register` | Create a user (when self-registration is enabled) |
+| `POST` | `/auth/forgot-password` / `/auth/reset-password` | Reset a password |
 
-```bash
-curl -X POST "https://your-server/api/auth/jwt/login" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d 'username=YOUR_EMAIL&password=YOUR_PASSWORD' -k
-```
+### Users
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/users/me` | Current user, including `active_env_id` |
+| `PATCH` | `/users/me` | Update the current user (e.g. `active_env_id`) |
+| `POST` | `/users/me/change-password` | Change your password |
+| `POST` | `/users/me/service-account-token` | Create a service-account token |
+| `GET` | `/users` | List users (admin only) |
+| `GET` / `PATCH` / `DELETE` | `/users/{id}` | Read, update or delete a user |
+
+### Environments and teams
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` / `POST` | `/envs/` | List or create environments |
+| `GET` / `PATCH` / `DELETE` | `/envs/{id}` | Read, update or delete an environment |
+| `GET` | `/envs/filter-one?name={name}` | Find an environment by name |
+| `GET` | `/envs/members` | List environment members |
+| `GET` / `POST` | `/teams/` | List or create teams |
+| `GET` / `PATCH` / `DELETE` | `/teams/{id}` | Read, update or delete a team |
+| `GET` | `/teams/filter-one?name={name}` | Find a team by name |
+| `GET` | `/teams/{id}/members` | List team members |
+| `POST` | `/teams/{id}/members/bulk` | Add owners and members |
+| `DELETE` | `/teams/{id}/members/{member_id}` | Remove a member |
+
+### Connectors
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/connector-types/` | Every connector type with its form fields |
+| `POST` | `/connectors/` | Create a connector |
+| `GET` / `PATCH` / `DELETE` | `/connectors/{id}` | Read, update or delete a connector |
+| `GET` | `/connectors/source-config?env_id={id}` | List source connectors |
+| `GET` | `/connectors/target-config?env_id={id}` | List target connectors |
+| `GET` | `/connectors/filter-one?name={name}` | Find a connector by name |
+| `GET` | `/connectors/{id}/source-topics` | Tables or topics available on a source, with stored credentials |
+| `POST` | `/connectors/{id}/start` | Start the worker (202) |
+| `POST` | `/connectors/{id}/stop` | Stop the worker (202) |
+| `GET` | `/connectors/{id}/logs` | Snapshot of the worker logs |
+| `POST` | `/connectors/{id}/trigger-incremental-load` | Trigger an incremental load (IBM i) |
+| `POST` | `/<type>/check-credentials` | Test a configuration before saving it |
+| `POST` | `/<type>/list-tables` | List the tables a source can capture |
+| `POST` | `/<type>/fetch-schema` | Fetch the schema of a source table |
+
+### Data models
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/datamodels/` | List data models (filters: `env`, `team_id`, `source_connector_id`, `state`, `search`) |
+| `GET` / `PATCH` / `DELETE` | `/datamodels/{id}` | Read, update or delete a data model |
+| `GET` | `/datamodels/count-status` | Count data models by status |
+| `GET` | `/datamodels/{id}/schema` | Schema of a data model |
+| `GET` | `/datamodels/{id}/monitoring` | Monitoring of a data model |
+| `GET` | `/datamodels/{id}/stream` | Recent records of its topic |
+| `POST` | `/datamodels/{id}/start` / `stop` | Enable or disable capture of one table (202) |
+| `POST` | `/datamodels/{id}/replay-source` | Re-read the source topic from the beginning |
+| `PATCH` | `/datamodels/{id}/error-table` | Configure the error table |
+
+### Subscriptions
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` / `POST` | `/subscriptions/` | List or create subscriptions |
+| `POST` | `/subscriptions/subscribe-all` | Subscribe one data model to several targets |
+| `GET` / `PATCH` / `DELETE` | `/subscriptions/{id}` | Read, update or delete a subscription |
+| `POST` | `/subscriptions/{id}/start` / `pause` | Enable or disable delivery (202) |
+| `POST` | `/subscriptions/{id}/replay` | Replay from the broker retention |
+| `GET` | `/subscriptions/{id}/target-objects` | Objects a deletion with target cleanup would drop |
+
+### Backfills and transformations
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/backfills/preview` | Preview what a backfill would reload |
+| `POST` | `/backfills/` | Trigger a backfill |
+| `GET` | `/backfills/status` | Status of a source connector's backfill |
+| `POST` | `/backfills/{run_id}/cancel` | Cancel a backfill run |
+| `POST` | `/smt/process_mapper` | Apply a mapper configuration to a sample message |
+
+### Monitoring and health
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/workers/production-metrics` | CDC production metrics since a date |
+| `GET` | `/workers/consumption-metrics` | Per-subscription consumption metrics since a date |
+| `GET` | `/workers/resource/{id}/status` | Current worker status of a resource |
+| `GET` | `/datamodels/environment/monitoring-summary` | Environment monitoring summary |
+| `GET` | `/events` | Monitoring events of a resource |
+| `GET` | `/config/deployment` | Deployment ID, mode and name |
+| `GET` | `/healthchecks` | API health (also `/db`, `/broker`, `/schema-registry`, `/k8s`) |
 
 ---
 
-### Issue: "403 Forbidden"
+## Troubleshooting
 
-**Cause:** You don't have permission for this operation
+### `401 Unauthorized`
 
-**Solution:**
-1. Verify you're a member of the team
-2. Check if you have the required role (owner vs member)
-3. Contact the team owner to grant permissions
+The token is missing or expired. Log in again, refresh it with `POST /auth/jwt/refresh`, or, with an API key, exchange the key again (its tokens last 10 minutes).
 
----
+### `400 This endpoint is only available in SELF_HOSTED mode`
 
-### Issue: "422 Validation Error"
+API-key login is only available on self-hosted deployments. Use email and password login, or check `GET /config/deployment` to confirm which instance you are calling.
 
-**Cause:** Request data doesn't meet validation requirements
+### `403 Forbidden`
 
-**Solution:**
-1. Check the error response for specific field errors
-2. Verify all required fields are provided
-3. Ensure data types match (UUID, string, boolean, etc.)
+You are not a member of the team that owns the resource, or your role doesn't allow writes. Ask a team owner to add you with `POST /teams/{id}/members/bulk`.
 
-**Example Error Response:**
+### `404` on `/auth/register`
+
+Self-registration is disabled on this deployment. Ask an administrator to invite you.
+
+### `409 Conflict`
+
+A connector with the same name already exists. Pick another name, or send an `Idempotency-Key` header so that retries return the original resource.
+
+### `422 Validation Error`
+
+The body doesn't match the schema. The response names the offending field:
+
 ```json
 {
   "detail": [
-    {
-      "loc": ["body", "source_name"],
-      "msg": "field required",
-      "type": "value_error.missing"
-    }
+    { "loc": ["body", "json_configuration"], "msg": "Field required", "type": "missing" }
   ]
 }
 ```
 
-**Fix:**
-```json
-{
-  "name": "my-pipeline",
-  "team_id": "uuid-here",
-  "source_name": "my-source",
-  "source_type": "KAFKA_SOURCE",
-  "source_config": {...}
-}
-```
+### Credentials come back as `"<redacted>"`
+
+That's expected: inline secrets are redacted on every read. Send the full value (or a `valueFrom` reference) again when you `PATCH` the connector, since `json_configuration` is replaced as a whole.
+
+### Connector stuck in `building`
+
+The worker can't start. Read `GET /connectors/{id}/logs`, then check the configuration with the type's `check-credentials` endpoint.
 
 ---
 
-### Issue: Invalid pipeline name
+## Complete example script
 
-**Cause:** Pipeline name contains invalid characters
-
-**Solution:** Pipeline names must:
-- Contain only alphanumeric characters, hyphens (`-`), and underscores (`_`)
-- Be maximum 255 characters long
-- Not be empty
-
-**Valid names:**
-- `kafka-to-oracle-pipeline`
-- `user_events_pipeline_v2`
-- `Pipeline123`
-
-**Invalid names:**
-- `pipeline name` (contains space)
-- `pipeline.name` (contains dot)
-- `pipeline@name` (contains special character)
-
----
-
-### Issue: Cannot specify both existing and new connector
-
-**Cause:** You provided both `existing_source_id` AND `source_name/type/config`
-
-**Solution:** Choose ONE approach:
-
-**Option A (Existing):**
-```json
-{
-  "existing_source_id": "uuid-here"
-}
-```
-
-**Option B (New):**
-```json
-{
-  "source_name": "my-source",
-  "source_type": "KAFKA_SOURCE",
-  "source_config": {...}
-}
-```
-
----
-
-### Issue: Pipeline stuck in "BUILDING" state
-
-**Cause:** Deployment failed or is taking longer than expected
-
-**Solution:**
-1. Check pipeline logs via WebSocket
-2. Verify connector configurations are correct
-3. Check infrastructure resources (CPU, memory)
-
-```bash
-# Get detailed status
-curl -X GET "https://your-server/api/pipelines/$PIPELINE_ID" \
-  -H "Authorization: Bearer $TOKEN" -k
-```
-
----
-
-### Issue: SSL Certificate Error
-
-**Cause:** Self-signed certificate or untrusted CA
-
-**Solution for curl:**
-```bash
-# Add -k or --insecure flag
-curl -X GET "https://your-server/api/pipelines/" \
-  -H "Authorization: Bearer $TOKEN" -k
-```
-
-**Solution for Python:**
-```python
-requests.get(url, verify=False)
-```
-
-**Solution for HTTPie:**
-```bash
-http --verify=no GET https://your-server/api/pipelines/
-```
-
----
-
-## 📝 Complete Example Script
-
-Here's a complete Python script that performs all steps:
+This script creates a PostgreSQL source and a Snowflake target, subscribes every table to Snowflake and starts both workers:
 
 ```python
 #!/usr/bin/env python3
-"""
-Complete Popsink API example script
-"""
-import requests
-import json
-from typing import Optional
+"""Replicate PostgreSQL tables to Snowflake through the Popsink API."""
+import time
 
-# Configuration
-SERVER = "https://your-server"
-VERIFY_SSL = False  # Set to True in production
+import requests
+
+SERVER = "https://<tenant>.<region>.popsink.com/api"
+EMAIL = "john.doe@company.com"
+PASSWORD = "MySecurePassword123!"
+TEAM_ID = "881e0fce-5caa-4f5c-82c6-5eb883c47100"
+
 
 class PopsinkClient:
-    def __init__(self, server: str, verify_ssl: bool = True):
-        self.server = server.rstrip('/')
-        self.verify_ssl = verify_ssl
-        self.token: Optional[str] = None
+    def __init__(self, server: str):
+        self.server = server.rstrip("/")
+        self.session = requests.Session()
 
-    def register(self, email: str, password: str) -> dict:
-        """Register a new user"""
-        response = requests.post(
-            f"{self.server}/api/auth/register",
-            json={
-                "email": email,
-                "password": password,
-                "is_active": True
-            },
-            verify=self.verify_ssl
+    def login(self, email: str, password: str) -> None:
+        response = self.session.post(
+            f"{self.server}/auth/jwt/login",
+            data={"username": email, "password": password},
         )
         response.raise_for_status()
-        return response.json()
+        token = response.json()["access_token"]
+        self.session.headers["Authorization"] = f"Bearer {token}"
 
-    def login(self, email: str, password: str) -> str:
-        """Login and get token"""
-        response = requests.post(
-            f"{self.server}/api/auth/jwt/login",
-            data={
-                "username": email,
-                "password": password
-            },
-            verify=self.verify_ssl
-        )
+    def request(self, method: str, path: str, **kwargs):
+        response = self.session.request(method, f"{self.server}{path}", **kwargs)
         response.raise_for_status()
-        data = response.json()
-        self.token = data["access_token"]
-        return self.token
+        return response.json() if response.content else None
 
-    def _headers(self) -> dict:
-        """Get headers with auth token"""
-        if not self.token:
-            raise ValueError("Not logged in. Call login() first.")
-        return {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json"
-        }
-
-    def create_environment(self, name: str, description: str = "") -> dict:
-        """Create an environment"""
-        response = requests.post(
-            f"{self.server}/api/envs/",
-            headers=self._headers(),
-            json={
-                "name": name,
-                "description": description,
-                "use_retention": True
-            },
-            verify=self.verify_ssl
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def create_team(self, name: str, description: str = "") -> dict:
-        """Create a team"""
-        response = requests.post(
-            f"{self.server}/api/teams/",
-            headers=self._headers(),
-            json={
-                "name": name,
-                "description": description
-            },
-            verify=self.verify_ssl
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def create_pipeline(self, name: str, team_id: str, config: dict) -> dict:
-        """Create a pipeline"""
-        pipeline_data = {
+    def create_connector(self, name: str, connector_type: str, config: dict) -> dict:
+        return self.request("POST", "/connectors/", json={
             "name": name,
-            "team_id": team_id,
-            **config
-        }
-        response = requests.post(
-            f"{self.server}/api/pipelines/",
-            headers=self._headers(),
-            json=pipeline_data,
-            verify=self.verify_ssl
-        )
-        response.raise_for_status()
-        return response.json()
+            "connector_type": connector_type,
+            "team_id": TEAM_ID,
+            "json_configuration": config,
+        })
 
-    def start_pipeline(self, pipeline_id: str) -> str:
-        """Start a pipeline"""
-        response = requests.post(
-            f"{self.server}/api/pipelines/{pipeline_id}/start",
-            headers=self._headers(),
-            verify=self.verify_ssl
-        )
-        response.raise_for_status()
-        return response.json()
+    def list_datamodels(self, source_id: str) -> list[dict]:
+        items, page = [], 1
+        while True:
+            data = self.request("GET", "/datamodels/", params={
+                "source_connector_id": source_id, "page": page, "size": 100,
+            })
+            items += data["items"]
+            if page >= (data["pages"] or 1):
+                return items
+            page += 1
+
+    def wait_until_live(self, connector_id: str, timeout: int = 600) -> str:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            status = self.request("GET", f"/connectors/{connector_id}")["status"]
+            if status in ("live", "error"):
+                return status
+            time.sleep(10)
+        raise TimeoutError(f"Connector {connector_id} is still not live")
 
 
 def main():
-    # Initialize client
-    client = PopsinkClient(SERVER, verify_ssl=VERIFY_SSL)
+    client = PopsinkClient(SERVER)
+    client.login(EMAIL, PASSWORD)
 
-    # 1. Register
-    print("1. Registering user...")
-    user = client.register("demo@example.com", "SecurePassword123!")
-    print(f"   ✓ User created: {user['id']}")
+    source = client.create_connector("shop-postgres", "POSTGRES_SOURCE", {
+        "host": "pg.company.com",
+        "port": 5432,
+        "database": "shop",
+        "user": "popsink",
+        "password": {"valueFrom": {"secretName": "shop-pg", "key": "password"}},
+        "whitelist": "public.orders,public.customers",
+    })
+    print(f"Source created: {source['id']}")
 
-    # 2. Login
-    print("\n2. Logging in...")
-    token = client.login("demo@example.com", "SecurePassword123!")
-    print(f"   ✓ Logged in (token: {token[:20]}...)")
+    target = client.create_connector("analytics-snowflake", "SNOWFLAKE_TARGET", {
+        "account": "myorg-myaccount",
+        "user": "POPSINK",
+        "role": "POPSINK_ROLE",
+        "warehouse": "POPSINK_WH",
+        "database": "ANALYTICS",
+        "schema": "RAW",
+        "private_key": {"valueFrom": {"secretName": "snowflake", "key": "private-key"}},
+    })
+    print(f"Target created: {target['id']}")
 
-    # 3. Create environment
-    print("\n3. Creating environment...")
-    env = client.create_environment("demo-env", "Demo environment")
-    print(f"   ✓ Environment created: {env['id']}")
+    for datamodel in client.list_datamodels(source["id"]):
+        subscription = client.request("POST", "/subscriptions/", json={
+            "name": f"{datamodel['source_table'] or datamodel['id']}-to-snowflake",
+            "datamodel_id": datamodel["id"],
+            "target_connector_id": target["id"],
+            "backfill": True,
+        })
+        print(f"Subscribed {datamodel['name']}: {subscription['id']}")
 
-    # 4. Create team
-    print("\n4. Creating team...")
-    team = client.create_team("Demo Team", "Demo team for testing")
-    print(f"   ✓ Team created: {team['id']}")
-
-    # 5. Create pipeline
-    print("\n5. Creating pipeline...")
-    pipeline_config = {
-        "source_name": "demo-kafka-source",
-        "source_type": "KAFKA_SOURCE",
-        "source_config": {
-            "topic": "demo-topic",
-            "bootstrap_servers": "kafka:9092",
-            "consumer_group_id": "demo-group",
-            "security_protocol": "PLAINTEXT"
-        },
-        "target_name": "demo-kafka-target",
-        "target_type": "KAFKA_TARGET",
-        "target_config": {
-            "bootstrap_server": "kafka:9092",
-            "security_protocol": "PLAINTEXT"
-        },
-        "subscription_target_table_name": "events",
-        "subscription_backfill": False
-    }
-    pipeline = client.create_pipeline("demo-pipeline", team['id'], pipeline_config)
-    print(f"   ✓ Pipeline created: {pipeline['id']}")
-
-    # 6. Start pipeline
-    print("\n6. Starting pipeline...")
-    state = client.start_pipeline(pipeline['id'])
-    print(f"   ✓ Pipeline state: {state}")
-
-    print("\n✓ All steps completed successfully!")
+    for connector in (source, target):
+        client.request("POST", f"/connectors/{connector['id']}/start")
+        print(f"{connector['name']}: {client.wait_until_live(connector['id'])}")
 
 
 if __name__ == "__main__":
@@ -1508,25 +1349,8 @@ if __name__ == "__main__":
 
 ---
 
-## 🎓 Next Steps
+## Support
 
-Now that you understand the basics:
-
-1. **Explore the API:** Try listing resources, filtering, pagination
-2. **Monitor Pipelines:** Use logs and status endpoints
-3. **Handle Errors:** Implement proper error handling
-4. **Test Credentials:** Use credential check endpoints before creating connectors
-5. **Optimize:** Reuse connectors, batch operations
-6. **Automate:** Create scripts or CI/CD pipelines
-
----
-
-## 📞 Support
-
-- **Documentation:** This guide
-- **API Schema:** `https://your-server/api/docs` (Swagger UI)
-- **OpenAPI Spec:** `https://your-server/api/openapi.json`
-
----
-
-**Happy Data Processing! 🚀**
+- **Swagger UI:** `https://<your-instance>/api/docs`
+- **OpenAPI spec:** `https://<your-instance>/api/openapi.json`
+- **Claude Code skill:** [drive the API from Claude Code](/api/skills)
