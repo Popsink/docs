@@ -229,6 +229,15 @@
               {
                 "group": "Data Plane",
                 "pages": [
+                  "changelog/data-plane/alpha-199",
+                  "changelog/data-plane/alpha-198",
+                  "changelog/data-plane/alpha-197",
+                  "changelog/data-plane/alpha-196",
+                  "changelog/data-plane/alpha-195",
+                  "changelog/data-plane/alpha-194",
+                  "changelog/data-plane/alpha-193",
+                  "changelog/data-plane/alpha-192",
+                  "changelog/data-plane/alpha-191",
                   "changelog/data-plane/alpha-190",
                   "changelog/data-plane/alpha-189",
                   "changelog/data-plane/alpha-188",
