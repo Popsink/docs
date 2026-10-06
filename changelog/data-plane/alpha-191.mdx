@@ -1,0 +1,27 @@
+---
+title: "v0.1.0-alpha.191 28/09/2026"
+---
+
+---
+
+**Description**: Backfill - a SQL Server source can load its history into BigQuery.
+
+### Changes
+
+- Backfill - a SQL Server source can load its history into BigQuery (#4475).
+- Salesforce source - an SObject is synced on the cursor it has, and a failed read holds that object alone (#4515).
+- Salesforce source - a connector takes 100 SObjects, capped on the whitelist it provisions from (#4510).
+- Oracle source - the CDC adapter is a connector setting (#4508).
+- DP - A MySQL binary column reaches a target as base64, never as a Python repr (#4478).
+- DP - a declared primary key is checked against the columns the target writes (#4505).
+- Snow target - the durable-offset read leaves the poll thread (#4507).
+- BigQuery target - a Debezium date reaches a legacy INTEGER column, and a row that cannot be written stops the worker (#4506).
+- DP - MARIADB_SOURCE: connector type, mariadb-to-kafka strategy, flavour pre-flight (#4503).
+- [ARCH] The Snowflake target listings take a port instead of building their own adapter (#4517).
+- [FRONT] Part 1 of #4518: the pipeline stores read /pipelines/* through the service (#4520).
+- DP - A missing primary key says why, and what it costs (#4491).
+- [SEC] A pipeline write authorizes every connector it names (#4527).
+- [TESTS] Pin what the wizard's first subscriptions carry (#4529).
+- DP - MariaDB's introspection says it reads the key, like MySQL's (#4534).
+- BigQuery target - a batch is written, or the worker stops holding it (#4519).
+- Release cut - data-plane 2026.09.28, chart 0.1.0-alpha.191 (#4525).

@@ -1,0 +1,22 @@
+---
+title: "v0.1.0-alpha.195 30/09/2026"
+---
+
+---
+
+**Description**: DP - A JDBC target writes into the schema it was configured with.
+
+### Changes
+
+- DP - A JDBC target writes into the schema it was configured with (#4583).
+- DP - a rotated pipeline credential is finally visible to drift detection (#4586).
+- SQL Server log source - datetime values match what Debezium publishes (#4585).
+- Snowflake target - a key that drops rows can be replaced (#4556).
+- Worker - pods of one target connector stop fencing each other (#4595).
+- [ARCH] Part 1 of #4607: the pipeline replay rotates consumer ids through its repository (#4608).
+- [FRONT] Route the last inline client calls through services and composables (#4609).
+- [SEC] Part 1 of #4610: PATCH /users/me can no longer grant itself superuser (#4611).
+- [TESTCLEAN] Part 3 of #4530: API pages now state how many rows they must hold (#4614).
+- [SEMANTIC] Part 1 of #4615: the mapper says its columns come from the target's catalogue (#4617).
+- [TESTS] Part 1 of #4573: prove the write-reach gate across environments (#4612).
+- Worker - native JDBC targets start on a plaintext broker (#4605).
