@@ -219,7 +219,7 @@
           {
             "group":"Transformation",
             "icon":"code",
-            "pages": ["transform"]
+            "pages": ["transform", "warehouse"]
           },
           {
             "group": "Changelog",

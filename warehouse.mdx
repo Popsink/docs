@@ -1,0 +1,306 @@
+---
+title: Warehouse
+description: Connect Popsink to your Databricks SQL warehouse and run SQL on any of its tables
+---
+
+A **Warehouse** is a named, credentialed connection to the compute engine your transformations run on. Popsink relays SQL statements to it, and the queries run **on your own compute**: no Popsink worker is launched for a warehouse, and Popsink never reads or stores the data the queries touch.
+
+The SQL you run on a warehouse can read and write **any table the warehouse can access**, whether Popsink delivers it or not.
+
+Databricks is the first supported engine. A warehouse lives under **Transform data → Warehouses** in the data plane.
+
+## How it works
+
+| | |
+|---|---|
+| **Owned by a domain** | Like a connector, a warehouse belongs to one domain (team). Only members with write access to that domain can edit, test or delete it. |
+| **Tasks** | SQL statements run on the warehouse on a schedule. The warehouse's detail page lists its tasks with their schedule and last runs. |
+| **Credentials encrypted at rest** | The access token is encrypted with your deployment's own key and is never returned by the API: once saved, it reads back as `<redacted>`. Editing another setting keeps the stored token. |
+| **Status = last connection test** | A warehouse runs no pod, so its status is the verdict of its last connection test: **Draft** (never tested), **Live** (last test succeeded) or **Error** (last test failed, with Databricks' own message). |
+| **Changed settings are tested before they are saved** | Editing the hostname, HTTP path, token, catalog or schema re-runs the connection test, and the change is written only if Databricks accepts it. Renaming a warehouse is saved without a test. |
+
+## Prerequisites
+
+Everything below is set up in Databricks, by a **workspace admin**, before you create the warehouse in Popsink.
+
+<Steps>
+  <Step title="A workspace with Unity Catalog">
+    A Databricks workspace (AWS, Azure or GCP) attached to a **Unity Catalog** metastore. The tables your SQL reads and writes are addressed as `catalog.schema.table`.
+  </Step>
+  <Step title="A SQL warehouse">
+    In **SQL Warehouses**, create a SQL warehouse or pick an existing one. **Serverless** is recommended: it starts in seconds and stops when idle, so a task scheduled every few minutes only bills while it runs.
+
+    An **all-purpose cluster** cannot be used: Popsink only accepts a SQL warehouse's HTTP path.
+  </Step>
+  <Step title="A service principal">
+    In **Settings → Identity and access → Service principals**, add a service principal to the workspace. Use a service principal rather than a person's account, so the connection keeps working when someone leaves.
+
+    On the service principal's **Configurations** tab, enable the **Databricks SQL access** entitlement: without it, the service principal cannot run statements on a SQL warehouse.
+  </Step>
+  <Step title="An access token for the service principal">
+    Popsink authenticates with a **personal access token** belonging to the service principal.
+
+    1. In **Settings → Advanced → Personal Access Tokens**, make sure tokens are enabled, and under **Permission Settings** give the service principal **Can Use**.
+    2. Generate the token **as the service principal**, for example with the Databricks CLI authenticated with its OAuth secret:
+
+       ```bash
+       databricks tokens create --comment "popsink-warehouse" --lifetime-seconds 31536000
+       ```
+
+    Copy the token value: it is shown only once. Note its expiry date, and replace it in Popsink before it expires.
+  </Step>
+  <Step title="Permission to use the SQL warehouse">
+    In **SQL Warehouses → your warehouse → Permissions**, give the service principal **Can use**.
+  </Step>
+  <Step title="Unity Catalog privileges">
+    Grant the service principal what your SQL needs, and nothing more. Typically, read access on the tables you transform and write access on the schema you build into:
+
+    ```sql
+    -- Read the tables your SQL uses
+    GRANT USE CATALOG ON CATALOG <source_catalog> TO `<service_principal>`;
+    GRANT USE SCHEMA  ON SCHEMA  <source_catalog>.<source_schema> TO `<service_principal>`;
+    GRANT SELECT      ON SCHEMA  <source_catalog>.<source_schema> TO `<service_principal>`;
+
+    -- Create and update the tables your SQL produces
+    GRANT USE CATALOG  ON CATALOG <target_catalog> TO `<service_principal>`;
+    GRANT USE SCHEMA   ON SCHEMA  <target_catalog>.<target_schema> TO `<service_principal>`;
+    GRANT CREATE TABLE ON SCHEMA  <target_catalog>.<target_schema> TO `<service_principal>`;
+    GRANT MODIFY       ON SCHEMA  <target_catalog>.<target_schema> TO `<service_principal>`;
+    ```
+
+    If you set a default **catalog** and **schema** on the warehouse in Popsink, the service principal also needs `USE CATALOG` and `USE SCHEMA` on them: the connection test reads both.
+  </Step>
+  <Step title="Network access">
+    If the workspace restricts inbound traffic with **IP access lists**, add Popsink's [egress IP addresses](/deployment/connectivity/egress-ips) for your region. On a self-hosted data plane, allow the addresses your cluster leaves from instead.
+  </Step>
+</Steps>
+
+You now have everything Popsink asks for:
+
+| Value | Where to find it |
+|---|---|
+| **Server hostname** | **SQL Warehouses → your warehouse → Connection details** |
+| **HTTP path** | Same tab, e.g. `/sql/1.0/warehouses/abc123def456` |
+| **Access token** | The token generated for the service principal |
+| **Catalog** and **Default schema** (optional) | The catalog and schema that unqualified table names should resolve to |
+
+<Warning>
+The connection test checks the warehouse, the catalog and the schema, but creates nothing. A missing `SELECT`, `CREATE TABLE` or `MODIFY` grant is only caught the first time a statement needs it.
+</Warning>
+
+## Create a warehouse
+
+<Steps>
+  <Step title="Open the wizard">
+    In Popsink, go to **Transform data → Warehouses** and click **New Warehouse**. Select **Databricks** as the **Type**, give it a **Warehouse Name** and pick the **Owner** domain.
+  </Step>
+  <Step title="Fill in the settings">
+    | Field | Required | Description |
+    |---|---|---|
+    | **Server hostname** | Yes | Workspace hostname, without a scheme (e.g. `adb-1234567890123456.7.azuredatabricks.net`). A pasted URL is reduced to its host. |
+    | **HTTP path** | Yes | Path of the SQL warehouse (e.g. `/sql/1.0/warehouses/abc123def456`). A cluster path (`/sql/protocolv1/…`) is refused. |
+    | **Access token** | Yes | The service principal's personal access token. |
+    | **Catalog** | No | Catalog that unqualified statements default to. |
+    | **Default schema** | No | Schema that unqualified statements default to. Requires a catalog. |
+
+    Catalog and schema names accept letters, digits, underscores and hyphens only.
+  </Step>
+  <Step title="Test and save">
+    Click **Test credentials**, then **Continue** once the test passes. If any setting changes after a green test, the test has to run again.
+  </Step>
+</Steps>
+
+### What the connection test does
+
+Three read-only metadata calls, in the order a failure is easiest to explain:
+
+| Call | A failure means |
+|---|---|
+| `GET /api/2.0/sql/warehouses/{id}` | The hostname, token or HTTP path is wrong (all three are checked in one round-trip). |
+| `GET /api/2.1/unity-catalog/catalogs/{catalog}` | The catalog does not exist, or the token cannot use it. |
+| `GET /api/2.1/unity-catalog/schemas/{catalog}.{schema}` | The schema does not exist, or the token cannot use it. |
+
+The test runs **no SQL statement**: a `SELECT 1` would start a stopped warehouse, bill you for compute and take minutes to answer. You can re-run it at any time with **Test connection** from the warehouses list to refresh a warehouse's status.
+
+## SQL examples
+
+The examples run on a Databricks SQL warehouse, as a task or from the SQL editor. They use two tables in `main.sales`; replace the names with your own:
+
+- `orders`: one row per order (`id`, `customer_id`, `status`, `amount`, `created_at`);
+- `orders_history`: one row per change made to an order, with the order's columns plus:
+
+| Column | Description |
+|---|---|
+| `op` | Operation: `c` (create), `r` (snapshot read, for instance an initial load), `u` (update), `d` (delete). |
+| `event_ts` | When the change happened at the source. |
+| `seq` | A sequence number breaking ties between changes with the same `event_ts`. |
+
+<Tip>
+**History tables delivered by Popsink** have this shape, under other column names: `op` is `__op`, `event_ts` is `__ts_ms` (epoch milliseconds, so compare with `unix_millis(...)` or read it with `timestamp_millis(...)`), and `seq` is the Kafka position: `__partition, __offset` on a [Unity Catalog target](/connectors/target/deltalake) (table `<T>_APPEND`), `__kafka_partition, __kafka_offset` on an [Iceberg target](/connectors/target/iceberg) (table `<T>`).
+</Tip>
+
+### Build a reporting table
+
+The most common task: rebuild an aggregate on a schedule.
+
+```sql
+CREATE OR REPLACE TABLE main.analytics.daily_revenue AS
+SELECT
+  DATE(created_at)            AS day,
+  COUNT(*)                    AS orders,
+  COUNT(DISTINCT customer_id) AS customers,
+  SUM(amount)                 AS revenue
+FROM main.sales.orders
+WHERE status <> 'cancelled'
+GROUP BY ALL;
+```
+
+### Full history of a row
+
+Every change made to order `42`, with the previous status beside the new one:
+
+```sql
+SELECT
+  id,
+  event_ts,
+  op,
+  LAG(status) OVER (PARTITION BY id ORDER BY event_ts, seq) AS previous_status,
+  status
+FROM main.sales.orders_history
+WHERE id = 42
+ORDER BY event_ts, seq;
+```
+
+### Table as it was at a point in time
+
+The latest change of each order before a given instant. The `WHERE` runs before the window, which is what makes this a point-in-time read; the delete filter sits outside so a deleted row is not replaced by its previous version:
+
+```sql
+SELECT * EXCEPT (op, event_ts, seq)
+FROM (
+  SELECT *
+  FROM main.sales.orders_history
+  WHERE event_ts <= TIMESTAMP '2026-10-01 00:00:00'
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY id
+    ORDER BY event_ts DESC NULLS LAST, seq DESC NULLS LAST
+  ) = 1
+)
+WHERE op <> 'd';
+```
+
+### Build a merge table when creates arrive after updates
+
+Rebuilding current state from a history table usually applies a simple rule: **the latest change wins**. That is right as long as changes arrive in the order they happened. Some sources, and some reloads, break that assumption: a **create** (`c`) or a **snapshot read** (`r`) lands in the history **after** updates for the same key, with a later timestamp. With "latest change wins", that late create overwrites the updates.
+
+For example, `orders_history` holds three changes for order `42`:
+
+| `id` | `status` | `amount` | `op` | `event_ts` |
+|---|---|---|---|---|
+| 42 | `paid` | 120.00 | `u` | 10:00 |
+| 42 | `shipped` | 120.00 | `u` | 11:00 |
+| 42 | `pending` | 100.00 | `c` | 12:00 |
+
+| Rule | Result for order `42` |
+|---|---|
+| Latest change wins | `pending`, 100.00: the updates are lost |
+| **Updates are kept** (this example) | `shipped`, 120.00 |
+
+The rule used below: **for a given key, an update or a delete always outranks a create or a snapshot read. Among changes of the same rank, the latest wins** (`event_ts`, then `seq`).
+
+The merge table keeps `op` and `event_ts`, which the incremental step needs.
+
+<Steps>
+  <Step title="Build the merge table from the full history">
+    ```sql
+    CREATE OR REPLACE TABLE main.analytics.orders_merged AS
+    SELECT * EXCEPT (seq)
+    FROM (
+      SELECT *
+      FROM main.sales.orders_history
+      QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY id
+        ORDER BY
+          CASE WHEN op IN ('u', 'd') THEN 1 ELSE 0 END DESC,  -- updates and deletes first
+          event_ts DESC NULLS LAST,
+          seq      DESC NULLS LAST
+      ) = 1
+    )
+    WHERE op <> 'd';
+    ```
+
+    This statement is complete on its own: re-running it rebuilds the table from scratch. On a small history, scheduling it as a task is all you need.
+  </Step>
+  <Step title="Keep it current with an incremental MERGE">
+    On a large history, apply only recent changes instead of rebuilding. The source elects one change per key with the same rule, over a look-back window:
+
+    ```sql
+    MERGE INTO main.analytics.orders_merged AS t
+    USING (
+      SELECT * EXCEPT (seq)
+      FROM (
+        SELECT *
+        FROM main.sales.orders_history
+        WHERE event_ts >= current_timestamp() - INTERVAL 2 DAYS
+        QUALIFY ROW_NUMBER() OVER (
+          PARTITION BY id
+          ORDER BY
+            CASE WHEN op IN ('u', 'd') THEN 1 ELSE 0 END DESC,
+            event_ts DESC NULLS LAST,
+            seq      DESC NULLS LAST
+        ) = 1
+      )
+    ) AS s
+    ON t.id = s.id
+    -- Delete, unless a newer change is already stored
+    WHEN MATCHED AND s.op = 'd' AND s.event_ts >= t.event_ts THEN DELETE
+    -- Update, unless a newer change is already stored
+    WHEN MATCHED AND s.op = 'u' AND s.event_ts >= t.event_ts THEN UPDATE SET *
+    -- c / r on an existing key: no clause, the updates are kept
+    WHEN NOT MATCHED AND s.op <> 'd' THEN INSERT *;
+    ```
+
+    What each case does:
+
+    | Change in the window | Key already in `orders_merged` | Outcome |
+    |---|---|---|
+    | `u` newer than the stored row | yes | Row updated |
+    | `u` older than the stored row | yes | Ignored (arrived out of order) |
+    | `u` | no | Row inserted from the update's values; a late create will not overwrite it |
+    | `c` / `r` | yes | **Ignored: the updates are kept** |
+    | `c` / `r` | no | Row inserted |
+    | `d` | yes | Row deleted |
+
+    The MERGE is idempotent: re-applying the same window changes nothing, so overlapping runs are safe. Schedule it as a task, and size the look-back window to cover the task's interval plus the latest a change can arrive. If your history table records when each row was written, filter the window on that column rather than on `event_ts`, so a change that arrives late is still picked up.
+  </Step>
+  <Step title="Check which keys the rule changed">
+    The keys whose latest change is a create or a snapshot read that the rule ignored, beside the change that was kept:
+
+    ```sql
+    SELECT
+      m.id,
+      m.status   AS kept_status,
+      l.status   AS late_create_status,
+      m.event_ts AS kept_change_at,
+      l.event_ts AS late_create_at
+    FROM main.analytics.orders_merged AS m
+    JOIN (
+      SELECT *
+      FROM main.sales.orders_history
+      QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY id
+        ORDER BY event_ts DESC NULLS LAST, seq DESC NULLS LAST
+      ) = 1
+    ) AS l USING (id)
+    WHERE l.op IN ('c', 'r') AND l.event_ts > m.event_ts;
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+With a composite primary key, list every key column in `PARTITION BY` and in the `ON` clause, e.g. `PARTITION BY order_id, line_no` and `ON t.order_id = s.order_id AND t.line_no = s.line_no`.
+</Tip>
+
+<Warning>
+With this rule, a delete also outranks a later create. If your source **re-uses keys** (a row deleted, then re-inserted with the same key), the re-insert stays deleted. For such tables, use the "latest change wins" rule instead.
+</Warning>
