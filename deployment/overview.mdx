@@ -1,6 +1,6 @@
 ---
 title: "Deployment options"
-description: "SaaS, BYOC, on-premises and air-gapped compared, and the two form factors the data plane ships in."
+description: "SaaS, BYOC, on-premises and air-gapped compared, and how the data plane is installed."
 sidebarTitle: "Overview"
 ---
 
@@ -31,21 +31,17 @@ High level comparison:
 ## How it actually gets installed
 
 The four models above describe *who owns the infrastructure*. BYOC, on-premises
-and air-gapped all run the same software — a **Popsink data plane** — and it
-comes in two form factors:
+and air-gapped all run the same software — a **Popsink data plane** — installed
+on Kubernetes with Helm:
 
-<CardGroup cols={2}>
+<CardGroup cols={1}>
   <Card title="Kubernetes, with Helm" icon="cloud-arrow-up" href="/deployment/install/kubernetes">
-    The production shape. Horizontal scaling, high availability, upgrades with
-    `helm upgrade`. Needs two nodes and an ingress controller.
-  </Card>
-  <Card title="Single VM" icon="server" href="/deployment/install/single-vm">
-    One pre-built VM image, no Kubernetes knowledge required. Evaluation and
-    lightweight workloads; no horizontal scaling, no built-in TLS.
+    Horizontal scaling, high availability, upgrades with `helm upgrade`. Needs
+    two nodes and an ingress controller.
   </Card>
 </CardGroup>
 
-Either way the data plane attaches to a **control plane** — ours, or your own —
+The data plane attaches to a **control plane** — ours, or your own —
 which manages your fleet, users and entitlements. What crosses between the two
 is documented in
 [Control plane and data plane](/deployment/architecture/control-data-plane); air-gapped
@@ -120,7 +116,7 @@ Popsink can run within a customer’s data center or private cloud environment, 
 
 **Key Features & Benefits**
 
-- Supports Kubernetes or VM installations
+- Runs on your Kubernetes clusters
 - Integrates with enterprise SSO
 - Minimal external dependencies
 
