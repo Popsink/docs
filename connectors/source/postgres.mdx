@@ -19,13 +19,21 @@ The Postgres Source Connector is a powerful and efficient solution designed to f
 
 ## Prerequisites
 
-- Your Postgres should be in `logical` mode (use `SHOW wal_level`).
+- Your Postgres should be in `logical` mode (use `SHOW wal_level`). On Amazon RDS and Aurora, see [Amazon RDS and Aurora PostgreSQL](#amazon-rds-and-aurora-postgresql) below.
 
-- A user with `REPLICATION` rights on the tables you wish to connect to. One way to do this is:
+- A user with the `REPLICATION` attribute:
 
 ```sql
-CREATE ROLE replication_role REPLICATION;
-GRANT replication_role TO <your_user>;
+ALTER ROLE <your_user> WITH REPLICATION;
+```
+
+<Note>The `REPLICATION` attribute is not inherited through role membership: granting the user a role that has `REPLICATION` is not enough, the attribute must be set on the user itself. On Amazon RDS and Aurora, use `rds_replication` instead (see below).</Note>
+
+- The user should be able to list and read the tables you wish to replicate, for the initial load:
+
+```sql
+GRANT USAGE ON SCHEMA <your_schema> TO <your_user>;
+GRANT SELECT ON ALL TABLES IN SCHEMA <your_schema> TO <your_user>;
 ```
 
 - Are you using PostgreSQL on Heroku? Here’s a great guide to [migrating](https://towardsdatascience.com/migrating-from-heroku-postgres-to-amazon-rds-2e738e7730e5).
@@ -42,7 +50,19 @@ ALTER TABLE mytable REPLICA IDENTITY FULL
 CREATE PUBLICATION popsink FOR TABLE <your table list here>;
 ```
 
-- The user should have the rights to list tables.
+### Amazon RDS and Aurora PostgreSQL
+
+On RDS and Aurora, `wal_level` and the `REPLICATION` attribute cannot be set directly:
+
+- Enable logical replication by setting `rds.logical_replication = 1` in the DB (or DB cluster, for Aurora) parameter group, then reboot the instance. `SHOW wal_level` should then return `logical`.
+
+- Grant replication rights through the `rds_replication` role:
+
+```sql
+GRANT rds_replication TO <your_user>;
+```
+
+- Connect Popsink to the **primary instance**. On Aurora, use the cluster (writer) endpoint: reader instances cannot host logical replication slots. On RDS, logical decoding on a read replica is possible from PostgreSQL 16, but the publication must be created on the primary and a replication slot on a replica does not survive a failover.
 
 ## Key Features
 
