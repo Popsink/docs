@@ -1,0 +1,17 @@
+---
+title: "v0.1.0-alpha.202 06/10/2026"
+---
+
+---
+
+**Description**: Worker images - the twelve Python connectors rebuild on the 01/10 python:3.13-slim.
+
+### Changes
+
+- Worker images - the twelve Python connectors rebuild on the 01/10 python:3.13-slim (#4757).
+- REST API Source - table picker lists its tables again (#4792).
+- JDBC targets - decimals keep their source precision, never clamped (#4767).
+- Backfill - SSH-tunnelled MySQL sources can load their history (#4795).
+- DP back - a large target spreads over several pods on its own (#4787).
+- Snowflake target - re-keyed tables no longer lose rows (#4739).
+- Iceberg target - one Rust worker, any catalog, typed tables (#4788).

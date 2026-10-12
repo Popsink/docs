@@ -1,0 +1,20 @@
+---
+title: "v0.1.0-alpha.200 05/10/2026"
+---
+
+---
+
+**Description**: JDBC targets - a refused column type change stalls the partition instead of dropping the column.
+
+### Changes
+
+- JDBC targets - a refused column type change stalls the partition instead of dropping the column (#4721).
+- DP front - every list table sorts on its data columns (#4737).
+- Mapper Test - a Kafka source's metadata reaches the preview (#4738).
+- BigQuery target - a backfill past the daily quota pauses, not the pod (#4742).
+- SQL Server log source - change times are right on non-UTC servers (#4741).
+- Kafka source - new connectors get metadata on, via UI or API (#4740).
+- Seed the unset metadata case as a pre-#4603 source (#4750).
+- [FRONT] Part 3 of #4647: the last hand-rolled client calls route through their services (#4751).
+- [TESTCLEAN] Part 3 of #4651: drop a connector-types test the schema already guarantees, pin two floors (#4756).
+- Dp can assume a pg role (#4763).

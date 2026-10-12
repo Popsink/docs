@@ -1,0 +1,37 @@
+---
+title: "v0.1.0-alpha.204 08/10/2026"
+---
+
+---
+
+**Description**: [FRONT] Part 2 of #4798: snowflake-target form delegates its credential pre-flight to a composable.
+
+### Changes
+
+- [FRONT] Part 2 of #4798: snowflake-target form delegates its credential pre-flight to a composable (#4846).
+- [TESTS] Part 3 of #4754: environment member removal effects and listing scope (#4849).
+- UC worker - a thread starved by its merge reserve now says so (#4845).
+- Connector - rebalance a sharded target whose pods drifted apart (#4822).
+- QA: the manual e2e test cases describe the live app again (15 modules) (#4857).
+- Iceberg target - a restart no longer appends a batch twice (#4836).
+- [QA] e2e TC follow-ups from the PR #4857 review bot (#4865).
+- DP - API sources get their keys (#4809).
+- Snowflake target - native build ready, still ships JVM (#4844).
+- JDBC targets - native workers drain up to 2x faster on G1 (#4866).
+- UC target - pick the SQL warehouse by name, not a blind ID (#4842).
+- UC worker - the merge-guard retirement signal can be trusted (#4837).
+- BigQuery target - data-model keys now get their dedup view (#4790).
+- DP back - subscription changes reach a running target (#4786).
+- Lay the drifted layout in the order the planner walks (#4887).
+- Db2 LUW source - created, launched, every prerequisite named (#4875).
+- [ARCH] Part 3 of #4748: team deletion no longer holds an ORM session (#4892).
+- Backfill - a Snowflake subscription with no dynamic table is loaded with a notice, never skipped (#4880).
+- Snowflake target - each row gets its own Snowflake write time (#4878).
+- [TESTCLEAN] Part 3 of #4801: broker check tests pin the credentials the adapter receives (#4897).
+- DP - Kafka metadata is opt-out: existing Kafka sources pinned on, new Iceberg subscriptions get metadata columns (#4869).
+- [SEMANTIC] Part 1 of #4898: background-loop and retry durations carry their unit (#4901).
+- [DOCSLIM] Part 3 of #4805: compact echo comments in the DP front composables (#4902).
+- Dev - run any worktree's code on a local cloud tenant (#4907).
+- Iceberg - current-state views, maintenance, MySQL/IBM i backfill (#4900).
+- Local setup: catch missing prerequisites early, install a data-plane without paste (#4913).
+- Release cut - data-plane 2026.10.08, chart 0.1.0-alpha.204 (#4917).
