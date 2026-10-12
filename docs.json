@@ -228,6 +228,12 @@
               {
                 "group": "Data Plane",
                 "pages": [
+                  "changelog/data-plane/alpha-205",
+                  "changelog/data-plane/alpha-204",
+                  "changelog/data-plane/alpha-203",
+                  "changelog/data-plane/alpha-202",
+                  "changelog/data-plane/alpha-201",
+                  "changelog/data-plane/alpha-200",
                   "changelog/data-plane/alpha-199",
                   "changelog/data-plane/alpha-198",
                   "changelog/data-plane/alpha-197",
@@ -427,6 +433,7 @@
               {
                 "group": "Control Plane",
                 "pages": [
+                  "changelog/control-plane/cp-2026-10-08",
                   "changelog/control-plane/cp-2026-09-21",
                   "changelog/control-plane/cp-2026-09-09",
                   "changelog/control-plane/cp-2026-07-12",

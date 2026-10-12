@@ -1,0 +1,64 @@
+---
+title: "v2026.10.08 09/10/2026"
+---
+
+---
+
+**Description**: Promote production to 2026.09.21.
+
+### Changes
+
+- Promote production to 2026.09.21 (#4299).
+- In popsink_connect, move log filtering from debezium_source to common_source (#4320).
+- Switch oracle_source and mongo_source to oracle-native builder + bump versions (#4330).
+- [SEC][4326] Admin panel - off by default, and both password forms share a failure budget (#4371).
+- Mongo source - subscriptions key on _id, the column rows carry (#4356).
+- Mongo source - a bad MongoDB credential fails the health probe (#4376).
+- Popsink_connect - Debezium sources on 3.6.3, ibmi fork resynced (#4394).
+- Release cut - data-plane 2026.09.25, chart 0.1.0-alpha.187 (#4460).
+- Popsink_connect - The IBM i native image starts on Debezium 3.6.3 (#4472).
+- HubSpot - blank keys no longer collapse into one CRM record (#4488).
+- DP - a target worker waits for a topic that does not exist yet (#4496).
+- Release cut - data-plane 2026.09.28, chart 0.1.0-alpha.191 (#4525).
+- [DOCSLIM] Compact the control-plane's domain port docstrings (#4537).
+- Observability - one trace follows a record across both runtimes (#4499).
+- Release cut - data-plane 2026.09.28.1, chart 0.1.0-alpha.192 (#4550).
+- Chart - a self-hosted install can deploy its own OTLP collector (#4539).
+- [DOCSLIM] Part 2 of #4536: control-plane repository ports keep the contract, drop the template (#4579).
+- Release cut - data-plane 2026.09.29, chart 0.1.0-alpha.194 (#4580).
+- [DOCSLIM] Part 3 of #4536: compact the external-service clients' docstrings (#4620).
+- Worker - native JDBC targets start on a plaintext broker (#4605).
+- CP - The chat bubble no longer covers the drawers' save button (#4621).
+- [DOCSLIM] Part 1 of #4657 - compact the control-plane's domain services (#4661).
+- Dependencies - close the 01/10 critical and high CVEs (#4645).
+- Worker - Serve the stalest tables first, not the full fetches (#4686).
+- [DOCSLIM] Part 2 of #4657: control-plane domain entities and deployment config (#4696).
+- Control plane - add a whole team to an environment in one action (#4685).
+- Worker - Snowflake offsets commit whatever the default role (#4709).
+- Release cut - data-plane 2026.10.04, chart 0.1.0-alpha.198 (#4743).
+- Release cut - the Snowflake append-table suffix reaches the worker (#4745).
+- [ARCH] The deployment commands take a provisioner port factory (#4749).
+- [TESTS] Control plane - the connector OAuth handshake's refusals are tested (#4755).
+- CP - Usages: CDC events show a loader, never another deployment's figures (#4671).
+- [DOCSLIM] Control plane - the query use cases say what the code cannot (#4761).
+- Dp can assume a pg role (#4763).
+- Fix DB_ROLE support (#4782).
+- CP - New signups wait for activation before creating a deployment (#4722).
+- [ARCH] Part 2 of #4748: connector-OAuth commands depend on domain ports (#4797).
+- [FRONT] Part 1 of #4798: usages page charts, tables and handlers leave the component (#4799).
+- [DOCSLIM] Part 1 of #4805: compact echo comments and signature-restating JSDoc in CP front composables (#4806).
+- Iceberg target - one Rust worker, any catalog, typed tables (#4788).
+- Snowflake target - client change tracking is no longer reverted (#4816).
+- Dev tooling - the remaining French in the repo is now English (#4820).
+- Release cut - data-plane 2026.10.06.1, chart 0.1.0-alpha.203 (#4832).
+- [SEC] SSO return path is judged on its resolved origin (#4848).
+- [TESTCLEAN] Part 2 of #4801: control-plane tests that could not fail now pin their claim (#4850).
+- [SEMANTIC] Part 3 of #4758: self-hosted region test goes through isSelfHostedRegion (#4851).
+- [SEC] Snowflake marketplace token: admins of the owning organization only (#4894).
+- [FRONT] Part 3 of #4798: deployments page token dialogs leave the page (#4893).
+- Release cut - data-plane 2026.10.08, chart 0.1.0-alpha.204 (#4917).
+- [ARCH] Part 1 of #4918: one router guard for the deployment-id-vs-JWT check (#4919).
+- [FRONT] Part 1 of #4920: deployments page open/chart/remove-member logic moves to composables (#4921).
+- [TESTS] Part 2 of #4895: breadcrumb navigation query and switch-token command (#4923).
+- [TESTCLEAN] Part 1 of #4924: timestamp tests that prove the timestamp moves (#4925).
+- Cpdp alembic should support pg role (#4915).
