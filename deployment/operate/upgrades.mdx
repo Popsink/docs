@@ -1,6 +1,6 @@
 ---
 title: "Upgrades"
-description: "Which version to run, how to roll it out across a fleet, and how each form factor upgrades."
+description: "Which version to run, how to roll it out across a fleet, and how to upgrade a deployment."
 sidebarTitle: "Upgrades"
 ---
 
@@ -80,41 +80,6 @@ upgrade.
 Pin both the chart version (`--version`) and the application image (`image.tag`)
 — never deploy `latest`, or an upgrade becomes whatever happened to be published
 that day.
-
-## Single VM
-
-The VM is stateless: all data lives in your external database and S3 bucket.
-Upgrading means **replacing the VM** with one built from a newer image — there
-is no in-place upgrade.
-
-<Steps>
-  <Step title="Boot the new VM">
-    With the same configuration as the old one.
-  </Step>
-  <Step title="Check it is ready">
-    `curl http://<new-vm-ip>/api/readyz` must return HTTP 200.
-  </Step>
-  <Step title="Run a test pipeline end-to-end">
-    On the new VM, before it takes any real traffic.
-  </Step>
-  <Step title="Switch over">
-    Pause the active pipelines on the old VM, then switch network routing to the
-    new one.
-  </Step>
-  <Step title="Resume and decommission">
-    Resume pipelines, then decommission the old VM.
-  </Step>
-</Steps>
-
-<Note>
-Both VMs can point at the same database and bucket at once — state lives in
-those external systems and concurrent access is safe. Do **not** serve
-production traffic from both at the same time, though: pipelines would execute
-twice.
-</Note>
-
-If the new VM fails verification, restore routing to the old one. Its state is
-unaffected.
 
 ## Uninstalling
 

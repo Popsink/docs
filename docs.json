@@ -71,8 +71,7 @@
                 "group": "Install",
                 "pages": [
                   "deployment/install/requirements",
-                  "deployment/install/kubernetes",
-                  "deployment/install/single-vm"
+                  "deployment/install/kubernetes"
                 ]
               },
               {
@@ -480,7 +479,7 @@
     { "source": "/deployment/topology", "destination": "/deployment/architecture/topology" },
     { "source": "/deployment/installation", "destination": "/deployment/install/requirements" },
     { "source": "/deployment/selfhosted", "destination": "/deployment/install/kubernetes" },
-    { "source": "/deployment/singlevm", "destination": "/deployment/install/single-vm" },
+    { "source": "/deployment/singlevm", "destination": "/deployment/install/kubernetes" },
     { "source": "/deployment/tunnels", "destination": "/deployment/connectivity/tunnels" },
     { "source": "/deployment/partners", "destination": "/deployment/reference/helm-values" },
     { "source": "/deployment/troubleshooting", "destination": "/deployment/operate/troubleshooting" },
