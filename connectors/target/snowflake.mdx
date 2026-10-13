@@ -2,7 +2,7 @@
 title: Snowflake Target
 ---
 
-The Snowflake Target Connector is a robust tool designed to facilitate the seamless integration of Change Data Capture (CDC) updates into Snowflake data warehouses. Leveraging Snowpipe streaming functionality, this connector efficiently streams CDC updates into Snowflake, where they are written as inserts. Subsequently, a dynamic table is employed to construct a copy of the source table, ensuring real-time data replication.
+The Snowflake Target Connector streams Change Data Capture (CDC) events into Snowflake with Snowpipe Streaming. Every change is appended to a **changelog table** that keeps the full history of the source table. On top of it, Popsink builds a **dynamic table** that holds the **current state** of the source table, one row per primary key, and keeps it up to date with an incremental `MERGE`.
 
 ## Compatible versions
 
@@ -13,20 +13,22 @@ The Snowflake Target Connector is a robust tool designed to facilitate the seaml
 | **Authentication** | Key-pair (RSA 2048) — password authentication is not supported |
 | **Driver** | Snowflake JDBC 4.3, Snowpipe Streaming SDK 1.7 |
 
-<Note>Dynamic tables require a running warehouse for their refresh; size it for your change volume.</Note>
+<Note>Dynamic tables require a running warehouse for their refresh; size it for your change volume. See [Cost and warehouse](#cost-and-warehouse).</Note>
 
 ## Key Features
 
-- **CDC Streaming:** utilizes Snowpipe streaming to deliver real-time changes from the source system.
-- **Insert Operation:** writes CDC updates as inserts into the target Snowflake database, preserving the full change history.
-- **Dynamic Table:** constructs a dynamic table to mirror the source table, enabling easy access to replicated data.
+- **CDC Streaming:** utilizes Snowpipe Streaming to deliver real-time changes from the source system.
+- **Full change history:** every change is written as an insert into the changelog table, so nothing is ever overwritten.
+- **Current state in a dynamic table:** a dynamic table merges the changelog into one row per key, with updates applied and deletes removed. See [Dynamic Tables](#dynamic-tables).
+- **Per-subscription control:** each subscription chooses whether it gets a dynamic table and how fresh it must be (its target lag).
 - **Time Travel Support:** retains historical data for time travel queries, facilitating data analysis and auditing.
 - **Key-Pair Authentication:** relies on Snowflake's key-pair authentication mechanism — no passwords.
-- **Schema evolution:** new columns are added automatically as the source schema evolves.
+- **Schema evolution:** new columns are added automatically as the source schema evolves, to the changelog and to the dynamic table.
 
 ## Prerequisites
 
 - A Snowflake account where you wish to sync your data.
+- A **warehouse** for the dynamic table refreshes.
 - A **role** with the privileges listed under [Role privileges](#role-privileges) below.
 - A **key pair** (no passphrase) for authentication. To set it up:
 
@@ -79,9 +81,7 @@ schema-evolution rights on each one, or new source columns will fail to land:
 GRANT INSERT, EVOLVE SCHEMA ON TABLE <database>.<schema>.<table> TO ROLE <role>;
 ```
 
-<Note>If a subscription writes its dynamic table to a different schema than the
-connector's, repeat the `USAGE` and `CREATE DYNAMIC TABLE` grants on that schema
-too.</Note>
+<Note>The role owns the dynamic tables it creates, so no extra grant is needed to alter, resume or rebuild them. To let other roles read them, grant `SELECT` on the dynamic tables (or `SELECT ON FUTURE DYNAMIC TABLES IN SCHEMA`) as you would for any table.</Note>
 
 ## Configuration
 
@@ -91,10 +91,202 @@ too.</Note>
 | **User** | Yes | Username configured with key-pair authentication |
 | **Database** | Yes | Database where tables will be created (e.g. `ANALYTICS_DB`) |
 | **Schema** | Yes | Schema within the database (e.g. `PUBLIC`) |
-| **Role** | Yes | Role to use for the session — must have write access to the target schema |
+| **Role** | Yes | Role to use for the session — must have the [privileges](#role-privileges) above on the target schema |
 | **Private Key** | Yes | The private key body, without headers |
-| **Enable Before/After** | Yes | When enabled, stores both the **before** and **after** images of each change event, allowing field-level change tracking in the target |
+| **Warehouse** | Yes | Warehouse that runs the dynamic table refreshes. Pick one from your account or type its name. |
+| **Include the before-image** | No | Adds a `before_data` column (`VARIANT`) to the changelog with the row's values **before** each change, for field-level change tracking. It is not carried into the dynamic table. |
+| **Append table suffix** | No | Suffix of the changelog table name. Default `_APPEND`: a subscription writing `ORDERS` lands its events in `ORDERS_APPEND`, and its dynamic table is `ORDERS`. Must be empty or start with `_` followed by upper-case letters, digits or `_`. **Fixed once the target has subscriptions.** |
+| **Turn change tracking off on tables without a dynamic table** | No | Dynamic tables need change tracking on their changelog, so Popsink turns it on. When on, this option turns it back off on changelogs that have no dynamic table. |
+
+<Warning>An **empty** append table suffix writes the changelog under the bare table name (`ORDERS`), which is how legacy targets were set up. The dynamic table would need that same name, so **no dynamic table can be created** on such a target.</Warning>
 
 ## How It Works
 
-For each subscription, Popsink creates tables in the target schema and applies CDC events to keep Snowflake in sync with the source. Updates are streamed as inserts via Snowpipe streaming, and a dynamic table exposes the latest state of each table. Schema evolution is handled automatically — new columns are added as the source schema evolves.
+For each subscription writing table `<T>`, Popsink creates three objects in the connector's database and schema:
+
+| Object | Name | Role |
+|---|---|---|
+| Changelog table | `<T>_APPEND` | Append-only history: one row per change event, with [metadata columns](#changelog-columns) |
+| Pipe | `<T>_STREAMING` | The Snowpipe Streaming pipe rows arrive through |
+| Dynamic table | `<T>` | The current state of the source table, merged from the changelog |
+
+Changes are streamed into `<T>_APPEND` as inserts: an update or a delete adds a row, it never modifies one. The dynamic table `<T>` reads the new rows of `<T>_APPEND` and merges them, so queries on `<T>` see the source table as it is, while `<T>_APPEND` keeps everything that happened to it.
+
+Table names must be simple identifiers (letters, digits, `_` and `$`, not starting with a digit). They are created unquoted, so Snowflake stores them in upper case.
+
+### Changelog columns
+
+Besides the source columns, every row of the changelog carries:
+
+| Column | Type | Meaning |
+|---|---|---|
+| `__op` | `VARCHAR` | `R` read during a snapshot or backfill, `C` created, `U` updated, `D` deleted |
+| `__deleted` | `BOOLEAN` | `TRUE` for a delete. A delete row holds the row's values before it was deleted. |
+| `__source_ts_ms` | `NUMBER` | When the change happened at the source, in epoch milliseconds. `0` for a backfill row. |
+| `__popsink_ts_ms` | `NUMBER` | When Popsink processed the event, in epoch milliseconds |
+| `__snowflake_ts_ms` | `NUMBER` | When the connector appended the row to Snowflake, in epoch milliseconds |
+| `__partition` / `__offset` | `NUMBER` | Position of the event in Kafka |
+| `__hash` | `NUMBER` | Hash of the row's source values |
+| `__member` | `VARCHAR` | IBM i file member, for IBM i sources |
+| `before_data` | `VARIANT` | Values before the change *(with **Include the before-image** on)* |
+
+These columns are carried into the dynamic table too, except `before_data`: each row of the dynamic table tells you which change produced it and when.
+
+## Dynamic Tables
+
+A [dynamic table](https://docs.snowflake.com/en/user-guide/dynamic-tables-about) is a Snowflake table whose content is defined by a query and kept up to date by Snowflake itself, on a schedule set by its **target lag**. Popsink uses one per subscription to turn the changelog into the current state of the source table.
+
+### How the merge works
+
+On each refresh, Snowflake reads only the rows added to `<T>_APPEND` since the previous refresh, and merges them into `<T>`:
+
+1. **Keep the latest change of each key.** The new rows are grouped by the subscription's primary key, and the latest one wins: the highest `__source_ts_ms`, then the highest `__partition` and `__offset` to break ties between two changes made in the same millisecond.
+2. **Apply it only if it is newer** than the row already in `<T>`, by the same ordering. A late or replayed event never overwrites a more recent state.
+3. **Apply the change:**
+   - a delete removes the key from `<T>`;
+   - any other change updates the row, or inserts it if the key is not there yet.
+
+For example, the changelog of order `42`:
+
+| `ID` | `STATUS` | `__op` | `__deleted` | `__source_ts_ms` |
+|---|---|---|---|---|
+| 42 | `pending` | `C` | `FALSE` | 1760000000000 |
+| 42 | `paid` | `U` | `FALSE` | 1760000060000 |
+| 42 | `shipped` | `U` | `FALSE` | 1760000120000 |
+| 43 | `pending` | `C` | `FALSE` | 1760000130000 |
+| 43 | `pending` | `D` | `TRUE` | 1760000180000 |
+
+After the refresh, the dynamic table `ORDERS` holds one row, order `42` with status `shipped`. Order `43` was deleted, so it is not there. Both histories stay in `ORDERS_APPEND`.
+
+Deletes are **hard deletes** in the dynamic table. To find deleted rows, query the changelog for `__deleted = TRUE`.
+
+Because only the new rows are read, a refresh costs in proportion to the changes since the last one, not to the size of the table. Popsink creates the dynamic table with:
+
+```sql
+CREATE OR REPLACE DYNAMIC TABLE ORDERS (...)
+  TARGET_LAG = '60 minutes'
+  WAREHOUSE = <warehouse>
+  REFRESH_MODE = 'CUSTOM_INCREMENTAL'
+  INITIALIZE = ON_SCHEDULE
+  COMMENT = 'popsink-dt v4 keys=[...] cols=[...]'
+  REFRESH USING (
+    MERGE INTO SELF AS iso
+    USING (
+      SELECT pop.* EXCLUDE (METADATA$ISUPDATE, METADATA$ACTION, METADATA$ROW_ID)
+      FROM ORDERS_APPEND CHANGES (INFORMATION => APPEND_ONLY) AS pop
+      QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY pop.ID
+        ORDER BY pop.__source_ts_ms DESC NULLS LAST, pop.__partition DESC NULLS LAST,
+                 pop.__offset DESC NULLS LAST, pop.__deleted ASC NULLS LAST) = 1
+    ) AS cdc
+    ON iso.ID = cdc.ID
+    WHEN MATCHED AND cdc.__deleted = TRUE AND <cdc is newer than iso> THEN DELETE
+    WHEN MATCHED AND <cdc is newer than iso> THEN UPDATE ALL BY NAME
+    WHEN NOT MATCHED AND cdc.__deleted = FALSE THEN INSERT ALL BY NAME
+  )
+```
+
+<Note>The `COMMENT` is how Popsink recognizes a dynamic table it manages: it records the key and the columns the table was built with. Do not change it, and do not alter the definition by hand: Popsink would recreate the table on its next check.</Note>
+
+### Configuring a subscription
+
+In the subscription drawer, the dynamic table is set per subscription:
+
+| Option | Default | Description |
+|---|---|---|
+| **Automatically create DYNAMIC TABLES** | On | Builds the dynamic table `<T>` over `<T>_APPEND`. Off, the subscription only delivers the changelog. |
+| **Target lag** | `60` min | How stale the dynamic table may be, in minutes. Snowflake schedules refreshes to stay within it. `0` sets the lag to `DOWNSTREAM`. |
+
+The same options can be set on several subscriptions at once from the bulk configuration panel.
+
+**Choosing the target lag.** A shorter lag gives fresher data but runs the warehouse more often. The lag is a target, not a guarantee: a refresh that takes longer than the lag, or a busy warehouse, delays the next one.
+
+| Need | Target lag |
+|---|---|
+| Dashboards refreshed a few times a day, lowest cost | `60` min or more |
+| Operational reporting | `5` to `15` min |
+| Near real time | `1` min |
+| Only refreshed by your own dynamic tables built on top of it | `0` (`DOWNSTREAM`) |
+
+<Warning>With a target lag of `0` (`DOWNSTREAM`), Snowflake refreshes the table **only when a dynamic table that reads from it refreshes**. If nothing reads from it, the table is never refreshed, and since it is created with `INITIALIZE = ON_SCHEDULE`, it stays empty. Use `DOWNSTREAM` only when you build your own dynamic tables on top, or refresh it yourself with `ALTER DYNAMIC TABLE <T> REFRESH`.</Warning>
+
+**Changing the options.** A new target lag or warehouse is applied in place with `ALTER DYNAMIC TABLE ... SET TARGET_LAG/WAREHOUSE`: the table is not rebuilt. Turning the option off stops Popsink from managing the dynamic table, but **does not drop it**: drop it yourself if you no longer need it.
+
+<Note>Several subscriptions can write the same table. If they disagree on whether to build the dynamic table or on its target lag, the table falls back to the defaults (on, `60` min) and a warning is logged.</Note>
+
+The dynamic table is always created in the connector's database and schema, next to its changelog.
+
+### First refresh
+
+The dynamic table is created with `INITIALIZE = ON_SCHEDULE`: Popsink does not wait for it to be filled, and the first refresh runs on Snowflake's schedule, within the target lag. Until then, querying it returns an error saying the table has not been initialized yet. The changelog `<T>_APPEND` can be queried right away.
+
+To fill it immediately, run:
+
+```sql
+ALTER DYNAMIC TABLE <database>.<schema>.<T> REFRESH;
+```
+
+### Tables without a primary key
+
+A dynamic table needs a key to merge on. When the subscription has no primary key, Popsink uses `__hash`, the hash of the row's content, as the key, and logs a warning:
+
+- an update writes a delete for the old content and an insert for the new content, so the old row is removed;
+- two source rows with exactly the same content collapse into one row in the dynamic table.
+
+If the source table does have a key, set it on the datamodel or flag it in the subscription's mapping: the dynamic table is then rebuilt on that key.
+
+### Schema evolution
+
+When a new column reaches the subscription, Popsink:
+
+1. adds it to `<T>_APPEND`;
+2. recreates the dynamic table with the new column.
+
+To avoid replaying the whole history, the recreate starts from a clone of the current dynamic table taken at its last successful refresh, then applies the changes made since. If no refresh has succeeded yet, or the key changed, the dynamic table is rebuilt from the whole changelog. Rows that existed before the new column have `NULL` in it.
+
+Columns are never dropped or retyped.
+
+### Rebuilding a dynamic table
+
+If a dynamic table is lost, dropped or out of sync, open the target, and in its subscription list choose **Rebuild dynamic table** in the subscription's menu. Popsink recreates the dynamic table from its changelog. Only one rebuild runs at a time.
+
+A rebuild is also triggered automatically after a backfill created the changelog.
+
+### Cost and warehouse
+
+Each refresh runs on the connector's **Warehouse** and is billed as warehouse compute. The changelog itself is written by Snowpipe Streaming and does not use the warehouse.
+
+- Use a warehouse with `AUTO_SUSPEND` and `AUTO_RESUME` so it only runs during refreshes.
+- Many dynamic tables with a short target lag keep the warehouse busy. Raise the target lag on tables that do not need to be fresh before sizing up the warehouse.
+- A dedicated warehouse makes refresh costs easy to follow, and keeps them from competing with your queries.
+
+### Monitoring
+
+Each dynamic table can be inspected in Snowsight, where its page shows its refresh history and graph, or with SQL:
+
+```sql
+-- State, target lag and data timestamp of the dynamic tables
+SHOW DYNAMIC TABLES IN SCHEMA <database>.<schema>;
+
+-- Recent refreshes of one table, with their state and errors
+SELECT name, state, state_message, refresh_start_time, refresh_end_time, data_timestamp
+FROM TABLE(<database>.INFORMATION_SCHEMA.DYNAMIC_TABLE_REFRESH_HISTORY(
+  NAME => '<database>.<schema>.<T>'))
+ORDER BY refresh_start_time DESC;
+```
+
+### Troubleshooting
+
+| Symptom | Cause | What to do |
+|---|---|---|
+| Querying `<T>` says it is not initialized | The first refresh has not run yet | Wait for the target lag, or run `ALTER DYNAMIC TABLE <T> REFRESH` |
+| `<T>` is never refreshed | Target lag `0` (`DOWNSTREAM`) with no dynamic table reading from it | Set a target lag in minutes |
+| No dynamic table is created, rows land in `<T>_APPEND` | The warehouse does not exist, or the role lacks `USAGE` on it | Fix the warehouse or the grant: Popsink retries on its own, and ingestion is not interrupted |
+| No dynamic table is created, an error mentions the name | Another table or view already holds the name `<T>` | Rename or drop that object, then use **Rebuild dynamic table**. Popsink never replaces an object it did not create. |
+| No dynamic table on any subscription | The target's append table suffix is empty | See the [Configuration](#configuration) warning |
+| The dynamic table is `SUSPENDED` | Snowflake suspends a dynamic table after repeated failed refreshes | Check the refresh history for the error. Popsink resumes the table on its next check. |
+| The dynamic table holds more rows than the source | The subscription has no primary key | See [Tables without a primary key](#tables-without-a-primary-key) |
+
+### Deleting a subscription
+
+By default, deleting a subscription leaves its Snowflake objects in place. Check **Also delete the objects created in the target** in the delete dialog to drop them too: the dialog lists the dynamic table, the changelog and the pipe it will drop. Popsink only drops objects it can identify as its own, and lists the others as kept.
