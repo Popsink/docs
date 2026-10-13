@@ -1,56 +1,505 @@
 ---
 title: Iceberg Target
+description: Write change events to Apache Iceberg tables registered in the catalog of your choice — REST (Polaris, Snowflake Horizon / Open Catalog…), AWS Glue, Amazon S3 Tables, SQL or Hive Metastore.
 ---
 
-The Iceberg Target Connector writes your pipeline data to Apache Iceberg tables stored in Azure Blob Storage. Apache Iceberg is an open table format designed for huge analytic datasets, providing ACID transactions, time travel queries, partition evolution, and schema evolution without affecting concurrent reads. This connector streams change events from Popsink directly into your data lake in Iceberg format, making it ideal for lakehouse architectures, large-scale analytics, and machine learning pipelines.
+The Iceberg Target Connector writes your pipeline data to **Apache Iceberg** tables, registered in the catalog you choose. Tables are visible, queryable and governable as soon as they are written, by any engine that reads that catalog. Apache Iceberg is an open table format for large analytic datasets: ACID transactions, time travel, partition evolution and schema evolution, without disturbing concurrent readers.
+
+Every change event becomes a row, so each Iceberg table holds the full **change history** of its source table. The **current state** (one row per primary key) is read through a view over that history, called the merge view. On Snowflake, Popsink can create and maintain that view for you. See [Current state: the merge view](#current-state-the-merge-view).
 
 ## Compatible versions
 
 | | |
 |---|---|
-| **Apache Iceberg** | Table format specification v2 |
-| **Writer** | PyIceberg 0.11 |
-| **Storage** | Azure Blob Storage / ADLS Gen2 |
-| **Readers** | Any engine that reads Iceberg v2 tables — Spark, Trino, Snowflake, Databricks, DuckDB, … |
+| **Apache Iceberg** | Table format **v2** (default) or **v3**. v1 is not supported. |
+| **Writer** | Native Rust worker built on iceberg-rust 0.10 |
+| **Catalogs** | Iceberg REST (Apache Polaris, Snowflake Horizon / Open Catalog, Lakekeeper, Nessie, Gravitino, …), AWS Glue, Amazon S3 Tables, SQL catalog (PostgreSQL), Hive Metastore |
+| **Storage** | Amazon S3 and S3-compatible stores (MinIO, Ceph, R2), Azure Data Lake Storage Gen2, Google Cloud Storage |
+| **Readers** | Any engine that reads Iceberg tables from your catalog: Snowflake, Spark, Databricks, Trino, Athena, DuckDB, … |
 
 ## Key Features
 
-- **Iceberg open table format:** full ACID compliance, time travel, and schema evolution on your data lake.
-- **Streaming ingestion:** change events are written continuously — no batch jobs to schedule.
-- **Flexible Azure authentication:** connection string or Service Principal (SPN), with optional proxy support for restricted networks.
+- **Any catalog:** one connector type covers REST catalogs, AWS Glue, Amazon S3 Tables, a SQL catalog (hosted by your Popsink deployment, or your own PostgreSQL) and Hive Metastore.
+- **Vended or static storage credentials:** on a REST catalog the connector can rely entirely on per-table credentials vended by the catalog. Otherwise it uses its own S3, ADLS or GCS credentials, or the pod's cloud identity.
+- **Typed tables:** columns are typed from the topic's Avro schema. Numbers, decimals, dates and timestamps keep their type.
+- **Full change history:** every insert, update and delete is appended as a row, with its operation and source timestamp.
+- **Managed current-state view on Snowflake:** Popsink creates and maintains a `<TABLE>_CURRENT` view (one row per key, deletes removed) on Snowflake Horizon, or on any catalog Snowflake reads through a catalog-linked database.
+- **No duplicates on restart:** the connector records the Kafka offsets it has committed inside the Iceberg snapshots, so a pod restart does not append the same batch twice.
+- **Built-in table maintenance:** a daily job compacts small files, expires old snapshots, removes orphan files and can purge deleted keys.
+- **Backfill:** MySQL and IBM i sources can load a table's existing rows into an Iceberg subscription.
+
+## How It Works
+
+```mermaid
+flowchart LR
+    K[Kafka topic] --> W[Iceberg worker]
+    W -- "append (one row per change)" --> T[(Iceberg table<br/>change history)]
+    T --> V["&lt;TABLE&gt;_CURRENT view<br/>(current state)"]
+    J[Maintenance job] -. "compaction, expiry, cleanup" .-> T
+```
+
+1. The connector reads the subscription's topic and turns each change event into a row: the mapped source columns, plus `__op` (the operation) and `__ts_ms` (when the change happened at the source).
+2. Rows are buffered per table and committed as an Iceberg **append**. Each table is committed when it reaches 10,000 rows or after 60 seconds, whichever comes first. Kafka offsets are committed only once the Iceberg commit has landed, so nothing is lost if the pod stops.
+3. The table therefore grows with every change: an `UPDATE` adds a row, and so does a `DELETE`. The connector never rewrites or deletes rows in the table itself.
+4. The current state of the source table is a **view** that keeps the latest row of each primary key and hides deleted keys. See [Current state: the merge view](#current-state-the-merge-view).
+5. A scheduled maintenance job keeps the table healthy. See [Table maintenance](#table-maintenance).
 
 ## Prerequisites
 
-- An Azure Blob Storage account with an **existing container** for the Iceberg data.
-- Storage credentials: either the storage account **connection string**, or a **Service Principal** with the **Storage Blob Data Contributor** role on the storage account.
+- An Iceberg **catalog** the connector can reach, and a **namespace** in it. The connector can create the namespace if you allow it.
+- A **storage location** for the data files (S3 bucket, ADLS Gen2 container or GCS bucket), unless your REST catalog vends storage credentials.
+- Credentials for the catalog, and, when the catalog does not vend them, for the storage. The required permissions are listed per catalog below.
+- A **primary key** on each subscription whose current state you want to read: flag the key columns in the subscription's column mapping, or declare them on the datamodel. Without a key the table is still written, but there is nothing to collapse the history on.
 
-## Storage Authentication
+## Catalog Configuration
 
-Two authentication methods are supported. Pick the one that matches how you administer the storage account.
-
-### Option A — Connection String
-
-Authenticate with an Azure Blob Storage connection string, found in the Azure Portal under **Storage Account → Access keys**.
-
-| Field | Description |
-|---|---|
-| **Connection String** | e.g. `DefaultEndpointsProtocol=https;AccountName=myaccount;AccountKey=...;EndpointSuffix=core.windows.net` |
-| **Container Name** | Existing container where Iceberg table data will be written |
-
-### Option B — Service Principal (SPN)
-
-Authenticate with an Azure Active Directory Service Principal. The Service Principal must have the **Storage Blob Data Contributor** role on the storage account.
-
-| Field | Description |
-|---|---|
-| **Storage Account Name** | Name of the Azure Storage account (e.g. `mystorageaccount`) |
-| **Tenant ID** | Azure AD tenant ID (Azure Portal → Microsoft Entra ID → Overview) |
-| **Client ID** | Application (client) ID of the registered app |
-| **Client Secret** | A client secret generated for the registered app |
-| **Container Name** | Existing container where Iceberg table data will be written |
-
-## Advanced Configuration
+All catalogs share these fields:
 
 | Field | Required | Description |
 |---|---|---|
-| **HTTP Proxy** | No | Optional HTTP(S) proxy URL for the Entra ID token endpoint (`login.microsoftonline.com`). Storage and local traffic stay direct. Only used with SPN authentication — connection-string authentication makes no Entra ID call. |
+| **Catalog** | Yes | Where the tables are registered: Iceberg REST, AWS Glue, Amazon S3 Tables, SQL catalog or Hive Metastore. Cannot change once the connector exists. |
+| **Namespace** | Yes | Namespace the tables are created in (e.g. `bronze`). On REST and SQL catalogs, use dots for a nested namespace (`popsink.bronze`). Glue, S3 Tables and Hive Metastore accept one level only. |
+| **Create the namespace if it does not exist** | No | Off by default: creating a namespace is the catalog administrator's call. |
+
+<Tabs>
+  <Tab title="Iceberg REST">
+    | Field | Required | Description |
+    |---|---|---|
+    | **Catalog URI** | Yes | The Iceberg REST API root, **without** the `/v1` suffix |
+    | **Catalog Name** | Yes | The catalog to open: the Iceberg REST `warehouse` property |
+    | **Authentication** | Yes | OAuth2 client credentials (default), a static bearer token, or no authentication |
+    | **OAuth2 Client ID** | No | Leave empty for a catalog that takes the credential alone, such as Snowflake Horizon |
+    | **OAuth2 Client Secret** | With OAuth2 | The credential: a token, or a principal's secret |
+    | **Bearer Token** | With bearer | Static token sent on every request |
+    | **OAuth2 Server URI** *(advanced)* | No | Token endpoint. Defaults to `{Catalog URI}/v1/oauth/tokens` |
+    | **OAuth2 Scope** *(advanced)* | No | Defaults to `PRINCIPAL_ROLE:ALL`. Depends on the catalog (see below) |
+    | **Extra headers** *(advanced)* | No | Sent on every catalog request, e.g. a realm. Not for secrets: use the bearer token |
+
+    By default, a REST catalog **vends** a short-lived storage credential per table (`X-Iceberg-Access-Delegation: vended-credentials`), and the connector holds no storage credential at all. A catalog that does not vend credentials (a private Polaris, Lakekeeper or Nessie without STS) needs [static storage credentials](#storage-credentials) instead.
+
+    ### Snowflake Horizon Catalog
+
+    | Field | Value |
+    |---|---|
+    | **Catalog URI** | `https://<orgname>-<account_name>.snowflakecomputing.com/polaris/api/catalog` |
+    | **Catalog Name** | The Snowflake **database** |
+    | **Namespace** | The Snowflake **schema** |
+    | **OAuth2 Client ID** | **Leave empty** |
+    | **OAuth2 Client Secret** | A programmatic access token (PAT), or a JWT signed with your key pair |
+    | **OAuth2 Scope** | `session:role:<ROLE>` |
+
+    The client ID must stay empty: Snowflake answers `400 invalid_scope` to a token request that carries **any** `client_id` together with a `session:role:` scope. To create a PAT:
+
+    ```sql
+    ALTER USER IF EXISTS <user> ADD PAT popsink_iceberg
+      ROLE_RESTRICTION = '<ROLE>'
+      DAYS_TO_EXPIRY = 90
+      MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT = 60;
+    ```
+
+    Writing needs an **external volume** on the database. Without one, reads work, and the connection test fails with a bare `403 Authorization failed`:
+
+    ```sql
+    ALTER DATABASE <db> SET EXTERNAL_VOLUME = <volume>;
+    ALTER DATABASE <db> SET CATALOG = 'SNOWFLAKE';
+    GRANT USAGE ON EXTERNAL VOLUME <volume> TO ROLE <ROLE>;
+    ```
+
+    ### Apache Polaris and Snowflake Open Catalog
+
+    Polaris and Open Catalog use a principal instead of a user: fill in both the **client ID and secret**, and keep the default scope `PRINCIPAL_ROLE:ALL`. The principal's catalog role needs, on the namespace: `NAMESPACE_READ_PROPERTIES`, `TABLE_CREATE`, `TABLE_LIST`, `TABLE_READ_PROPERTIES`, `TABLE_WRITE_DATA`, `TABLE_WRITE_PROPERTIES` and `TABLE_DROP`, or `CATALOG_MANAGE_CONTENT`.
+
+    <Note>Databricks Unity Catalog exposes an Iceberg REST endpoint too, and can be reached with a bearer token, but this path has not been validated yet. To write to Unity Catalog, use the [Unity Catalog (Delta Lake) target](./deltalake).</Note>
+  </Tab>
+  <Tab title="AWS Glue">
+    | Field | Required | Description |
+    |---|---|---|
+    | **Warehouse** | Yes | The S3 location new tables are created under (e.g. `s3://my-lake/warehouse`) |
+    | **AWS Region** | No | e.g. `eu-west-1` |
+    | **AWS Credentials** | Yes | The pod's own AWS identity (IRSA / EKS Pod Identity, recommended) or an access key |
+    | **Access Key ID** / **Secret Access Key** | With access key | An IAM user's access key |
+    | **Catalog Endpoint** *(advanced)* | No | An endpoint other than AWS's own |
+
+    The same AWS credentials write the data files, unless you give the connector [static storage credentials](#storage-credentials). The identity needs:
+
+    ```json
+    {
+      "Effect": "Allow",
+      "Action": ["glue:GetDatabase", "glue:CreateDatabase", "glue:GetTable", "glue:GetTables",
+                 "glue:CreateTable", "glue:UpdateTable",
+                 "s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"],
+      "Resource": ["arn:aws:glue:<region>:<account>:catalog",
+                   "arn:aws:glue:<region>:<account>:database/<namespace>",
+                   "arn:aws:glue:<region>:<account>:table/<namespace>/*",
+                   "arn:aws:s3:::<bucket>", "arn:aws:s3:::<bucket>/*"]
+    }
+    ```
+
+    A Glue catalog cannot assume a role itself. To use a role, give it to the pod through IRSA or EKS Pod Identity and keep **AWS Credentials** on the pod's identity.
+  </Tab>
+  <Tab title="Amazon S3 Tables">
+    | Field | Required | Description |
+    |---|---|---|
+    | **Table Bucket ARN** | Yes | e.g. `arn:aws:s3tables:eu-west-1:123456789012:bucket/my-lake` |
+    | **AWS Region** | No | e.g. `eu-west-1`. Required by the maintenance job. |
+    | **AWS Credentials** | Yes | The pod's own AWS identity (IRSA / EKS Pod Identity) or an access key |
+    | **Access Key ID** / **Secret Access Key** | With access key | An IAM user's access key |
+    | **Catalog Endpoint** *(advanced)* | No | An endpoint other than AWS's own |
+
+    The identity needs `s3tables:*` on the bucket, or at least `GetNamespace`, `CreateNamespace`, `GetTable`, `CreateTable`, `UpdateTableMetadataLocation`, `GetTableMetadataLocation`, `PutTableData` and `GetTableData`.
+
+    S3 Tables are managed tables: AWS compacts them and removes unreferenced files itself, so the maintenance job skips the orphan-file cleanup there.
+  </Tab>
+  <Tab title="SQL catalog">
+    | Field | Required | Description |
+    |---|---|---|
+    | **Warehouse** | Yes | The storage location new tables are created under: `s3://…`, `abfss://<container>@<account>.dfs.core.windows.net/…` or `gs://…` |
+    | **Catalog Database URL** | No | Leave empty and your Popsink deployment's own PostgreSQL hosts the catalog. Your own database: `postgres://user:password@host:5432/database` (PostgreSQL only) |
+    | **Catalog Name** *(advanced)* | No | The name the catalog's rows are keyed by. Defaults to the connector's id |
+
+    **Hosted catalog.** With no database URL, the catalog lives in a dedicated `iceberg_catalog` schema of the data plane's PostgreSQL. It is accessed with a dedicated role that can use that schema and nothing else, never the data plane's own credentials. Each connector is its own catalog, so two connectors never see each other's tables. Deleting a connector drops nothing.
+
+    On a Popsink-provisioned deployment the role already exists. Self-hosted, the data plane creates it when its database user has `CREATEROLE` and `CREATE` on its database. Otherwise an administrator creates it once. The role is `<data-plane db user>_iceberg`, and its password is derived from the data plane's database password:
+
+    ```bash
+    python3 -c "import hmac,hashlib;print(hmac.new(b'<db password>', b'popsink-iceberg-catalog:<db user>', hashlib.sha256).hexdigest())"
+    ```
+
+    ```sql
+    CREATE ROLE "<db user>_iceberg" LOGIN PASSWORD '<derived password>';
+    GRANT CONNECT ON DATABASE "<db>" TO "<db user>_iceberg";
+    CREATE SCHEMA IF NOT EXISTS iceberg_catalog;
+    GRANT USAGE, CREATE ON SCHEMA iceberg_catalog TO "<db user>_iceberg";
+    ALTER ROLE "<db user>_iceberg" IN DATABASE "<db>" SET search_path = iceberg_catalog;
+    ```
+
+    <Warning>**Two connectors writing to one table** must use the same **Catalog Name**. Left empty, each connector gets its own catalog, and two catalogs writing to one warehouse create two tables in the same directory: each reader then sees one connector's rows, never both.</Warning>
+
+    A SQL catalog never vends storage credentials: configure [storage credentials](#storage-credentials), or leave them empty to use the pod's own cloud identity.
+  </Tab>
+  <Tab title="Hive Metastore">
+    | Field | Required | Description |
+    |---|---|---|
+    | **Metastore URI** | Yes | The Thrift address, `host:port` (e.g. `hive-metastore.internal:9083`), without a `thrift://` prefix |
+    | **Warehouse** | Yes | The storage location new tables are created under (e.g. `s3://my-lake/warehouse`) |
+
+    A Hive database is one level. The connection test can only check that the metastore is reachable: it does not list its databases.
+  </Tab>
+</Tabs>
+
+## Storage Credentials
+
+**Storage Credentials** selects how the connector authenticates to the storage holding the data files:
+
+- **Vended by the catalog, per table** (REST catalogs only, default): no storage credential on the connector.
+- **The pod's own identity** (other catalogs, default): the cloud identity of the worker pod (IRSA / EKS Pod Identity, Workload Identity…).
+- **Static credentials of this connector:** pick the storage type and authentication below.
+
+| Storage | Authentication | Fields |
+|---|---|---|
+| **S3 or S3-compatible** (MinIO, Ceph, R2…) | Access key | **S3 Access Key ID**, **S3 Secret Access Key** |
+| | Assume a role | **Role ARN**, **External ID** (optional) |
+| | The pod's identity (IRSA / Pod Identity) | — |
+| **Azure Data Lake Storage Gen2** | Connection string | **Connection String** |
+| | Account key | **Storage Account Name**, **Account Key** |
+| | Service principal | **Storage Account Name**, **Tenant ID**, **Client ID**, **Client Secret**. The service principal needs the **Storage Blob Data Contributor** role on the storage account. |
+| **Google Cloud Storage** | Service account key | **Service Account Key (JSON)**, **Project ID** (optional) |
+| | The pod's identity (Workload Identity) | — |
+
+S3 also accepts an optional **S3 Region**, an **S3 Endpoint** for S3-compatible stores, and **Path-style addressing** (needed by most S3-compatible stores).
+
+<Note>An ADLS connection string that sets a custom `BlobEndpoint` or `DfsEndpoint` is refused: the endpoint is always read from the `abfss://` warehouse location.</Note>
+
+### Proxy
+
+| Field | Required | Description |
+|---|---|---|
+| **HTTP proxy for the Entra ID token call** | No | e.g. `http://proxy.company.com:8080`. Only the Entra ID token call (`login.microsoftonline.com`) goes through it; storage traffic stays direct. Available with ADLS service-principal authentication only. |
+
+## Table Defaults
+
+These advanced connector settings apply to tables the connector **creates**. A subscription can override them, and an existing table keeps its own settings.
+
+| Field | Default | Description |
+|---|---|---|
+| **Format Version of new tables** | v2 | v2, or v3 (deletion vectors, row lineage) |
+| **Table properties of new tables** | — | Iceberg table properties, e.g. `write.parquet.compression-codec = zstd`. Reserved properties (`format-version`, `uuid`, `current-schema`, `default-partition-spec`, …) are refused. |
+
+## Connection Test
+
+**Test** walks the same steps the worker walks, and prefixes any failure with the step that failed, so you know which input to fix:
+
+| Prefix | What was checked |
+|---|---|
+| `[auth]` | The catalog accepted the credentials: OAuth2 token exchange, AWS credentials, connection to the SQL catalog database, or reachability of the metastore |
+| `[namespace]` | The catalog serves the warehouse, the namespace exists (or may be created), and the principal may create a table in it. On REST catalogs the test creates a `popsink_preflight_<random>` table and drops it with a purge: a principal can be allowed to *list* a namespace and still be unable to commit to it. |
+| `[storage]` | With static storage credentials, the connector can write and delete a `popsink-preflight-<random>` object under the warehouse |
+| `[snowflake]` | When a managed current-state view is configured, the Snowflake role can create views where they go |
+
+## Subscription Options
+
+In the subscription drawer, the **Advanced** tab holds the Iceberg options. They apply **only when the table is created**: a table that already exists keeps its format version, partitioning and properties.
+
+| Option | Default | Description |
+|---|---|---|
+| **Add Kafka metadata columns** | On for new subscriptions | Adds `__kafka_partition`, `__kafka_offset`, `__kafka_timestamp` and `__ingested_at` to every row. See [What Is Written](#what-is-written). |
+| **Format version** | The connector's default | v2 or v3 |
+| **Partitioning** | None | Partition fields: a column and a transform (`identity`, `year`, `month`, `day`, `hour`, `bucket[N]`, `truncate[W]`). Partition field names follow Spark/Trino conventions (`<column>_day`, `<column>_bucket`, …). |
+| **Table properties** | — | Merged over the connector's defaults, e.g. `write.target-file-size-bytes` |
+
+<Tip>`__ts_ms` is a `long` (epoch milliseconds), so time transforms such as `day` do not apply to it. To partition by time, use a timestamp column of your own, or `__ingested_at` with metadata columns on.</Tip>
+
+**Table naming.** Each subscription writes one Iceberg table named after its target table name, in the connector's namespace. Characters other than letters, digits and `_` are replaced with `_`. Column names are kept exactly as the mapping spells them, lower case by default. Several subscriptions can target the same table.
+
+## What Is Written
+
+One Iceberg table per subscription, appended to. Every change event is a row, so the table is the **history** of the source table, not its current state.
+
+| Column | Type | Meaning |
+|---|---|---|
+| *source columns* | typed | The columns of the subscription's mapping |
+| `__op` | `string` | `c` created, `u` updated, `d` deleted, `r` read during a snapshot or a backfill |
+| `__ts_ms` | `long` | When the change happened at the source, in epoch milliseconds |
+| `__kafka_partition` | `int` | Kafka partition of the event *(with metadata columns on)* |
+| `__kafka_offset` | `long` | Kafka offset of the event *(with metadata columns on)* |
+| `__kafka_timestamp` | `timestamptz` | The record's Kafka timestamp *(with metadata columns on)* |
+| `__ingested_at` | `timestamptz` | When the connector committed the row, UTC *(with metadata columns on)* |
+
+<Note>Metadata columns are on by default for subscriptions created since data plane `0.1.0-alpha.204`. Older subscriptions keep their setting. Like the other subscription options, the setting is meant to be chosen when the table is created.</Note>
+
+### Column types
+
+Columns are typed from the topic's Avro schema (the Schema Registry's latest version, or the datamodel's schema). On a topic without a registry, types are inferred from the values. An explicit cast in the subscription's mapping takes precedence.
+
+| Avro / Debezium type | Iceberg type |
+|---|---|
+| `boolean` | `boolean` |
+| `int` | `int` |
+| `long` | `long` |
+| `float` / `double` | `float` / `double` |
+| `decimal` (precision ≤ 38) | `decimal(p, s)` |
+| `decimal` without precision, or precision > 38 | `string` |
+| `date`, `io.debezium.time.Date` | `date` |
+| `timestamp-millis/micros`, `io.debezium.time.Timestamp`, `io.debezium.time.MicroTimestamp` | `timestamptz` (µs, UTC) |
+| `time-*` | `string` |
+| `string`, `bytes`, `enum`, `fixed` | `string` |
+| `record`, `array`, `map` | `string` (JSON text) |
+
+### Schema evolution
+
+- **New source columns** are added to the table automatically, as optional columns.
+- **Columns are never dropped or retyped.** The type a column was committed with wins: each value is cast to it (`"00123"` into a `long` column becomes `123`), and a value that cannot be cast without losing information (`"1.5"` into a `long` column) **refuses the whole row**. Refused rows are counted as *skipped* in the subscription's metrics and logged without their value. They are not retried.
+- **A table that already exists keeps the types it was created with.**
+
+## Current State: the Merge View
+
+The Iceberg table is the change log: an update or a delete adds a row, and the connector never applies the primary key when it writes. To read the **current state** of the source table, one row per key, you query a **merge view** that collapses the history:
+
+1. **Group** the rows by the subscription's primary key.
+2. **Keep the latest change** of each key: the highest `__ts_ms` (the source change time). With metadata columns on, `__kafka_offset` breaks ties between two changes made in the same millisecond.
+3. **Remove deleted keys:** if the latest change of a key is a delete (`__op = 'd'`), the key is hidden. This filter runs **after** the ranking: filtering deletes first would bring a deleted row's previous version back.
+
+For example, the history of order `42`:
+
+| `id` | `status` | `__op` | `__ts_ms` |
+|---|---|---|---|
+| 42 | `pending` | `c` | 1760000000000 |
+| 42 | `paid` | `u` | 1760000060000 |
+| 42 | `shipped` | `u` | 1760000120000 |
+| 43 | `pending` | `c` | 1760000130000 |
+| 43 | `pending` | `d` | 1760000180000 |
+
+The merge view returns one row, order `42` with status `shipped`. Order `43` was deleted, so it is hidden.
+
+Because it is a plain view, the current state is computed on every query: it reflects every committed append and has no refresh delay. The history stays available in the table, together with Iceberg time travel.
+
+### Managed view on Snowflake
+
+The connector cannot create an Iceberg view in the catalog: iceberg-rust has no view API, and most catalogs (Horizon, Unity Catalog, Glue, S3 Tables, BigLake) accept no Iceberg view. On **Snowflake**, Popsink can instead create and maintain the view as a Snowflake view, named `<TABLE>_CURRENT` in the table's case (`orders` → `orders_current`, `ORDERS` → `ORDERS_CURRENT`).
+
+The view Popsink creates is:
+
+```sql
+CREATE VIEW "<db>"."<schema>"."orders_current"
+COMMENT = 'popsink-current-state:v1 … maintained by Popsink'
+AS
+SELECT * FROM (
+  SELECT * FROM "<db>"."<schema>"."orders"
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY "id"
+    ORDER BY "__ts_ms" DESC NULLS LAST, "__kafka_offset" DESC NULLS LAST
+  ) = 1
+)
+WHERE "__op" IS DISTINCT FROM 'd';
+```
+
+- `PARTITION BY` lists the subscription's primary key columns. The `__kafka_offset` tie-breaker is added only when the table has metadata columns.
+- A subscription gets a view only if it has a **primary key**. Its key columns, `__op` and `__ts_ms` must exist in the table: until they do, the view waits.
+- Snowflake freezes `SELECT *` when a view is created, so **the view is rebuilt when the table gains a column**. Each build is checked against the table before it counts as built. Until then the view may lack the newest column.
+- Popsink only manages a view whose comment starts with `popsink-current-state:v1`. A view of the same name that Popsink did not create, for example one you built yourself, is left as it is and only logged: drop it to let Popsink take over. Grants on a Popsink view are kept across rebuilds.
+- If the view cannot be built (a missing grant, for instance), **the table is still written**: the subscription shows the view as **degraded** and the connector retries, after 1 hour for a missing grant.
+- The view lives in a single-level namespace: a nested namespace gets no view.
+
+These settings are set through the API on the subscription:
+
+| Setting | Default | Description |
+|---|---|---|
+| `create_dynamic_table` | `true` | `false` skips this subscription's view |
+| `dynamic_table_schema` | the table's schema | Puts the view in another schema of the same database |
+| `preserve_metadata` | `true` | `false` hides the Popsink columns (`__op`, `__ts_ms` and the `__kafka_*` / `__ingested_at` columns) from the view |
+
+<Tabs>
+  <Tab title="Snowflake Horizon">
+    Opt in with `horizon_current_state_view: true` on the connector, set through the API. The view is created beside the table, in the same database and schema, with the catalog's own credential and role. That role therefore needs:
+
+    ```sql
+    GRANT CREATE VIEW ON SCHEMA <db>.<schema> TO ROLE <ROLE>;
+    ```
+
+    A rebuild after a schema change happens about 10 seconds after the table gains a column.
+  </Tab>
+  <Tab title="Open Catalog, Polaris, Glue, S3 Tables, other REST">
+    Snowflake reads these catalogs through a [catalog-linked database](https://docs.snowflake.com/en/user-guide/tables-iceberg-catalog-linked-database), which accepts no view. The view therefore goes to an ordinary Snowflake database of yours, and reads the table through the linked one. Set these connector fields through the API, all of them or none:
+
+    | Field | Value |
+    |---|---|
+    | `snowflake_account_url` | `https://<org>-<account>.snowflakecomputing.com` |
+    | `snowflake_role` | The role that creates the views |
+    | `snowflake_token` | A programmatic access token (PAT) for that role, stored as a secret |
+    | `snowflake_linked_database` | The catalog-linked database |
+    | `snowflake_view_database` / `snowflake_view_schema` | Where the views go |
+    | `snowflake_view_refresh_delay_s` | Optional, default `120` |
+
+    Give every name as Snowflake stores it (upper case unless it was created quoted): the connector quotes identifiers, and Glue and S3 Tables tables appear in lower case. The role needs:
+
+    ```sql
+    GRANT USAGE ON DATABASE <view_db> TO ROLE <ROLE>;
+    GRANT USAGE, CREATE VIEW ON SCHEMA <view_db>.<view_schema> TO ROLE <ROLE>;
+    GRANT USAGE ON DATABASE <linked_db> TO ROLE <ROLE>;
+    GRANT USAGE ON SCHEMA <linked_db>."<namespace>" TO ROLE <ROLE>;
+    GRANT SELECT ON ALL ICEBERG TABLES IN SCHEMA <linked_db>."<namespace>" TO ROLE <ROLE>;
+    GRANT SELECT ON FUTURE ICEBERG TABLES IN SCHEMA <linked_db>."<namespace>" TO ROLE <ROLE>;
+    ```
+
+    The linked database shows a new table about 30 seconds after it is created, and a new column only after its next refresh. A view is therefore rebuilt `snowflake_view_refresh_delay_s` seconds after its table gains a column.
+
+    <Note>Snowflake does not document whether a view over a catalog-linked table is supported. If Snowflake refuses one, the subscription shows the view as **degraded** with Snowflake's message, and the table is still written.</Note>
+  </Tab>
+</Tabs>
+
+### Creating the view yourself
+
+On other engines, or on Snowflake without the settings above, create the view once yourself. Replace `id` with your primary key columns, and drop the `__kafka_offset` tie-breaker if metadata columns are off.
+
+<CodeGroup>
+```sql Snowflake
+CREATE OR REPLACE VIEW MY_DB.MY_SCHEMA.ORDERS_CURRENT AS
+SELECT * EXCLUDE (_ppsk_rank)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY "id"
+      ORDER BY "__ts_ms" DESC NULLS LAST, "__kafka_offset" DESC NULLS LAST
+    ) AS _ppsk_rank
+  FROM MY_DB.MY_SCHEMA."orders"
+)
+WHERE _ppsk_rank = 1
+  AND "__op" IS DISTINCT FROM 'd';
+```
+
+```sql Databricks
+CREATE OR REPLACE VIEW my_catalog.my_schema.orders_current AS
+SELECT * EXCEPT (_ppsk_rank)
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY `id`
+      ORDER BY `__ts_ms` DESC NULLS LAST, `__kafka_offset` DESC NULLS LAST
+    ) AS _ppsk_rank
+  FROM my_catalog.my_schema.orders
+)
+WHERE _ppsk_rank = 1
+  AND `__op` IS DISTINCT FROM 'd';
+```
+
+```sql Trino / Athena
+CREATE OR REPLACE VIEW iceberg.bronze.orders_current AS
+SELECT id, status, amount, __op, __ts_ms   -- list your columns: Trino has no SELECT * EXCEPT
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY id
+      ORDER BY __ts_ms DESC NULLS LAST, __kafka_offset DESC NULLS LAST
+    ) AS _ppsk_rank
+  FROM iceberg.bronze.orders
+)
+WHERE _ppsk_rank = 1
+  AND __op IS DISTINCT FROM 'd';
+```
+</CodeGroup>
+
+On Snowflake the double quotes are required: Iceberg column names are stored as the mapping spells them, lower case by default, and Snowflake folds unquoted identifiers to upper case. Use `IS DISTINCT FROM 'd'` rather than `<> 'd'`, which would also drop rows whose `__op` is empty (events that do not come from Debezium). To materialize the current state as a table instead of a view, see [Build a merge table](/warehouse#build-a-merge-table-when-creates-arrive-after-updates) on the Warehouse page.
+
+## Table Maintenance
+
+Every Iceberg connector runs a scheduled maintenance job beside its worker, **once a day by default**, at a time derived from the connector. For each table it:
+
+1. **Purges deleted keys** *(opt-in)*: removes every row of a key whose latest change is a delete, so its data leaves storage once older snapshots expire. A key re-inserted after its delete keeps its newer rows. Skipped on tables without a primary key.
+2. **Compacts** small data files into files of about 128 MB, without changing a row.
+3. **Expires snapshots** older than 7 days, always keeping the last 20.
+4. **Deletes orphan files**, files no snapshot references, once they are older than 72 hours. Skipped on Amazon S3 Tables, which does this itself.
+
+These connector settings are set through the API:
+
+| Setting | Default | Description |
+|---|---|---|
+| `maintenance_enabled` | `true` | `false` turns the job off |
+| `maintenance_schedule` | daily, at a time derived from the connector | Cron expression in UTC (5 fields, or `@daily`, `@hourly`, …) |
+| `purge_deleted_rows` | `false` | Purge deleted keys (step 1) |
+| `snapshot_retention_hours` | `168` | Expire snapshots older than this (1 to 8760) |
+| `snapshot_retain_last` | `20` | Snapshots always kept, whatever their age (1 to 1000) |
+| `orphan_grace_hours` | `72` | Minimum age of an orphan file before it is deleted (24 to 8760) |
+| `compaction_target_file_mb` | `128` | Size compaction packs small files into (8 to 2048) |
+| `compaction_min_files` | `5` | Small files a partition needs before it is compacted (2 to 1000) |
+
+<Note>Compaction commits as an Iceberg `overwrite`. An incremental reader (Spark or Flink streaming reads) may refuse to read past such a snapshot. Expiring snapshots also limits how far back time travel goes.</Note>
+
+## Backfill
+
+A **MySQL** or **IBM i** source can backfill an Iceberg subscription. The source table's current rows are appended with `__op = 'r'` and `__ts_ms = 0`, so any change streamed since the backfill ranks above them in the merge view, and a streamed delete removes the key.
+
+- The subscription needs a **primary key**: without one there is no merge view to collapse the loaded rows with the streamed ones.
+- **Truncate history** is not supported: the connector only appends, so a reload adds rows and the merge view keeps the newest row per key.
+- Sources reached through an **SSH tunnel**, and IBM i **multi-member** files, are not supported yet.
+- An IBM i table is first read into the backfill's own scratch space (up to 55 GiB compressed), then loaded.
+- A backfill does not resume: relaunching it appends the rows again, and the merge view collapses them.
+
+## Restarts and Replays
+
+- **Restarts do not duplicate data.** Each append records the last Kafka offset it holds in the Iceberg snapshot. On restart, the connector skips rows the table already holds, so a pod restart, a rebalance or an append that landed but answered an error is not written twice.
+- **A replay appends the history again.** Replaying a pipeline or a subscription, or triggering a backfill from the beginning of the topic, starts a new delivery: every event Kafka still retains is appended a second time. The merge view still returns the right current state, since duplicates share a key, `__ts_ms` and `__op`, but the history table holds both copies.
+- **Rows refused by typing are skipped**, not retried (see [Schema evolution](#schema-evolution)).
+- A table that hits an error no retry can fix (an invalid table definition, a missing namespace) is **quarantined**: it stops buffering, its rows are dropped and the connector reports the error. Other tables keep flowing.
+
+## Upgrading from the Previous Iceberg Target
+
+Connectors created on the former Azure-only Iceberg target (and on the former Polaris target) are migrated automatically when the data plane is upgraded.
+
+- **Polaris connectors** become Iceberg REST connectors with the same catalog, tables and Kafka offsets. Nothing is replayed.
+- **Former Azure-only connectors** keep the same storage account, container, service principal or connection string, and proxy. Their catalog becomes a SQL catalog hosted by the data plane:
+  - **New tables, at a new path.** The old target kept its catalog in a file inside its pod, so there is nothing to carry over. Tables are created again under `<container>/popsink/popsink/<table>`, in namespace `popsink`. The old files stay where they were, untouched: point readers at the new path. Connectors that wrote to the same container share one catalog (`popsink-<account>-<container>`).
+  - **Only what Kafka still holds is reloaded.** Every subscription replays its topic from the beginning. Rows older than the topic's retention exist only in the old tables.
+  - **Load columns change.** Migrated subscriptions get `__kafka_partition`, `__kafka_offset`, `__kafka_timestamp` and `__ingested_at` in place of the previous custom columns, which are not reproduced.
+
+## Limitations
+
+- Iceberg format v1 is not supported.
+- Format version, partitioning, table properties and metadata columns apply only when a table is created.
+- Columns are never dropped or retyped. Nested records and arrays are written as JSON text. Avro timestamps lose their sub-second part.
+- The managed merge view is available on Snowflake only, for single-level namespaces.
+- The SQL catalog supports PostgreSQL only. A Hadoop / filesystem catalog is not supported.
+- The proxy option covers the Entra ID token call only. There is no proxy for catalog, AWS or GCS traffic.
+- The maintenance job cannot use an S3 role that requires an external ID.
