@@ -1,46 +1,50 @@
 ---
 title: Unity Catalog (Delta Lake) Target
+description: Write change events to Delta Lake tables on Azure storage and register them in Databricks Unity Catalog, as an append-only changelog or as a merged table.
 ---
 
-The Unity Catalog Target Connector writes your pipeline data to Delta Lake tables stored in Azure Blob Storage and registers them in a Databricks Unity Catalog catalog and schema. Data is written in Delta format with full ACID compliance and schema evolution, and tables are queryable from any Databricks workspace once registered. The connector is delivered as a native worker — no Spark cluster and no SQL warehouse are required on your side — streaming change events directly into your lakehouse.
+The Unity Catalog Target Connector writes your pipeline data to Delta Lake tables stored in Azure Blob Storage, and registers them in a Databricks Unity Catalog catalog and schema. Tables are queryable from any Databricks workspace as soon as they are registered. The connector is delivered as a native worker: no Spark cluster and no SQL warehouse are needed to write the data.
 
-Because the worker writes Delta files directly to Azure Blob Storage (outside Databricks compute) and registers them as **external** tables, two requirements are easy to miss: the metastore must allow **External Data Access**, and the Service Principal needs the **external-table** privileges. Both are detailed below.
+Each subscription is delivered in one of two modes:
 
-## Table of Contents
+- **Changelog** (default for new subscriptions): every change is appended to `<table>_APPEND`, and `<table>` is a **current-state view** over it. Popsink can build and maintain that view on your SQL warehouse.
+- **MERGE**: changes are applied in place to `<table>` with a Delta `MERGE`, keyed on the primary key. Suited to small tables.
 
-1. [Compatible versions](#compatible-versions)
-2. [Key Features](#key-features)
-3. [Prerequisites](#prerequisites)
-4. [Storage Authentication](#storage-authentication)
-5. [Databricks Authentication](#databricks-authentication)
-6. [External Data Access](#external-data-access)
-7. [Catalog and Schema](#catalog-and-schema)
+See [Delivery Modes](#delivery-modes) for how each works and how to choose.
+
+Because the worker writes Delta files directly to Azure Blob Storage, outside Databricks compute, and registers them as **external** tables, two requirements are easy to miss: the metastore must allow **External Data Access**, and the Service Principal needs the **external-table** privileges. Both are detailed below.
 
 ## Compatible versions
 
 | | |
 |---|---|
-| **Delta Lake** | Tables written with delta-rs 0.22 |
+| **Delta Lake** | Tables written with delta-rs (`deltalake` 0.32) |
 | **Databricks** | Any workspace with Unity Catalog enabled |
 | **Unity Catalog API** | REST API 2.1, with External Data Access enabled on the metastore |
 | **Storage** | Azure Blob Storage / ADLS Gen2 |
+| **SQL warehouse** *(optional)* | Any Databricks SQL warehouse for a current-state view; a **serverless** one for a materialized view |
 
-<Note>No Spark cluster or SQL warehouse is needed in the write path — the worker writes Delta files directly and registers external tables.</Note>
+<Note>No Spark cluster or SQL warehouse is needed in the write path: the worker writes Delta files directly and registers external tables. A SQL warehouse is only used, optionally, to build the current-state view of changelog subscriptions.</Note>
 
 ## Key Features
 
 - **Delta Lake format:** data is written as Delta tables with ACID transactions and schema evolution.
-- **Unity Catalog registration:** each subscription's target table is automatically created or updated under the catalog and schema you provide, making it instantly queryable from Databricks.
-- **Native streaming worker:** change events are streamed directly into Azure Blob Storage without a Spark job or SQL API in the write path.
-- **Secure by design:** Databricks access uses OAuth Machine-to-Machine with a Service Principal — no Personal Access Tokens.
+- **Unity Catalog registration:** each subscription's tables are created and registered automatically under the catalog and schema you provide, with their column types.
+- **Changelog delivery:** every insert, update and delete is appended, so the write cost grows with the batch, not with the table. A current-state view gives one row per key.
+- **MERGE delivery:** upserts and deletes applied in place on the primary key, for tables small enough to be merged.
+- **Managed current-state view:** with a SQL warehouse, Popsink creates the view (or materialized view), migrates an existing merged table into the changelog, and keeps the view in line with the schema.
+- **Native streaming worker:** change events are streamed directly into Azure Blob Storage, without a Spark job in the write path.
+- **Secure by design:** Databricks access uses OAuth Machine-to-Machine with a Service Principal, no Personal Access Tokens.
 
 ## Prerequisites
 
 - An Azure Blob Storage account with an existing container for the Delta data.
 - A Databricks workspace with Unity Catalog enabled.
-- An existing Unity Catalog **catalog** and **schema** — the connector registers tables but does not create the catalog or schema.
+- An existing Unity Catalog **catalog** and **schema**. The connector registers tables but does not create the catalog or schema.
 - **External Data Access** enabled on the metastore (per-metastore, admin-only). See [External Data Access](#external-data-access).
-- A Databricks **Service Principal** with an OAuth secret and the required privileges on the target catalog and schema. Because the connector registers **external** tables, those are `USE CATALOG`, `USE SCHEMA`, `CREATE EXTERNAL TABLE` and `EXTERNAL USE SCHEMA`.
+- A Databricks **Service Principal** with an OAuth secret and `USE CATALOG`, `USE SCHEMA`, `CREATE EXTERNAL TABLE` and `EXTERNAL USE SCHEMA` on the target catalog and schema.
+- *(Optional)* A **SQL warehouse** the Service Principal can use, for Popsink to build current-state views. See [SQL Warehouse](#sql-warehouse).
+- A **primary key** on each subscription you want deduplicated: flag the key columns in the subscription's column mapping, or declare them on the datamodel.
 
 ## Storage Authentication
 
@@ -67,16 +71,24 @@ Authenticate with an Azure Active Directory Service Principal. The Service Princ
 | **Client Secret** | A client secret generated for the registered app |
 | **Container Name** | Existing container where Delta table data will be written |
 
+Tables are written under `abfss://<container>@<account>.dfs.core.windows.net/popsink/<table>`.
+
+### Private endpoint
+
+| Field | Required | Description |
+|---|---|---|
+| **ADLS Storage Endpoint URL** *(advanced)* | No | Routes all storage traffic to this host (e.g. a private endpoint reached over a tunnel) instead of the public `<account>.dfs.core.windows.net`. Account-based authentication is unchanged. |
+
 ## Databricks Authentication
 
 The connector authenticates to Databricks via **OAuth Machine-to-Machine (M2M)** using a Databricks Service Principal: it exchanges the Service Principal's client ID and secret for a short-lived access token at the workspace token endpoint, then registers each target table under your catalog and schema.
 
-<Note>Personal Access Tokens (PATs) are not supported by this connector. Databricks deprecates PATs for new integrations — use a Service Principal with an OAuth secret.</Note>
+<Note>Personal Access Tokens (PATs) are not supported by this connector. Databricks deprecates PATs for new integrations: use a Service Principal with an OAuth secret.</Note>
 
 ### Setting up the Service Principal
 
 1. In your Databricks workspace, open **Settings → Identity and access → Service principals** and create a new Service Principal (or pick an existing one).
-2. Under the Service Principal, generate an **OAuth secret**. Copy the displayed **client ID** and **secret** — the secret is shown only once.
+2. Under the Service Principal, generate an **OAuth secret**. Copy the displayed **client ID** and **secret**: the secret is shown only once.
 3. Grant the Service Principal the Unity Catalog privileges needed to register **external** tables on the target catalog and schema:
 
 ```sql
@@ -86,7 +98,7 @@ GRANT CREATE EXTERNAL TABLE ON SCHEMA <catalog_name>.<schema_name> TO `<service_
 GRANT EXTERNAL USE SCHEMA ON SCHEMA <catalog_name>.<schema_name> TO `<service_principal>`;
 ```
 
-`USE CATALOG` / `USE SCHEMA` make the catalog and schema visible; `CREATE EXTERNAL TABLE` allows registering externally-written Delta files; `EXTERNAL USE SCHEMA` lets a non-Databricks engine operate on the schema's tables. Popsink's credential check verifies these at configuration time when the Service Principal can read its own effective permissions.
+`USE CATALOG` / `USE SCHEMA` make the catalog and schema visible. `CREATE EXTERNAL TABLE` allows registering externally-written Delta files. `EXTERNAL USE SCHEMA` lets a non-Databricks engine operate on the schema's tables. `ALL PRIVILEGES` covers the last two.
 
 | Field | Description |
 |---|---|
@@ -108,10 +120,6 @@ PATCH /api/2.1/unity-catalog/metastores/{metastore_id}
 { "external_access_enabled": true }
 ```
 
-<Note>
-Popsink's credential check fails fast at configuration time if External Data Access is disabled or the external-table grants are missing, so you can fix these before the connector goes live rather than discovering them at runtime.
-</Note>
-
 ## Catalog and Schema
 
 | Field | Description |
@@ -119,4 +127,211 @@ Popsink's credential check fails fast at configuration time if External Data Acc
 | **Catalog Name** | Unity Catalog catalog where tables will be registered (e.g. `main`) |
 | **Schema Name** | Schema (database) under that catalog (e.g. `bronze`) |
 
-Both must exist before the connector starts. Tables are created or updated using each subscription's target table name within this catalog and schema.
+Both must exist before the connector starts. Tables are created using each subscription's target table name within this catalog and schema. Characters other than letters, digits and `_` are replaced with `_`.
+
+## SQL Warehouse
+
+The Unity Catalog Tables API can only create external Delta tables, not views. To build the current-state view of [changelog subscriptions](#changelog-delivery), Popsink submits the SQL to a warehouse of yours. No data passes through Popsink: the statements run on your warehouse.
+
+| Field | Required | Description |
+|---|---|---|
+| **SQL Warehouse** *(advanced)* | No | Pick a warehouse from your workspace once the credentials are tested, or type its id: the id in the warehouse's URL (`/sql/warehouses/<id>`), not its name. Leave empty and the worker only logs the SQL for you to run. |
+| **Current-state object** *(advanced)* | No | **View** (default): current on every query and runs on any warehouse, but re-reads the whole changelog each time. **Materialized view**: refreshed on each subscription's refresh lag, and requires a **serverless** warehouse. |
+
+The Service Principal needs two more grants, and **neither is implied by its Unity Catalog privileges**:
+
+1. **CAN USE** on the warehouse (SQL Warehouses → your warehouse → Permissions);
+2. the **Databricks SQL access** entitlement on the Service Principal itself (Settings → Identity and access → Service principals → Entitlements).
+
+To create the views, Databricks also requires `CREATE TABLE` (views) or `CREATE MATERIALIZED VIEW` on the schema that holds them:
+
+```sql
+GRANT CREATE TABLE ON SCHEMA <catalog_name>.<schema_name> TO `<service_principal>`;
+-- with Current-state object = Materialized view:
+GRANT CREATE MATERIALIZED VIEW ON SCHEMA <catalog_name>.<schema_name> TO `<service_principal>`;
+```
+
+A missing grant only affects the current-state view, which is reported as **degraded**: the changelog keeps being written and no data is lost.
+
+## Connection Test
+
+**Test** checks, in order: writing and deleting a `popsink-test.txt` blob in the container, the Databricks OAuth token exchange, access to the catalog and schema, the external-table grants, the metastore's External Data Access flag and, if set, the SQL warehouse (permissions, and serverless compute for a materialized view). Each failure names what to fix. The grant and flag checks only fail when the Service Principal can read its own permissions and they are positively missing.
+
+## Delivery Modes
+
+| | Changelog *(default)* | MERGE |
+|---|---|---|
+| **Table written by Popsink** | `<table>_APPEND`: one row per change | `<table>`: one row per key, updated in place |
+| **Current state** | `<table>`, a view over `<table>_APPEND` | `<table>` itself |
+| **Change history** | Kept | Not kept: updates overwrite, deletes remove the row |
+| **Write cost** | Grows with the batch | Grows with the table: each MERGE rewrites the files it touches |
+| **Table size** | Unlimited | Limited to what one MERGE can read in memory (see [Size limit](#size-limit)) |
+| **Read cost** | A view re-reads the changelog on each query (a materialized view does not) | A plain table |
+
+**Every new subscription is delivered as a changelog** unless you untick **Deliver as an append-only changelog** in the subscription drawer. Existing subscriptions keep the mode they have. Changing the mode of an existing subscription keeps its Kafka offsets: nothing is replayed or lost.
+
+<Tip>Use MERGE for small tables (reference data, a few hundred thousand rows) when you want a plain table with no view. Use the changelog for everything else, and whenever you need the history of changes.</Tip>
+
+### Changelog delivery
+
+The connector appends every insert, update and delete to `<table>_APPEND`, partitioned by `__ingest_date`. It never rewrites a file, so its cost does not depend on the table's size. Each row carries the mapped source columns, plus:
+
+| Column | Type | Meaning |
+|---|---|---|
+| `__op` | `string` | `c` created, `u` updated, `d` deleted, `r` read during a snapshot or a backfill |
+| `__deleted` | `boolean` | `true` when `__op = 'd'` |
+| `__ts_ms` | `bigint` | When the change happened at the source, in epoch milliseconds |
+| `__partition` | `int` | Kafka partition of the event |
+| `__offset` | `bigint` | Kafka offset of the event |
+| `__ingest_date` | `date` | UTC day the row was written (the partition column) |
+
+#### The current-state view
+
+`<table>` is a view that collapses the changelog into the current state of the source table:
+
+1. **Group** the rows by the subscription's primary key.
+2. **Keep the latest change** of each key: the highest `__ts_ms`, then `__partition`, then `__offset`. The source timestamp alone is not a total order, so the Kafka position breaks ties.
+3. **Remove deleted keys:** if the latest change of a key is a delete, the key is hidden. This filter runs **after** the ranking: Databricks applies `WHERE` before `QUALIFY`, so filtering deletes first would bring a deleted row's previous version back.
+
+```sql
+CREATE OR REPLACE VIEW `main`.`bronze`.`orders` AS
+SELECT * EXCEPT (__deleted, __partition, __offset, __ingest_date) FROM (
+  SELECT * FROM `main`.`bronze`.`orders_APPEND`
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY `id`
+    ORDER BY __ts_ms DESC NULLS LAST, __partition DESC NULLS LAST, __offset DESC NULLS LAST
+  ) = 1
+)
+WHERE NOT __deleted;
+```
+
+For example, with this history in `orders_APPEND`:
+
+| `id` | `status` | `__op` | `__deleted` | `__ts_ms` |
+|---|---|---|---|---|
+| 42 | `pending` | `c` | false | 1760000000000 |
+| 42 | `paid` | `u` | false | 1760000060000 |
+| 42 | `shipped` | `u` | false | 1760000120000 |
+| 43 | `pending` | `c` | false | 1760000130000 |
+| 43 | `pending` | `d` | true | 1760000180000 |
+
+the view `orders` returns one row: order `42`, `shipped`. Order `43` was deleted, so it is hidden.
+
+The view keeps `__op` and `__ts_ms`. With **Include Popsink's metadata columns** off in the subscription drawer, they are hidden too: deletes and deduplication behave the same. A subscription with no primary key gets a view that only drops deleted events and keeps every other version of every row.
+
+#### With a SQL warehouse
+
+When the connector has a [SQL warehouse](#sql-warehouse), Popsink builds and maintains the view for you:
+
+- It creates `<table>` as a **view** or a **materialized view**, depending on **Current-state object**. A materialized view is refreshed on the subscription's **Refresh lag** (default 60 minutes).
+- It **rebuilds** the view when the changelog gains a column.
+- When a subscription switches from MERGE to changelog, it first **copies the existing merged table** into the changelog (one row per key, at its own `__ts_ms`), then **renames** it to `<table>_PRE_CHANGELOG`, **never dropping it**, and creates the view under the original name. Readers of `<table>` keep reading the same name, and the history from before the switch is preserved.
+- It only manages objects it created (their comment starts with `popsink-current-state:v1`). If another table or view already holds the name, nothing is built and the reason is reported: rename or drop it, or point the subscription's view to another schema.
+- If the merged table cannot be copied (a column type that cannot be converted without loss, for instance), the subscription stops with its offsets frozen and the reason reported. Set it back to MERGE to resume without loss, or fix the column and restart.
+- Any other failure leaves the view **degraded** and is retried (after 1 hour for a refused warehouse, otherwise after 1, 5, 15, then 60 minutes). The changelog keeps being written.
+
+Per subscription, in the drawer:
+
+| Option | Default | Description |
+|---|---|---|
+| **Build the current-state object** | On | Off delivers the changelog only: nothing is built, and the table the subscription names is left as it is |
+| **Schema** | The connector's schema | Builds the view in another schema of the same catalog |
+| **Refresh lag** | 60 minutes | Materialized views only |
+
+#### Without a SQL warehouse
+
+The worker logs the exact `CREATE VIEW` statement for each subscription when it starts: run it once in Databricks, or read `<table>_APPEND` directly.
+
+<Warning>When an existing MERGE subscription switches to changelog without a SQL warehouse, Popsink stops writing `<table>`: a reader of `<table>` sees it stop updating, with nothing failing. Create the view (under another name, or after renaming the old table), and copy the old table's rows into it if you need the history from before the switch. Setting a SQL warehouse does all of this for you.</Warning>
+
+### MERGE delivery
+
+The connector applies each batch of changes to `<table>` with a Delta `MERGE` on the subscription's primary key. The table holds the current state of the source table, one row per key.
+
+**How a batch is merged:**
+
+1. **Deduplicate the batch:** for each key, keep only the latest change (highest `__ts_ms`; ties go to the event read last). Rows with an empty key value are dropped.
+2. **Add new columns** to the table if the batch carries any.
+3. **Merge** the batch into the table, matching rows on every primary key column (`target.k = source.k AND …`):
+
+   | Change | Key exists in the table | Key absent |
+   |---|---|---|
+   | Insert, update, snapshot read (`c`, `u`, `r`) | Row updated with the new values | Row inserted |
+   | Delete (`d`) | **Row deleted** | Nothing |
+
+A deleted row is physically removed: the merged table keeps no trace of it. A row without an operation is treated as an update.
+
+**Primary key.** The key comes from the columns flagged as primary key in the subscription's column mapping, or else from the datamodel's primary key. A subscription without a key is written **append-only**: updates accumulate as new rows, and deletes are not applied.
+
+**Columns.** With a column mapping, the merged table holds the mapped columns only. Without a mapping, it also stores `__op`, `__ts_ms` and the other Debezium envelope fields as `__`-prefixed columns.
+
+**Snapshots.** During an initial snapshot (all rows `r`), rows are staged and published in one commit when the snapshot ends, after 30 seconds without new rows, or every 1,000,000 rows. An empty table gets a plain append, without a `MERGE`.
+
+#### Size limit
+
+Delta `MERGE` is copy-on-write: every data file that holds a changed row is read and rewritten whole, and the rows it reads stay in memory. So **a MERGE table must be small enough for one merge to read it entirely**:
+
+- Each merge may read up to 512 MiB on the default worker size.
+- A table row is estimated at **20 times its size on disk** (Parquet compresses the repetitive strings a CDC table is full of).
+- The limit is therefore about **246,000 rows** for a table whose rows take 120 bytes on disk, and about **2.7 million rows** at 10 bytes per row, plus a 10 % margin.
+
+A table past that limit is refused on its first write, before anything is read, with an error naming its size and the limit:
+
+```
+MERGE is supported on a table one merge reads whole, and this one holds 1117644 rows
+where one merge holds 246056 (512 MiB at 2400 B/row): deliver this subscription as a
+changelog (delivery_mode = changelog), …
+```
+
+The table is then **quarantined**: its offsets stay where they are, and the connector reports the error. Switch the subscription to the changelog: with a SQL warehouse, the existing table is copied into the changelog and kept, and nothing is lost.
+
+<Note>The per-merge memory is a worker tuning setting (`DELTA_MERGE_SCAN_LIMIT_MB`). Raising it widens the limit, at the cost of the worker's memory. For large tables, the changelog is the intended answer.</Note>
+
+#### Maintenance
+
+- Every 100 commits, or past 1,000 files, the table is **optimized** into 128 MiB files. MERGE tables are Z-ordered on the primary key, so a merge reads only the files that may hold the batch's keys. Changelog tables are compacted.
+- Every 10th optimization, files no longer referenced are **vacuumed**, with a 168-hour retention.
+- The worker logs a warning when the declared primary key looks wrong: a key column that is constant across the data, or a merge that rewrites far more rows than it received. Both make every batch rewrite most of the table. Fix the key declared on the subscription or the datamodel.
+
+## Column Types
+
+Without a column mapping, columns are typed from the topic's Avro schema:
+
+| Avro / Debezium type | Delta type |
+|---|---|
+| `boolean` | `boolean` |
+| `int` | `int` |
+| `long` | `bigint` |
+| `float` / `double` | `float` / `double` |
+| `decimal` (precision ≤ 38) | `decimal(p, s)` |
+| `decimal` without precision, or precision > 38 | `string` |
+| `date`, `io.debezium.time.Date` | `date` |
+| `timestamp-*`, `io.debezium.time.Timestamp`, `io.debezium.time.MicroTimestamp` | `timestamp` (UTC) |
+| `time-*` | `string` (Delta has no `TIME` type) |
+| `string`, `bytes`, `enum`, `fixed`, `record`, `array`, `map` | `string` |
+
+With a column mapping, a cast sets the type: `int` / `long` → `bigint`, `float` / `double` → `double`, `bool` → `boolean`, `date` → `date`, `datetime` → `timestamp`, anything else → `string`. Without a usable schema, every column is a `string`.
+
+**Schema evolution.** New source columns are added to the table and to its Unity Catalog registration. Columns are never dropped or retyped.
+
+## Backfill
+
+An **IBM i** source can backfill a Unity Catalog subscription without overwriting the changes already streamed:
+
+- **MERGE subscriptions:** loaded rows are only **inserted** for keys the table does not hold yet. A row the stream already delivered is never touched, and re-running a batch changes nothing. A row deleted at the source while the backfill runs may be re-inserted, within one batch: changelog delivery does not have this gap.
+- **Changelog subscriptions:** loaded rows are appended to `<table>_APPEND` with `__op = 'r'` and `__ts_ms = 0`, so every streamed change ranks above them in the current-state view.
+
+Before writing anything, the backfill checks that it renders rows exactly as the stream did for the same keys. The destination table must already exist, and the subscription needs a primary key.
+
+## Errors and Quarantine
+
+- **Throttling** by Unity Catalog (`429`) is retried with backoff.
+- A table that fails with an error no retry can fix (a schema or value the table cannot take, a MERGE table past the [size limit](#size-limit)) is **quarantined**: its rows are dropped, its Kafka offsets frozen, and the connector shows the **error** state with the reason. Restarting the worker does not clear it: change what the error names first, such as the source schema or the subscription's delivery mode. Other tables keep flowing.
+- A **degraded** subscription still delivers every row: only an object built over the delivery (the current-state view) could not be built or refreshed.
+
+## Limitations
+
+- Storage is Azure Blob Storage / ADLS Gen2 only.
+- There is no proxy option. A private storage endpoint can be set with **ADLS Storage Endpoint URL**.
+- A MERGE table is limited in size (see [Size limit](#size-limit)), and every merge rewrites the files it touches: no deletion vectors are written.
+- The current-state view of a changelog subscription is built by Popsink only when a SQL warehouse is configured. A materialized view needs a serverless warehouse, and is likely to recompute the whole changelog on each refresh: its cost on very large changelogs has not been measured yet.
