@@ -1,7 +1,25 @@
 {
-  "updated_at": "2026-10-13T07:06:56Z",
+  "updated_at": "2026-10-16T06:59:58Z",
   "chart": "oci://ghcr.io/popsink/charts/data-plane",
   "releases": [
+    {
+      "version": "0.1.0-alpha.208",
+      "digest": "sha256:61def1245622f2196171f8258406ef1381e113f7e1b631098c1fd11335a1338c",
+      "published_at": "2026-10-14T13:36:21Z",
+      "data_plane": "2026.10.14",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.12.0",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.207",
+      "digest": "sha256:114f5a67c9271e88dce01746739a0dc16748d5b7675b4c5b318821c3fba0a0f0",
+      "published_at": "2026-10-13T10:53:07Z",
+      "data_plane": "2026.10.13",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.11.0",
+      "kora": "0.5.0"
+    },
     {
       "version": "0.1.0-alpha.206",
       "digest": "sha256:905726ee3fc485a221168c682f456ed37eb1894c00f82729f5c53407f0db2acd",
