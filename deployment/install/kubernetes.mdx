@@ -487,7 +487,9 @@ Then open your `ingressUrl` and log in with `adminCredentials`.
     - Use **external** PostgreSQL (`postgresql.enabled: false` +
       `externalDatabase.*`) backed by managed snapshots, not the in-cluster
       Bitnami sub-chart.
-    - Use **external** S3 with versioning and a lifecycle policy for the broker.
+    - Use a dedicated bucket for the broker, on a backend from the
+      [support matrix](/deployment/reference/helm-values#support-matrix), with
+      versioning and object lock off.
   </Accordion>
   <Accordion title="Resources & availability">
     - Set explicit `resources.requests/limits` on every component — the defaults

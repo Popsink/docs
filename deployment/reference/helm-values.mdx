@@ -290,63 +290,9 @@ selects the matching image automatically.
 ## Broker storage (Kodansu)
 
 Kodansu is a stateless Kafka broker that stores log segments in an object store.
-`kodansu.storage.engine` decides where records live, and both it and
-`kodansu.storage.aws.region` are required by the chart — the region on every
-path, including the ones that never read it.
-
-<CodeGroup>
-
-```yaml AWS — IRSA (recommended on EKS)
-kodansu:
-  storage:
-    engine: "s3://my-popsink-bucket/kafka/"
-    aws:
-      region: eu-west-1
-      irsaRoleArn:    arn:aws:iam::123456789012:role/popsink-kodansu
-      assumedRoleArn: arn:aws:iam::123456789012:role/popsink-kodansu
-```
-
-```yaml AWS — static credentials
-kodansu:
-  storage:
-    engine: "s3://my-popsink-bucket/kafka/"
-    aws:
-      region: eu-west-1
-      accessKeyId: AKIA…
-      secretAccessKey: <secret>
-```
-
-```yaml MinIO / non-AWS S3
-kodansu:
-  storage:
-    engine: "s3://my-popsink-bucket/kafka/"
-    aws:
-      region: us-east-1
-      endpoint: http://minio.minio.svc.cluster.local:9000
-      allowHttp: true
-      accessKeyId: minio
-      secretAccessKey: minio123
-```
-
-```yaml Azure — ADLS Gen2
-kodansu:
-  storage:
-    engine: "abfss://popsink@mystorage.dfs.core.windows.net/kafka/"
-    aws:
-      # Required by the chart even here, and never read on this path.
-      region: us-east-1
-  podLabels:
-    azure.workload.identity/use: "true"
-  serviceAccount:
-    annotations:
-      azure.workload.identity/client-id: <managed-identity-client-id>
-```
-
-</CodeGroup>
-
-The bucket must exist, be writable by the configured identity, and ideally have
-**object versioning** enabled — on S3. On ADLS Gen2 versioning is the opposite
-instruction; see below.
+`kodansu.storage.engine` decides where records live; its URL scheme picks the
+backend. Both it and `kodansu.storage.aws.region` are required by the chart —
+the region on every path, including the ones that never read it.
 
 <Warning>
 **There is no PostgreSQL retention.** The broker has been object-store only
@@ -357,10 +303,272 @@ take it. `postgresql.*` and `externalDatabase.*` are a different thing entirely:
 the data plane's own database, which every install needs.
 </Warning>
 
+### What every backend must provide
+
+The broker keeps no state of its own: offset assignment, consumer-group
+membership and maintenance leases are all **conditional writes** to the object
+store. A backend is only usable if it honours both:
+
+| Request                             | Must                                                         | Used for                                  |
+| ----------------------------------- | ------------------------------------------------------------ | ----------------------------------------- |
+| `PUT` with `If-None-Match: *`       | fail with `412` when the key already exists                  | assigning offsets, writing segments       |
+| `PUT` with `If-Match: <etag>`       | fail with `412` when the object's ETag differs               | consumer-group state, leases              |
+
+A store that **ignores** one of these headers does not fail: it overwrites. The
+broker starts, produces and consumes, and two writers that should have been
+serialized both "win" — duplicated offsets or a consumer group that loses its
+committed positions. That is why the table below separates "S3-compatible" from
+"supported", and why a store that has not been verified should be
+[checked](#check-an-s3-compatible-store) before the install.
+
+The object layout is create-only and retention is implemented by **delete**, so
+the bucket also needs:
+
+| Setting                                  | Required                    | Why                                                                                     |
+| ---------------------------------------- | --------------------------- | ---------------------------------------------------------------------------------------- |
+| Delete and list permissions              | **granted**                 | Retention and compaction delete; the read path lists                                     |
+| Object versioning                        | **off**                     | Every deleted segment is kept as a noncurrent version and billed. If policy requires it, add a lifecycle rule expiring noncurrent versions after a day |
+| Object lock / retention / legal hold     | **off**                     | Refuses the deletes retention depends on                                                 |
+| Lifecycle *expiration* rules             | **none** on live prefixes   | Retention belongs to the broker; a rule racing it deletes live data                      |
+| Storage class transitions                | **none**                    | Segments live minutes; infrequent-access classes add minimum-duration and retrieval fees |
+| Location                                 | close to the cluster        | Every request is on the produce and fetch path                                           |
+
+### Support matrix
+
+| Backend                                   | `engine`                    | Status                                                         | Kotatsu |
+| ----------------------------------------- | --------------------------- | -------------------------------------------------------------- | ------- |
+| [Amazon S3](#amazon-s3)                    | `s3://<bucket>/`            | **Supported** — the production reference                       | yes     |
+| [MinIO](#minio-and-rustfs)                 | `s3://<bucket>/`            | **Supported** — the broker's test suite runs on it nightly     | yes     |
+| [RustFS](#minio-and-rustfs)                | `s3://<bucket>/`            | Not verified — [check it](#check-an-s3-compatible-store) first | yes     |
+| [Oracle Cloud Object Storage](#oracle-cloud-object-storage) | `s3://<bucket>/` | **Not verified, known risk** — see its section                 | yes     |
+| [IBM Cloud Object Storage](#ibm-cloud-object-storage)       | `s3://<bucket>/` | Not verified — [check it](#check-an-s3-compatible-store) first | yes     |
+| [Google Cloud Storage](#google-cloud-storage)               | `gs://<bucket>/` | **Supported**, native client — never run against a real bucket in CI | no |
+| [Azure ADLS Gen2](#azure-adls-gen2)                         | `abfss://…`      | **Experimental**, native client                                | no      |
+
+The path in the URL is ignored on every backend: the bucket is the URL host and
+the broker lays out its own prefixes. Use a dedicated bucket per deployment.
+
+Kotatsu reads S3 objects directly and has no GCS or Azure client: keep
+`kotatsu.enabled: false` on those two.
+
+### Check an S3-compatible store
+
+Run this against the target bucket, with the credentials the broker will use,
+before installing. It needs AWS CLI **2.22 or later** (the version that added
+`--if-match`). Leave `EP` empty for Amazon S3.
+
+```bash
+export AWS_ACCESS_KEY_ID=<key> AWS_SECRET_ACCESS_KEY=<secret> AWS_DEFAULT_REGION=<region>
+EP="--endpoint-url https://s3.internal.example.com"   # empty for Amazon S3
+B=my-popsink-bucket
+K=kodansu-probe-$(date +%s)
+echo probe > /tmp/probe
+
+# 1. create-only: the first succeeds, the second MUST fail with PreconditionFailed (412)
+aws s3api put-object $EP --bucket $B --key $K --body /tmp/probe --if-none-match '*'
+aws s3api put-object $EP --bucket $B --key $K --body /tmp/probe --if-none-match '*'
+
+# 2. compare-and-swap: a wrong ETag MUST fail with PreconditionFailed (412)…
+aws s3api put-object $EP --bucket $B --key $K --body /tmp/probe \
+  --if-match '"00000000000000000000000000000000"'
+# …and the current one MUST succeed
+ETAG=$(aws s3api head-object $EP --bucket $B --key $K --query ETag --output text)
+aws s3api put-object $EP --bucket $B --key $K --body /tmp/probe --if-match "$ETAG"
+
+aws s3api delete-object $EP --bucket $B --key $K
+```
+
+Any **successful** response on the two calls that must fail means the store
+ignores that header, and it cannot back the broker. An error other than `412`
+(`NotImplemented`, `400`) means the header is refused, which also rules it out.
+
+### Amazon S3
+
+<CodeGroup>
+
+```yaml IRSA (recommended on EKS)
+kodansu:
+  storage:
+    engine: "s3://my-popsink-bucket/"
+    aws:
+      region: eu-west-1
+      irsaRoleArn:    arn:aws:iam::123456789012:role/popsink-kodansu
+      assumedRoleArn: arn:aws:iam::123456789012:role/popsink-kodansu
+```
+
+```yaml Static credentials
+kodansu:
+  storage:
+    engine: "s3://my-popsink-bucket/"
+    aws:
+      region: eu-west-1
+      existingSecret: popsink-s3   # or accessKeyId / secretAccessKey
+```
+
+</CodeGroup>
+
+The role needs `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` and
+`s3:ListBucket` on the bucket. `region` must be the bucket's region. A gateway
+VPC endpoint for S3 keeps the traffic off the NAT gateway, which on this access
+pattern is a noticeable part of the bill.
+
+### MinIO and RustFS
+
+Self-hosted S3 servers, and the usual choice for on-premises and
+[air-gapped](/deployment/install/air-gapped) installs.
+
+```yaml
+kodansu:
+  storage:
+    engine: "s3://popsink/"
+    aws:
+      endpoint: https://minio.storage.svc.cluster.local:9000
+      region: us-east-1          # any valid string; MinIO's default is us-east-1
+      allowHttp: false           # true only for a plain-HTTP endpoint
+      existingSecret: popsink-s3 # keys aws-access-key-id / aws-secret-access-key
+```
+
+With an `endpoint` set, requests are path-style
+(`https://<endpoint>/<bucket>/<key>`), which both servers accept, and Kotatsu
+derives `forcePathStyle: true` on its own. If the endpoint's certificate is
+signed by an internal CA, the broker image must trust it — mount the CA and
+point `SSL_CERT_FILE` at it through `kodansu.extraVolumes`,
+`kodansu.extraVolumeMounts` and `kodansu.extraEnvVars`.
+
+- **MinIO** passes the broker's conditional-write conformance suite. Keep bucket
+  versioning off, as it is by default.
+- **RustFS** has only enforced write preconditions on `PutObject` in recent
+  releases, and has had ETag-parsing issues with some clients. It has not been
+  run against the broker: run the [check](#check-an-s3-compatible-store) on the
+  exact version you deploy.
+
+### Oracle Cloud Object Storage
+
+Through Oracle's **Amazon S3 Compatibility API**:
+
+```yaml
+kodansu:
+  storage:
+    engine: "s3://popsink/"
+    aws:
+      endpoint: https://<namespace>.compat.objectstorage.<oci-region>.oci.customer-oci.com
+      region: eu-frankfurt-1     # the OCI region identifier of the bucket
+      existingSecret: popsink-s3 # a Customer Secret Key pair
+```
+
+- Credentials are a **Customer Secret Key** (access key + secret), created on
+  the user in the OCI console — not an API signing key.
+- `<namespace>` is the tenancy's Object Storage namespace
+  (`oci os ns get`). The bucket must live in the compartment designated for the
+  S3 Compatibility API, which is the root compartment unless changed.
+- Use the OCI region identifier. If it is not the tenancy's home region and the
+  client cannot pass it, Oracle only serves the home region.
+
+<Warning>
+**Not verified, with a known risk.** Oracle does not document conditional
+`PutObject` headers on its S3 Compatibility API, and there are field reports of
+the endpoint honouring `If-None-Match: *` but **ignoring `If-Match`** — a PUT
+with a wrong ETag succeeds. That is exactly the failure that silently corrupts
+consumer-group state. Run the [check](#check-an-s3-compatible-store) against
+your region; if step 2 does not fail, do not use this backend.
+</Warning>
+
+### IBM Cloud Object Storage
+
+```yaml
+kodansu:
+  storage:
+    engine: "s3://popsink/"
+    aws:
+      endpoint: https://s3.private.<ibm-region>.cloud-object-storage.appdomain.cloud
+      region: eu-de              # the bucket's location
+      existingSecret: popsink-s3 # HMAC access key id / secret access key
+```
+
+- Credentials are **HMAC keys**: create a service credential with
+  *Include HMAC Credential* enabled, and use its `cos_hmac_keys` pair. IAM API
+  keys are not read by the broker.
+- Pick the endpoint for where the cluster runs: `s3.private.…` from IBM Cloud
+  classic, `s3.direct.…` from a VPC, `s3.…` over the public network.
+- The same configuration applies to an on-premises IBM COS appliance — set
+  `endpoint` to its accesser address.
+
+<Warning>
+**Not verified.** IBM does not state whether `If-None-Match` / `If-Match` are
+honoured on `PUT`. Run the [check](#check-an-s3-compatible-store) before
+installing.
+</Warning>
+
+### Google Cloud Storage
+
+Native client, not GCS's S3 interoperability endpoint:
+
+<CodeGroup>
+
+```yaml Workload Identity (recommended on GKE)
+kodansu:
+  storage:
+    engine: "gs://my-popsink-bucket/"
+    aws:
+      region: us-east-1          # required by the chart, unread on this path
+  serviceAccount:
+    annotations:
+      iam.gke.io/gcp-service-account: popsink-kodansu@my-project.iam.gserviceaccount.com
+
+kotatsu:
+  enabled: false
+```
+
+```yaml Service-account key
+kodansu:
+  storage:
+    engine: "gs://my-popsink-bucket/"
+    aws:
+      region: us-east-1
+  # GOOGLE_SERVICE_ACCOUNT_KEY = the key's JSON
+  extraEnvVarsSecret: kodansu-gcs
+
+kotatsu:
+  enabled: false
+```
+
+</CodeGroup>
+
+- The identity needs **`roles/storage.objectAdmin`** on the bucket.
+  `objectCreator` and `objectViewer` are not enough: retention deletes and reads
+  list.
+- **Set the bucket's soft-delete retention to `0`.** Google enables soft delete
+  on every bucket at 7 days and bills it; on a layout that deletes what
+  compaction has just merged, that pays for the churn twice for a week. Also
+  keep versioning, retention policies, Autoclass and lifecycle class
+  transitions off, and prefer uniform bucket-level access.
+- Requester-pays buckets do not work.
+- GCS caps writes to one object name at about one per second. The data path
+  never rewrites an object; only consumer-group formation does, and it is
+  batched — a large group still takes a few seconds to form.
+
 ### Azure (ADLS Gen2)
 
-Supported from Kodansu `1.0.0-alpha.17`. The install recipe, with the credential
-variants side by side, is on the
+Supported from Kodansu `1.0.0-alpha.17`, **experimental**:
+
+```yaml
+kodansu:
+  storage:
+    engine: "abfss://popsink@mystorage.dfs.core.windows.net/"
+    aws:
+      # Required by the chart even here, and never read on this path.
+      region: us-east-1
+  podLabels:
+    azure.workload.identity/use: "true"
+  serviceAccount:
+    annotations:
+      azure.workload.identity/client-id: <managed-identity-client-id>
+
+kotatsu:
+  enabled: false
+```
+
+The install recipe, with the credential variants side by side, is on the
 [Kubernetes install page](/deployment/install/kubernetes#broker-storage-on-azure-data-lake-storage-gen2);
 what follows is what the chart cannot express.
 

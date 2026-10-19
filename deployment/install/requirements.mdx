@@ -37,7 +37,7 @@ pointing at it, before the data plane is reachable.
 
 | Requirement          | Status                          | Why                                                                     |
 | -------------------- | ------------------------------- | ----------------------------------------------------------------------- |
-| S3-compatible bucket | **Required** (or ADLS Gen2)     | Broker retention. AWS S3, MinIO or equivalent; enable object versioning  |
+| Object-store bucket  | **Required**                    | Broker retention. AWS S3, MinIO, GCS or ADLS Gen2 — see the [support matrix](/deployment/reference/helm-values#support-matrix); versioning off |
 | External PostgreSQL  | Recommended in production       | The chart bundles a Bitnami Postgres, fine for evaluation only           |
 | Cluster autoscaler   | Optional                        | Node autoscaling for bursty connector workloads                          |
 

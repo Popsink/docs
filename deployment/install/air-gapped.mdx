@@ -90,9 +90,19 @@ and install from the `.tgz`. Its sub-charts — Bitnami `common` and
 
 ## 3. Broker storage
 
-The broker needs an S3-compatible object store reachable from the cluster —
-MinIO, Ceph RGW, or your storage appliance's S3 endpoint. There is no IRSA, so
-credentials are static keys.
+The broker needs an object store reachable from the cluster. Inside an isolated
+network that is a self-hosted S3 server — [MinIO or RustFS](/deployment/reference/helm-values#minio-and-rustfs),
+an [on-premises IBM COS](/deployment/reference/helm-values#ibm-cloud-object-storage)
+appliance, or another S3 endpoint. There is no IRSA, so credentials are static
+keys.
+
+<Warning>
+"S3-compatible" is not enough: the store must honour conditional writes
+(`If-None-Match: *` and `If-Match`), or the broker silently overwrites its own
+state. Only MinIO is verified among self-hosted servers — run the
+[compatibility check](/deployment/reference/helm-values#check-an-s3-compatible-store)
+against any other store before installing.
+</Warning>
 
 ```yaml
 kodansu:
@@ -110,7 +120,8 @@ kodansu:
 `kodansu.storage.aws.region` is required even when the store has no notion of
 region. `kotatsu.s3.*` inherits all of this from the broker, so there is
 nothing to repeat if you enable `kotatsu`. The bucket must exist before the
-install.
+install, with versioning and object lock off — see
+[what every backend must provide](/deployment/reference/helm-values#what-every-backend-must-provide).
 
 ## 4. Database and schema registry
 
