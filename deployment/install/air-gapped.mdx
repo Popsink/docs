@@ -96,14 +96,6 @@ an [on-premises IBM COS](/deployment/reference/helm-values#ibm-cloud-object-stor
 appliance, or another S3 endpoint. There is no IRSA, so credentials are static
 keys.
 
-<Warning>
-"S3-compatible" is not enough: the store must honour conditional writes
-(`If-None-Match: *` and `If-Match`), or the broker silently overwrites its own
-state. Only MinIO is verified among self-hosted servers — run the
-[compatibility check](/deployment/reference/helm-values#check-an-s3-compatible-store)
-against any other store before installing.
-</Warning>
-
 ```yaml
 kodansu:
   storage:
