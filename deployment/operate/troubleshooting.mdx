@@ -18,7 +18,7 @@ not call out — or could not start at all.
 | Check                                                            | Why                                                                |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `helm install` completed without an error                        | A `required` value aborts the render; nothing reaches the cluster   |
-| Every pod is `Running`, not `ImagePullBackOff`                   | `imagePullSecret.token` and `global.imagePullSecrets` are both needed |
+| Every pod is `Running`, not `ImagePullBackOff`                   | `imagePullSecret.token` must be set; on charts older than #3511, `global.imagePullSecrets` too |
 | `controlPlaneUrl` / `deploymentId` / `deploymentJwtToken.token`  | Used verbatim from the wizard, with `token` nested under the object |
 | Outbound HTTPS from the cluster to the control plane             | The data plane registers itself; egress must be open                |
 | DNS resolves `ingressUrl` to your ingress controller             | Also what the post-login redirect uses                              |
