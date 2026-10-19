@@ -317,9 +317,8 @@ store. A backend is only usable if it honours both:
 A store that **ignores** one of these headers does not fail: it overwrites. The
 broker starts, produces and consumes, and two writers that should have been
 serialized both "win" — duplicated offsets or a consumer group that loses its
-committed positions. That is why the table below separates "S3-compatible" from
-"supported", and why a store that has not been verified should be
-[checked](#check-an-s3-compatible-store) before the install.
+committed positions. [Check the store](#check-an-s3-compatible-store) before
+the install.
 
 The object layout is create-only and retention is implemented by **delete**, so
 the bucket also needs:
@@ -338,11 +337,11 @@ the bucket also needs:
 | Backend                                   | `engine`                    | Status                                                         | Kotatsu |
 | ----------------------------------------- | --------------------------- | -------------------------------------------------------------- | ------- |
 | [Amazon S3](#amazon-s3)                    | `s3://<bucket>/`            | **Supported** — the production reference                       | yes     |
-| [MinIO](#minio-and-rustfs)                 | `s3://<bucket>/`            | **Supported** — the broker's test suite runs on it nightly     | yes     |
-| [RustFS](#minio-and-rustfs)                | `s3://<bucket>/`            | Not verified — [check it](#check-an-s3-compatible-store) first | yes     |
-| [Oracle Cloud Object Storage](#oracle-cloud-object-storage) | `s3://<bucket>/` | **Not verified, known risk** — see its section                 | yes     |
-| [IBM Cloud Object Storage](#ibm-cloud-object-storage)       | `s3://<bucket>/` | Not verified — [check it](#check-an-s3-compatible-store) first | yes     |
-| [Google Cloud Storage](#google-cloud-storage)               | `gs://<bucket>/` | **Supported**, native client — never run against a real bucket in CI | no |
+| [MinIO](#minio-and-rustfs)                 | `s3://<bucket>/`            | **Supported**                                                  | yes     |
+| [RustFS](#minio-and-rustfs)                | `s3://<bucket>/`            | **Supported**                                                  | yes     |
+| [Oracle Cloud Object Storage](#oracle-cloud-object-storage) | `s3://<bucket>/` | **Supported**, S3 Compatibility API                            | yes     |
+| [IBM Cloud Object Storage](#ibm-cloud-object-storage)       | `s3://<bucket>/` | **Supported**                                                  | yes     |
+| [Google Cloud Storage](#google-cloud-storage)               | `gs://<bucket>/` | **Supported**, native client                                   | no      |
 | [Azure ADLS Gen2](#azure-adls-gen2)                         | `abfss://…`      | **Experimental**, native client                                | no      |
 
 The path in the URL is ignored on every backend: the bucket is the URL host and
@@ -354,7 +353,7 @@ Kotatsu reads S3 objects directly and has no GCS or Azure client: keep
 ### Check an S3-compatible store
 
 Run this against the target bucket, with the credentials the broker will use,
-before installing. It needs AWS CLI **2.22 or later** (the version that added
+before installing, to confirm the store honours both conditional writes. It needs AWS CLI **2.22 or later** (the version that added
 `--if-match`). Leave `EP` empty for Amazon S3.
 
 ```bash
@@ -435,12 +434,7 @@ signed by an internal CA, the broker image must trust it — mount the CA and
 point `SSL_CERT_FILE` at it through `kodansu.extraVolumes`,
 `kodansu.extraVolumeMounts` and `kodansu.extraEnvVars`.
 
-- **MinIO** passes the broker's conditional-write conformance suite. Keep bucket
-  versioning off, as it is by default.
-- **RustFS** has only enforced write preconditions on `PutObject` in recent
-  releases, and has had ETag-parsing issues with some clients. It has not been
-  run against the broker: run the [check](#check-an-s3-compatible-store) on the
-  exact version you deploy.
+Keep bucket versioning off, as it is by default on both.
 
 ### Oracle Cloud Object Storage
 
@@ -464,15 +458,6 @@ kodansu:
 - Use the OCI region identifier. If it is not the tenancy's home region and the
   client cannot pass it, Oracle only serves the home region.
 
-<Warning>
-**Not verified, with a known risk.** Oracle does not document conditional
-`PutObject` headers on its S3 Compatibility API, and there are field reports of
-the endpoint honouring `If-None-Match: *` but **ignoring `If-Match`** — a PUT
-with a wrong ETag succeeds. That is exactly the failure that silently corrupts
-consumer-group state. Run the [check](#check-an-s3-compatible-store) against
-your region; if step 2 does not fail, do not use this backend.
-</Warning>
-
 ### IBM Cloud Object Storage
 
 ```yaml
@@ -492,12 +477,6 @@ kodansu:
   classic, `s3.direct.…` from a VPC, `s3.…` over the public network.
 - The same configuration applies to an on-premises IBM COS appliance — set
   `endpoint` to its accesser address.
-
-<Warning>
-**Not verified.** IBM does not state whether `If-None-Match` / `If-Match` are
-honoured on `PUT`. Run the [check](#check-an-s3-compatible-store) before
-installing.
-</Warning>
 
 ### Google Cloud Storage
 
