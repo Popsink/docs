@@ -196,7 +196,7 @@ A flat `deploymentJwtToken: <jwt>` fails to render.
 ### Fill in what the wizard cannot
 
 The wizard flags any value it left empty under **"Fill these in before
-installing"**. Two of them always need your attention:
+installing"**. One always needs your attention:
 
 <Steps>
   <Step title="imagePullSecret.token">
@@ -211,19 +211,13 @@ installing"**. Two of them always need your attention:
       token: <gar-service-account-json>
     ```
   </Step>
-  <Step title="global.imagePullSecrets">
-    Add this by hand — `imagePullSecret.create: true` is **not sufficient today**.
-    The chart creates the secret as `<release-name>-regcred` but does not attach
-    it to any pod, so every image fails with `ImagePullBackOff`. Reference it
-    explicitly:
+  <Step title="Or bring your own pull secret">
+    `imagePullSecret.create: true` is enough on its own: the chart creates the
+    secret as `<release-name>-regcred` and attaches it to every pod, including
+    the connector workers it launches at runtime.
 
-    ```yaml
-    global:
-      imagePullSecrets:
-        - my-deployment-regcred      # <release-name>-regcred
-    ```
-
-    Or skip `imagePullSecret` entirely and create the secret yourself:
+    To manage the secret yourself instead, leave `imagePullSecret.create: false`,
+    create it, and list it under `global.imagePullSecrets`:
 
     ```bash
     kubectl create secret docker-registry popsink-registry \
@@ -237,10 +231,22 @@ installing"**. Two of them always need your attention:
     global:
       imagePullSecrets:
         - popsink-registry
+    kora:
+      image:
+        pullSecrets: []
+    postgresql:
+      image:
+        pullSecrets: []
     ```
 
-    <Note>This extra step is a known chart defect and will go away — until then,
-    both values are required.</Note>
+    The two `pullSecrets: []` keep kubelet from warning about the
+    `<release-name>-regcred` secret their defaults reference, which does not
+    exist in this setup.
+
+    <Note>Charts older than the fix for Popsink/data-plane#3511 (August 2026)
+    created the secret without attaching it, and needed it listed under
+    `global.imagePullSecrets` as well. Listing it there is harmless on current
+    charts.</Note>
   </Step>
   <Step title="externalDatabase.user / .database (only if you brought your own Postgres)">
     These two are **not** guarded by the chart: left empty they render, install,

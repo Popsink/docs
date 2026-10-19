@@ -129,16 +129,16 @@ Popsink provides a service-account JSON token to pull them.
       registry: europe-west1-docker.pkg.dev/popsink-common-438615/onprem
       token: |
         <base64-encoded service account JSON, or the JSON itself>
-
-    global:
-      imagePullSecrets:
-        - <release-name>-regcred
     ```
 
+    The chart creates the secret as `<release-name>-regcred` and attaches it to
+    every pod, including the connector workers' service account and the
+    `kora` / `postgresql` sub-charts. Nothing else to set.
+
     <Note>
-    `global.imagePullSecrets` is required alongside `imagePullSecret.create`.
-    The chart creates the secret but does not attach it to any pod, so without
-    it every image fails with `ImagePullBackOff`. This is a known chart defect.
+    Charts older than the fix for Popsink/data-plane#3511 (August 2026) did not
+    attach the secret, and needed `global.imagePullSecrets: [<release-name>-regcred]`
+    as well. Listing it is harmless on current charts.
     </Note>
   </Tab>
   <Tab title="Bring your own pull secret">
@@ -154,7 +154,17 @@ Popsink provides a service-account JSON token to pull them.
     global:
       imagePullSecrets:
         - popsink-registry
+    kora:
+      image:
+        pullSecrets: []
+    postgresql:
+      image:
+        pullSecrets: []
     ```
+
+    The `kora` and `postgresql` defaults reference `<release-name>-regcred`,
+    which does not exist when `imagePullSecret.create` is `false`; emptying them
+    keeps kubelet from warning about it.
   </Tab>
 </Tabs>
 
@@ -555,9 +565,6 @@ imagePullSecret:
   create: true
   registry: europe-west1-docker.pkg.dev/popsink-common-438615/onprem
   token: <gar-service-account-json>
-global:
-  imagePullSecrets:
-    - <release-name>-regcred
 
 # ───── Secrets you generated ─────
 adminCredentials:
