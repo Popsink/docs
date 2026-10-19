@@ -1,0 +1,366 @@
+---
+title: "Install the data plane in an air-gapped network"
+description: "The values to set when the cluster has no outbound connectivity, and how to create the first admin account without a control plane."
+sidebarTitle: "Air-gapped"
+---
+
+An air-gapped data plane is the same Helm chart as any self-hosted install,
+with two differences: it never talks to the Popsink control plane, and every
+image it runs — including the connector workers it launches at runtime — comes
+from a registry inside your network.
+
+This page is the checklist for those two differences, then the procedure for
+creating the first admin account, which the control plane would otherwise do
+for you. Read [Install on Kubernetes](/deployment/install/kubernetes) first for
+the general shape of the install; every key below is documented in full in the
+[Helm chart reference](/deployment/reference/helm-values).
+
+## 1. Deployment mode
+
+| Value                                         | Set to                     | Why                                                                                                                                                                                                                         |
+| --------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deploymentMode`                              | **`STANDALONE`**           | Turns off every control-plane call: heartbeat, metrics sync, and the user updates/deletions that `SELF_HOSTED` proxies to the control plane. Also makes `deploymentJwtToken` and `ingressUrl` optional. See [Standalone](/deployment/architecture/control-data-plane#standalone-no-control-plane-at-all). |
+| `deploymentId`                                | **a UUID** (`uuidgen`)     | Required in every mode. With no control plane to issue one, you mint it yourself — but it must parse as a UUID, or creating a user in the admin panel fails with a `500`.                                                  |
+| `deploymentJwtToken`                          | leave empty                | Not read in `STANDALONE`.                                                                                                                                                                                                   |
+| `controlPlaneUrl` / `controlPlaneFrontendUrl` | keep the defaults          | The chart requires a value; nothing calls it in `STANDALONE`.                                                                                                                                                               |
+| `zendeskChatEnabled`                          | `false` (default)          | Loads an external widget.                                                                                                                                                                                                   |
+| `otel.enabled` / `otelCollector.enabled`      | `false`, or your collector | Otherwise telemetry is exported to an endpoint you cannot reach.                                                                                                                                                            |
+
+<Warning>
+Do not install an air-gapped data plane in `SELF_HOSTED` mode. It renders and
+starts, but the background tasks retry the control plane forever, and editing
+or deleting a user fails with *Unable to update user on control plane*.
+</Warning>
+
+## 2. Images
+
+Mirror every image into your registry **at the same repository path** and
+**with the tag the chart pins**, then point the chart at it.
+
+| Value                                         | Image                                             | Needed when                                |
+| --------------------------------------------- | ------------------------------------------------- | ------------------------------------------ |
+| `image.registry`                              | `onprem/data-plane`                               | always                                     |
+| `kodansu.image.registry`                      | `onprem/tansu`                                    | `kodansu.enabled` (default)                |
+| `kora.image.registry`                         | `onprem/kora`                                     | `kora.enabled` (default)                   |
+| `postgresql.image.registry`                   | `onprem/postgresql`                               | `postgresql.enabled` (default)             |
+| `kotatsu.image.registry`                      | `onprem/kotatsu`                                  | `kotatsu.enabled`                          |
+| `otelCollector.image.registry`                | `onprem/otel-collector`                           | `otelCollector.enabled`                    |
+| **`k8sRegistryHost`**                         | `onprem/connectors/*`, `onprem/backfill/*`, `onprem/jobs/*` | always — see below               |
+
+`global.imageRegistry` overrides the registry of every chart-rendered image in
+one key. It does **not** cover `k8sRegistryHost`.
+
+<Warning>
+**`k8sRegistryHost` is the one that gets missed.** Connector workers, backfill
+loaders and maintenance jobs are not part of the chart: the data plane creates
+them as pods at runtime, with the image
+`<k8sRegistryHost>/onprem/connectors/<image>` (and `onprem/backfill/…`,
+`onprem/jobs/…`). If it still points at Popsink's registry, the install looks
+healthy and every connector you create sits in `ImagePullBackOff`.
+
+Mirror at least the images of the connectors you plan to use, and ask Popsink
+for the list matching your release.
+</Warning>
+
+Keep the broker tag (`kodansu.image.tag`) exactly as pinned by the chart: the
+object-store layout it writes is tied to that tag, and `kotatsu` must match it.
+
+### Pull secrets
+
+Pick one:
+
+- `imagePullSecret.create: true` with `registry` and `token` set to **your**
+  registry. The secret is attached to every pod, including the connector
+  workers' service account.
+- A secret you manage yourself, listed in `global.imagePullSecrets`. In that
+  case also set `kora.image.pullSecrets: []` and
+  `postgresql.image.pullSecrets: []`; their defaults reference the secret
+  `imagePullSecret.create` would have made, and kubelet warns about it.
+
+If your registry needs no credentials, use the second option with an empty
+`global.imagePullSecrets`.
+
+### The chart itself
+
+Transfer the packaged chart (`helm pull oci://ghcr.io/popsink/charts/data-plane --version <version>`)
+and install from the `.tgz`. Its sub-charts — Bitnami `common` and
+`postgresql`, `kora` — are already vendored inside it. Do **not** run
+`helm dependency build` inside the isolated network: it fetches from
+`registry-1.docker.io` and `ghcr.io`.
+
+## 3. Broker storage
+
+The broker needs an S3-compatible object store reachable from the cluster —
+MinIO, Ceph RGW, or your storage appliance's S3 endpoint. There is no IRSA, so
+credentials are static keys.
+
+```yaml
+kodansu:
+  storage:
+    engine: s3://popsink/
+    aws:
+      endpoint: https://s3.internal.example.com
+      region: us-east-1            # required by the chart, any valid string
+      allowHttp: false             # true only for a plain-HTTP endpoint
+      existingSecret: popsink-s3   # or accessKeyId / secretAccessKey
+      irsaRoleArn: ""
+      assumedRoleArn: ""
+```
+
+`kodansu.storage.aws.region` is required even when the store has no notion of
+region. `kotatsu.s3.*` inherits all of this from the broker, so there is
+nothing to repeat if you enable `kotatsu`. The bucket must exist before the
+install.
+
+## 4. Database and schema registry
+
+- **PostgreSQL**: the bundled sub-chart (`postgresql.enabled: true`, keep
+  `primary.persistence.enabled: true`) or your own
+  (`postgresql.enabled: false` + `externalDatabase.*`).
+- **Kora** needs a role and a database that **already exist** — the chart does
+  not create them, and the install aborts with the SQL to run. Kora can also
+  share the data plane's own database. See the
+  [chart reference](/deployment/reference/helm-values).
+- **No schema registry** (`kora.enabled: false`, `schemaRegistry.url` empty):
+  supported in `STANDALONE`. Payloads are then JSON, and the connector wizard
+  only offers the connector types that do not need Avro
+  (`connectorCatalog.requiresSchemaRegistry`).
+
+## 5. Secrets
+
+No wizard generates these for you in an air-gapped install. Generate them
+locally and store them in your secret manager before installing.
+
+| Value                                    | How to generate                                                                                         |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `connectorConfigEncryptionKey.key`       | `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`            |
+| `jwt.secret`                             | `openssl rand -base64 48` — also signs the admin-panel session                                          |
+| `adminCredentials.username` / `password` | your choice — the login to the admin panel used in [the next section](#create-the-first-admin-account) |
+| database passwords                       | `openssl rand -base64 24`                                                                               |
+
+<Warning>
+`connectorConfigEncryptionKey.key` must never change: every stored connector
+configuration is encrypted with it. Back it up.
+</Warning>
+
+## 6. Network
+
+- **Ingress**: `ingress.enabled`, `ingress.hostname`,
+  `ingress.ingressClassName`, and `ingress.tls` with `ingress.existingSecret`
+  holding a certificate from your internal CA. Set `ingressUrl` to the URL
+  users open, even though `STANDALONE` does not require it.
+- **Name resolution**: if sources or targets are not resolvable by the
+  cluster's DNS, add them under `hostAliases`.
+- **Network policies**: if you enable `networkPolicy` or `workerNetworkPolicy`,
+  add `extraEgress` rules towards your sources and targets, the object store,
+  and the registry.
+- **Leave closed**: `allowSelfRegistration: false` and `allowDesignLogin: false`
+  (both defaults).
+
+## Example `values.yaml`
+
+```yaml values.yaml (air-gapped — abridged)
+deploymentMode: STANDALONE
+deploymentId: 6f1c2a4e-8b0d-4f7e-9a51-3c2d7e9b1a04
+ingressUrl: https://popsink.internal.example.com
+
+global:
+  imageRegistry: registry.internal.example.com
+  imagePullSecrets:
+    - popsink-registry
+k8sRegistryHost: registry.internal.example.com
+
+kora:
+  image:
+    pullSecrets: []
+  database:
+    host: my-release-postgresql
+    port: 5432
+    user: popsink
+    database: popsink
+    existingSecret: popsink-db
+postgresql:
+  image:
+    pullSecrets: []
+
+kodansu:
+  storage:
+    engine: s3://popsink/
+    aws:
+      endpoint: https://s3.internal.example.com
+      region: us-east-1
+      existingSecret: popsink-s3
+
+connectorConfigEncryptionKey:
+  existingSecret: popsink-secrets
+jwt:
+  existingSecret: popsink-secrets
+adminCredentials:
+  existingSecret: popsink-admin
+
+enableAdminPanel: true   # for the first account; see below
+
+ingress:
+  enabled: true
+  hostname: popsink.internal.example.com
+  ingressClassName: nginx
+  tls: true
+  existingSecret: popsink-tls
+```
+
+Then install from the transferred chart:
+
+```bash
+helm install <release-name> ./data-plane-<version>.tgz -n popsink -f values.yaml
+```
+
+## Create the first admin account
+
+With no control plane, there is no SSO and no central user directory: accounts
+are local to the data plane. The application UI adds **existing** users to
+teams and environments but does not create accounts, so the first one is
+created in the **admin panel**.
+
+<Steps>
+  <Step title="Enable the admin panel">
+    Set `enableAdminPanel: true` and `adminCredentials` (username and password),
+    then `helm upgrade`. The panel is read/write over every table, so only
+    enable it when the ingress is internal.
+  </Step>
+  <Step title="Log in to the panel">
+    Open `https://<ingressUrl host>/api/admin` and log in with
+    `adminCredentials`. Failed attempts are throttled: after 10 failures in 15
+    minutes the account is refused with `429` (`loginThrottle.*`).
+  </Step>
+  <Step title="Create the user">
+    Go to **users → User → + New** and fill in:
+
+    | Field                     | Value                                    |
+    | ------------------------- | ---------------------------------------- |
+    | **Email**                 | the admin's email — their login          |
+    | **Password**              | their password                           |
+    | **Is Superuser**          | ☑ checked                                |
+    | **Active Environment ID** | leave empty                              |
+
+    Click **Save**.
+  </Step>
+  <Step title="Log in to the application">
+    Open `https://<ingressUrl host>/` and log in with that email and password.
+  </Step>
+  <Step title="Create the first environment">
+    A fresh install has no environment, and the application cannot be used
+    without one. See [Create the first environment](#create-the-first-environment)
+    below.
+  </Step>
+  <Step title="Create the other accounts">
+    A superuser can log in to `/api/admin` with their own credentials and create
+    further accounts the same way, leaving **Is Superuser** unchecked for
+    regular users. Then add them to the environment from the application, or
+    set their **Active Environment ID** to the environment's UUID (listed under
+    **Env** in the panel) when creating them.
+  </Step>
+  <Step title="Turn the panel off">
+    Once the accounts exist, set `enableAdminPanel: false` and `helm upgrade`.
+    Turn it back on only when you need to manage accounts.
+  </Step>
+</Steps>
+
+<Note>
+If **Save** returns an internal error, check `deploymentId` first: it must be a
+valid UUID.
+</Note>
+
+## Create the first environment
+
+Everything in the application happens inside an environment. A user who
+belongs to none is sent to the **Environment creation** page after logging in
+and sees nothing else — not the connectors, not the member management.
+Creating an account in the admin panel does not need an environment; using
+the application does.
+
+The admin panel lists environments but cannot create them. An environment is
+created through the API (`POST /envs/`), either from the application's form or
+directly.
+
+<Tabs>
+  <Tab title="From the application">
+    Log in as the superuser. With no environment, the application opens the
+    **Environment creation** page, which shows the form only when the user is
+    a superuser **and** `deploymentMode` is `STANDALONE`.
+
+    - **Environment name**: your choice.
+    - **Connect a Broker**: the chart's own broker —
+      **Bootstrap servers** `<release>-tansu.<namespace>:9092`,
+      **Security Protocol** `PLAINTEXT`, no SASL, no certificates. This is the
+      address the data plane itself uses (`DEFAULT_KAFKA_BOOTSTRAP_SERVER`).
+      Check the service name with `kubectl -n <namespace> get svc | grep tansu`.
+
+    The creator becomes a member of the environment.
+  </Tab>
+  <Tab title="Through the API">
+    Use this when the form is not shown. The API does not check the deployment
+    mode or the superuser flag, so any active account can create the
+    environment:
+
+    ```bash
+    URL=https://popsink.internal.example.com/api
+
+    TOKEN=$(curl -s -X POST "$URL/auth/jwt/login" \
+      -d "username=admin@example.com" --data-urlencode "password=<password>" \
+      | jq -r .access_token)
+
+    curl -s -X POST "$URL/envs/" \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "production",
+        "retention_configuration": {
+          "bootstrap_server": "<release>-tansu.<namespace>:9092",
+          "security_protocol": "PLAINTEXT",
+          "sasl_mechanism": "PLAIN",
+          "sasl_username": null,
+          "sasl_password": null
+        }
+      }'
+    ```
+
+    `sasl_mechanism` is required by the schema even with `PLAINTEXT`, where it
+    is not used. Refresh the application afterwards: the creator is now a
+    member of the environment.
+  </Tab>
+</Tabs>
+
+| What the Environment creation page shows                                         | Cause                                                                             |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| *Please contact your administrator to have access to environments*               | The account is not a superuser — check **Is Superuser** in `/api/admin`           |
+| *Environment creation is disabled in SELF_HOSTED mode*                           | `deploymentMode` is `SELF_HOSTED` — set it to `STANDALONE` and `helm upgrade`      |
+
+## Troubleshooting
+
+| Symptom                                                        | Cause                                                                                  |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Chart pods run, connector pods stay in `ImagePullBackOff`      | `k8sRegistryHost` still points at Popsink's registry, or the connector image is not mirrored |
+| `helm install` fails fetching `common` / `postgresql`          | Installing from a source checkout, not the packaged chart                              |
+| Render fails: `Kora … kora.database is not configured`         | The Kora role and database do not exist yet — run the SQL from the error message      |
+| Render fails: `kodansu.storage.aws.region must be provided`    | Region left empty for a non-AWS object store — any valid string works                  |
+| `/api/admin` returns `404`                                     | `enableAdminPanel` is `false`                                                          |
+| Creating a user in the admin panel returns `500`               | `deploymentId` is not a UUID                                                           |
+| After login, only the Environment creation page is shown       | No environment exists yet, or the user belongs to none — see [Create the first environment](#create-the-first-environment) |
+| Editing a user fails with *Unable to update user on control plane* | `deploymentMode` is `SELF_HOSTED` instead of `STANDALONE`                          |
+
+## Further reading
+
+<CardGroup cols={2}>
+  <Card title="Standalone mode" icon="shield-halved" href="/deployment/architecture/control-data-plane#standalone-no-control-plane-at-all">
+    What a data plane without a control plane gives up.
+  </Card>
+  <Card title="Helm chart reference" icon="list" href="/deployment/reference/helm-values">
+    Every value the chart exposes, component by component.
+  </Card>
+  <Card title="Upgrades" icon="arrow-up-right-dots" href="/deployment/operate/upgrades">
+    In `STANDALONE`, upgrades are fully manual.
+  </Card>
+  <Card title="Troubleshooting" icon="triangle-exclamation" href="/deployment/operate/troubleshooting">
+    Install and first-boot problems common to every deployment.
+  </Card>
+</CardGroup>

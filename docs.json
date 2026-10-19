@@ -71,7 +71,8 @@
                 "group": "Install",
                 "pages": [
                   "deployment/install/requirements",
-                  "deployment/install/kubernetes"
+                  "deployment/install/kubernetes",
+                  "deployment/install/air-gapped"
                 ]
               },
               {
