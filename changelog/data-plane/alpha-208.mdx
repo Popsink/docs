@@ -1,0 +1,22 @@
+---
+title: "v0.1.0-alpha.208 14/10/2026"
+---
+
+---
+
+**Description**: Dev docs - replace `inv app.*` calls that fail, fix JWT docstring.
+
+### Changes
+
+- Dev docs - replace `inv app.*` calls that fail, fix JWT docstring (#5001).
+- Claude context - every request loads 18 KB, not 35.6 KB (#4999).
+- AI - Read one architecture decision, not a 1.1 MB file (#5016).
+- Tasks - schedule a Workspace script on its warehouse, with run history (#4886).
+- Iceberg target - a current-state table cheap to read on large tables (#5018).
+- Worker - healthy Iceberg workers on ADLS no longer look broken (#5039).
+- Front - Subscribe several sources to one target at once (#5037).
+- [ARCH] Part 1 of #5041: notification contract stops binding a DB session (#5042).
+- [FRONT] Part 1 of #5043: datamodel page formatters and Debezium unwrap move to utils (#5044).
+- [SEMANTIC] Part 1 of #5049: name the capability behind the HubSpot branch in configure-one (#5050).
+- [SEC] Part 3 of #4947: restrict switch tokens to the calling deployment's organization (#5045).
+- Release cut - data-plane 2026.10.14, chart 0.1.0-alpha.208 (#5077).

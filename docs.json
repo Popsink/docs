@@ -228,6 +228,10 @@
               {
                 "group": "Data Plane",
                 "pages": [
+                  "changelog/data-plane/alpha-209",
+                  "changelog/data-plane/alpha-208",
+                  "changelog/data-plane/alpha-207",
+                  "changelog/data-plane/alpha-206",
                   "changelog/data-plane/alpha-205",
                   "changelog/data-plane/alpha-204",
                   "changelog/data-plane/alpha-203",
