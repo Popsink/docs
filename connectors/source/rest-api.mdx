@@ -10,8 +10,8 @@ The REST API Source Connector lets you ingest data from **any REST API** into Po
 
 | | |
 |---|---|
-| **Any REST API** | HTTP/1.1 or HTTP/2 over TLS, JSON responses |
-| **Authentication** | Bearer token, API key (header or query), HTTP basic, OAuth 2.0 client credentials |
+| **Any REST API** | HTTPS (HTTP/1.1), JSON responses |
+| **Authentication** | Bearer token, API key (header, query or cookie), HTTP basic, OAuth 2.0 client credentials |
 | **Configuration schema** | dlt `rest_api_source`, dlt 1.24 |
 
 <Note>The configuration follows the dlt `rest_api_source` schema. When Popsink upgrades dlt, existing configurations keep working — the schema is backwards compatible within the 1.x line.</Note>
@@ -19,8 +19,10 @@ The REST API Source Connector lets you ingest data from **any REST API** into Po
 ## Key Features
 
 - **Connect to any REST API:** base URL, authentication, pagination, and endpoints are all declared in a single JSON configuration.
-- **Multiple auth styles:** bearer tokens, API keys (header or query), HTTP basic, and OAuth2 client credentials.
-- **Incremental synchronization:** declare a cursor field per resource and only new or updated records are delivered on each run.
+- **Multiple auth styles:** bearer tokens, API keys, HTTP basic, and OAuth 2.0 client credentials — set once for the client or overridden per endpoint.
+- **Every common pagination scheme:** next-URL in the body, `Link` header, cursor, offset/limit, and page number.
+- **Incremental synchronization:** declare a cursor field per resource and only new or updated records are delivered on each run. The cursor is persisted by Popsink and survives restarts.
+- **Parent/child endpoints:** fetch a list, then call a detail or sub-resource endpoint for each item.
 - **Scheduled ingestion:** flexible scheduling by minutes, hours, or days, with an immediate first run on creation.
 
 ## Configuration
@@ -32,52 +34,430 @@ The REST API Source Connector lets you ingest data from **any REST API** into Po
 
 ### Configuration structure
 
-The configuration JSON has two main blocks:
+The configuration JSON has up to three top-level blocks:
 
-- **`client`** — how to reach and authenticate against the API: `base_url`, `auth`, optional `paginator` and `headers`.
-- **`resources`** — an array of endpoints to ingest. Each resource becomes a stream/table, with its `path`, a `data_selector` pointing at the records in the response, optional query `params`, and an optional `incremental` cursor.
+```json
+{
+  "client": { ... },            // how to reach the API: base_url, auth, paginator, headers
+  "resource_defaults": { ... }, // optional: settings shared by every resource
+  "resources": [ ... ]          // the endpoints to ingest — one topic per resource
+}
+```
 
-### Example
+- **`client`** — `base_url`, `auth`, and optionally a default `paginator` and static `headers` sent with every request.
+- **`resource_defaults`** — optional. Anything you can put on a resource (`endpoint.params`, `endpoint.paginator`, `primary_key`, …) can be set here once and is merged into every resource.
+- **`resources`** — an array of endpoints. Each resource has a `name` (which becomes the stream/topic name) and an `endpoint`:
 
-Ingesting two resources from an API authenticated with a bearer token, with cursor-based incremental sync on `updated_at`:
+| Endpoint field | Description |
+|---|---|
+| `path` | Path relative to `base_url`, e.g. `customers` or `customers/{resources.customers.id}/orders` |
+| `method` | `GET` (default) or `POST` |
+| `params` | Query-string parameters |
+| `json` | Request body for `POST` endpoints |
+| `headers` | Extra headers for this endpoint only |
+| `data_selector` | JSONPath to the list of records in the response, e.g. `data` or `results.items`. Auto-detected when omitted |
+| `paginator` | Overrides the client paginator for this endpoint |
+| `auth` | Overrides the client authentication for this endpoint |
+| `incremental` | Cursor-based incremental sync — see [Incremental sync](#incremental-sync) |
+| `response_actions` | How to treat specific status codes or response bodies — see [Handling errors](#handling-errors-and-empty-responses) |
+
+A resource can also be written as a plain string (`"resources": ["customers", "invoices"]`): the string is used as both the name and the path, with the client defaults.
+
+<Tip>Start with one resource and a short schedule, check the records in the topic, then add the other endpoints. A mistake in one resource fails the whole run, so it is easier to iterate one endpoint at a time.</Tip>
+
+## Authentication
+
+Authentication is set in `client.auth` and applies to every request. An endpoint can override it with its own `endpoint.auth`.
+
+<Tabs>
+  <Tab title="Bearer token">
+    Sends `Authorization: Bearer <token>`.
+
+    ```json
+    {
+      "client": {
+        "base_url": "https://api.example.com/v1",
+        "auth": {
+          "type": "bearer",
+          "token": "YOUR_API_TOKEN"
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="API key (header)">
+    Sends the key in a header of your choice. `name` defaults to `Authorization` and `location` to `header`.
+
+    ```json
+    {
+      "client": {
+        "base_url": "https://api.example.com/v1",
+        "auth": {
+          "type": "api_key",
+          "name": "X-API-Key",
+          "api_key": "YOUR_API_KEY",
+          "location": "header"
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="API key (query)">
+    Appends the key to the query string — here `?api_token=YOUR_API_KEY`. Use `"location": "cookie"` to send it as a cookie instead.
+
+    ```json
+    {
+      "client": {
+        "base_url": "https://api.example.com/v1",
+        "auth": {
+          "type": "api_key",
+          "name": "api_token",
+          "api_key": "YOUR_API_KEY",
+          "location": "query"
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="HTTP basic">
+    Sends `Authorization: Basic base64(username:password)`. Many APIs use this with an API key as the username and an empty or dummy password — check the provider's documentation.
+
+    ```json
+    {
+      "client": {
+        "base_url": "https://api.example.com/v1",
+        "auth": {
+          "type": "http_basic",
+          "username": "YOUR_USERNAME",
+          "password": "YOUR_PASSWORD"
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="OAuth 2.0 client credentials">
+    Popsink requests an access token from `access_token_url` (form-encoded `grant_type=client_credentials`, `client_id`, `client_secret`), sends it as a bearer token, and requests a new one when it expires. Extra form fields such as `scope` or `audience` go in `access_token_request_data`. When the token response has no `expires_in`, the token is assumed valid for `default_token_expiration` seconds (default 3600).
+
+    ```json
+    {
+      "client": {
+        "base_url": "https://api.example.com/v1",
+        "auth": {
+          "type": "oauth2_client_credentials",
+          "access_token_url": "https://auth.example.com/oauth/token",
+          "client_id": "YOUR_CLIENT_ID",
+          "client_secret": "YOUR_CLIENT_SECRET",
+          "access_token_request_data": {
+            "scope": "read:customers read:invoices"
+          }
+        }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Custom headers">
+    For APIs that need several static headers (an account ID next to the key, an API version, …), put them in `client.headers`. They can be combined with any `auth` type.
+
+    ```json
+    {
+      "client": {
+        "base_url": "https://api.example.com/v1",
+        "headers": {
+          "X-Account-Id": "12345",
+          "X-Api-Key": "YOUR_API_KEY",
+          "Accept": "application/json",
+          "API-Version": "2024-06-01"
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>Credentials are part of the configuration JSON. Use a dedicated, **read-only** token scoped to the endpoints you ingest, and rotate it by editing the connector configuration.</Warning>
+
+<Note>OAuth 2.0 flows that need a user to log in (authorization code with a refresh token) and JWT-signed assertions are not available in the generic REST API source. Use the dedicated connector when one exists (Google Ads, HubSpot, …), or an API key / client-credentials grant if the provider offers one.</Note>
+
+## Pagination
+
+Set the paginator once in `client.paginator`, or per endpoint in `endpoint.paginator`. When none is given, the connector tries to detect the scheme from the first response (`"type": "auto"`) — fine for a quick test, but declare it explicitly in production so a change in the API response does not silently stop pagination after the first page.
+
+<Tabs>
+  <Tab title="Next URL in the body">
+    The response contains the full URL of the next page. Pagination stops when the value is missing or `null`.
+
+    ```json
+    // Response: { "data": [...], "paging": { "next": "https://api.example.com/v1/customers?page_token=abc" } }
+    "paginator": {
+      "type": "json_link",
+      "next_url_path": "paging.next"
+    }
+    ```
+  </Tab>
+  <Tab title="Link header">
+    The next page URL is in the `Link` response header (`Link: <https://…?page=2>; rel="next"`), as on GitHub. `links_next_key` defaults to `next`.
+
+    ```json
+    "paginator": {
+      "type": "header_link"
+    }
+    ```
+  </Tab>
+  <Tab title="Cursor">
+    The response contains a cursor (token) that must be sent back as a query parameter. Pagination stops when the cursor is missing or empty.
+
+    ```json
+    // Response: { "results": [...], "meta": { "next_cursor": "eyJpZCI6MTAwfQ" } }
+    // Next request: GET /customers?cursor=eyJpZCI6MTAwfQ
+    "paginator": {
+      "type": "cursor",
+      "cursor_path": "meta.next_cursor",
+      "cursor_param": "cursor"
+    }
+    ```
+
+    If the cursor comes back in a response **header** instead, use `"type": "header_cursor"` with `cursor_key` (the header name) and `cursor_param`.
+  </Tab>
+  <Tab title="Offset / limit">
+    Requests `?offset=0&limit=100`, then `?offset=100&limit=100`, and so on.
+
+    ```json
+    // Response: { "items": [...], "total_count": 1520 }
+    "paginator": {
+      "type": "offset",
+      "limit": 100,
+      "offset_param": "offset",
+      "limit_param": "limit",
+      "total_path": "total_count"
+    }
+    ```
+
+    Pagination stops when `offset` reaches the total, or on the first empty page.
+  </Tab>
+  <Tab title="Page number">
+    Requests `?page=1`, `?page=2`, … `base_page` is the number of the first page (`0` by default; most APIs start at `1`).
+
+    ```json
+    // Response: { "results": [...], "has_more": true }
+    "paginator": {
+      "type": "page_number",
+      "base_page": 1,
+      "page_param": "page",
+      "total_path": null,
+      "has_more_path": "has_more"
+    }
+    ```
+
+    Pagination stops when `has_more` is false, when the page number exceeds `total_path` (if the API returns a page count), or on the first empty page.
+  </Tab>
+  <Tab title="Single page">
+    The endpoint returns everything in one response — no pagination.
+
+    ```json
+    "paginator": "single_page"
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>For `offset` and `page_number`, `total_path` defaults to `"total"`. If the API does not return a `total` field, the run fails with an error about the missing total: set `"total_path": null` explicitly, and the connector will stop on the first empty page (or on `has_more_path`).</Warning>
+
+The page size is usually a regular query parameter: put it in `endpoint.params` (for example `"per_page": 100`), or in `resource_defaults.endpoint.params` to apply it to every resource. Use the largest page size the API allows — it reduces the number of requests and the risk of hitting rate limits.
+
+## Incremental sync
+
+Without `incremental`, every scheduled run re-reads the whole endpoint and delivers all records again. With `incremental`, the connector tracks the highest value of a cursor field seen so far and only asks the API for newer records on the next run.
+
+There are two ways to pass the cursor to the API.
+
+**1. With `start_param`** — the API takes the cursor as a query parameter:
+
+```json
+{
+  "name": "tickets",
+  "endpoint": {
+    "path": "tickets",
+    "data_selector": "tickets",
+    "params": { "sort_by": "updated_at" },
+    "incremental": {
+      "start_param": "updated_since",
+      "cursor_path": "updated_at",
+      "initial_value": "2024-01-01T00:00:00Z"
+    }
+  }
+}
+```
+
+The first run requests `GET /tickets?updated_since=2024-01-01T00:00:00Z`. If the highest `updated_at` received is `2026-10-20T08:12:45Z`, the next run requests `GET /tickets?updated_since=2026-10-20T08:12:45Z`.
+
+**2. With a placeholder** — when the value must be embedded in a parameter, a path, or a `POST` body, use `{incremental.start_value}` and declare the cursor in `incremental`:
+
+```json
+{
+  "name": "orders",
+  "endpoint": {
+    "path": "orders/search",
+    "method": "POST",
+    "json": {
+      "filter": { "field": "modified_at", "operator": "gt", "value": "{incremental.start_value}" },
+      "sort": "modified_at"
+    },
+    "data_selector": "results",
+    "incremental": {
+      "cursor_path": "modified_at",
+      "initial_value": "2024-01-01T00:00:00Z"
+    }
+  }
+}
+```
+
+| Incremental field | Description |
+|---|---|
+| `cursor_path` | JSONPath of the cursor in each **record** (not in the response envelope), e.g. `updated_at` or `meta.modified` |
+| `initial_value` | Value used on the very first run. Use the same format as the API (ISO-8601 string, Unix timestamp, numeric ID, …) |
+| `start_param` | Query parameter that receives the last cursor value |
+| `end_param` / `end_value` | Optional upper bound, to ingest a fixed window |
+
+<Note>The cursor is stored with the connector after each successful run and restored when the worker restarts. `initial_value` is only read on the first run: changing it later does not re-ingest older data. To start over, create a new connector.</Note>
+
+<Tip>Pick a cursor the API can actually **filter and sort** on — typically `updated_at`, not `created_at`, so that updated records are picked up too. Records sharing the last cursor value are deduplicated between runs, but an updated record is delivered again in full: deduplicate or merge on the record's primary key in the target.</Tip>
+
+## Parent/child endpoints
+
+Some data is only reachable through a parent: the comments of each ticket, the line items of each order. Reference a field of the parent resource in the child path with `{resources.<parent_name>.<field>}` — the child endpoint is called once per parent record.
 
 ```json
 {
   "client": {
     "base_url": "https://api.example.com/v1",
-    "auth": {
-      "type": "bearer",
-      "token": "YOUR_API_TOKEN"
-    },
-    "paginator": {
-      "type": "json_link",
-      "next_url_path": "paging.next"
-    }
+    "auth": { "type": "bearer", "token": "YOUR_API_TOKEN" }
   },
   "resources": [
     {
-      "name": "customers",
-      "endpoint": {
-        "path": "customers",
-        "data_selector": "data",
-        "params": { "per_page": 100 },
-        "incremental": {
-          "cursor_path": "updated_at",
-          "initial_value": "1970-01-01T00:00:00Z"
-        }
-      }
+      "name": "projects",
+      "endpoint": { "path": "projects", "data_selector": "data" }
     },
     {
-      "name": "invoices",
+      "name": "project_tasks",
       "endpoint": {
-        "path": "invoices",
+        "path": "projects/{resources.projects.id}/tasks",
         "data_selector": "data"
-      }
+      },
+      "include_from_parent": ["name"]
     }
   ]
 }
 ```
 
-Refer to the [dlt REST API source documentation](https://dlthub.com/docs/dlt-ecosystem/verified-sources/rest_api) for the full schema, including all supported authentication types and paginators.
+Each `project_tasks` record is enriched with `_projects_name`, copied from its parent (`include_from_parent`). The placeholder also works in `params`, for APIs that pass the parent ID as a query parameter (`"params": { "project_id": "{resources.projects.id}" }`).
+
+<Warning>A child endpoint issues **one request per parent record**. On a parent with tens of thousands of items, this can take long and exhaust the API rate limit. Make the parent incremental so only new or changed parents trigger child requests.</Warning>
+
+## Handling errors and empty responses
+
+By default, any HTTP error fails the run. Use `response_actions` to ignore expected errors — for example a `404` for a parent without children, or a `403` on an optional endpoint:
+
+```json
+"endpoint": {
+  "path": "projects/{resources.projects.id}/budget",
+  "response_actions": [
+    { "status_code": 404, "action": "ignore" },
+    { "content": "Feature not enabled", "action": "ignore" }
+  ]
+}
+```
+
+Rate-limit (`429`) and transient server errors (`5xx`) are retried automatically with exponential backoff, honoring the `Retry-After` header when the API sends one.
+
+## Complete example
+
+Ingesting the issues and issue comments of a GitHub repository: bearer authentication, `Link` header pagination, an incremental cursor on `updated_at`, and a child resource.
+
+```json
+{
+  "client": {
+    "base_url": "https://api.github.com/repos/YOUR_ORG/YOUR_REPO",
+    "auth": {
+      "type": "bearer",
+      "token": "YOUR_GITHUB_TOKEN"
+    },
+    "headers": {
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28"
+    },
+    "paginator": {
+      "type": "header_link"
+    }
+  },
+  "resource_defaults": {
+    "primary_key": "id",
+    "endpoint": {
+      "params": { "per_page": 100 }
+    }
+  },
+  "resources": [
+    {
+      "name": "issues",
+      "endpoint": {
+        "path": "issues",
+        "params": {
+          "state": "all",
+          "sort": "updated",
+          "direction": "asc"
+        },
+        "incremental": {
+          "start_param": "since",
+          "cursor_path": "updated_at",
+          "initial_value": "2024-01-01T00:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "issue_comments",
+      "endpoint": {
+        "path": "issues/{resources.issues.number}/comments"
+      },
+      "include_from_parent": ["id"]
+    }
+  ]
+}
+```
+
+This produces two streams, `issues` and `issue_comments`. On each run, only issues updated since the previous run are fetched, and comments are fetched for those issues only.
+
+## How records are delivered
+
+- **One topic per resource.** Each resource `name` becomes a stream that you can select when building the pipeline. Names must be unique within the configuration.
+- **Append-only.** Every record read from the API is delivered as a new event. The connector does not detect deletions, and an updated record is delivered again in full. Use the record's primary key to deduplicate or merge in the target.
+- **Nested data.** Nested objects are flattened into columns (`address.city` → `address__city`). Nested **lists** are split into separate child tables (`customers__tags`), which are not selectable as streams. To keep nested lists inside the parent record as JSON, set `"max_table_nesting": 0` on the resource, or in `resource_defaults`.
+- **Schema.** Columns are inferred from the records; a field that is absent from a record is delivered as `null`.
+
+## Limitations
+
+- **JSON responses only.** XML, CSV or binary responses are not supported.
+- **No custom code.** dlt features that need Python — custom paginators, custom authentication classes, `processing_steps` (`filter`, `map`) — cannot be expressed in the JSON configuration.
+- **`GET` and `POST` only.** GraphQL APIs can be ingested through a `POST` with the query in `json`, provided pagination fits one of the schemes above.
+- **Scheduled, not real-time.** The connector polls the API on its schedule; for push-based APIs, use the [Webhook source](/connectors/source/webhook).
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="The run only returns the first page">
+    The paginator was not detected or is wrong. Declare it explicitly, and check the field paths against a real response (`next_url_path`, `cursor_path`, `total_path`). For `page_number`, check `base_page`: an API starting at `1` with `base_page: 0` re-reads the first page.
+  </Accordion>
+  <Accordion title="The stream is empty but the API returns data">
+    `data_selector` probably points at the wrong place. Call the endpoint with `curl` and set `data_selector` to the path of the records list, e.g. `data`, `results`, or `response.items`.
+  </Accordion>
+  <Accordion title="Every run re-delivers all records">
+    The resource has no `incremental` block, or the API ignores the parameter in `start_param`. Check the API documentation for the exact parameter name and the expected date format.
+  </Accordion>
+  <Accordion title="401 or 403 errors">
+    Check the `auth` type expected by the API (bearer vs. API key header name vs. basic), and that the token has read access to every endpoint listed in `resources`. For an endpoint the token is not allowed to read, either remove it or add a `response_actions` entry to ignore the status.
+  </Accordion>
+  <Accordion title="The run fails on a missing total">
+    The `offset` or `page_number` paginator looks for a `total` field by default. Set `total_path` to the right field, or to `null` if the API does not return one.
+  </Accordion>
+</AccordionGroup>
+
+Refer to the [dlt REST API source documentation](https://dlthub.com/docs/dlt-ecosystem/verified-sources/rest_api) for the full schema reference.
 
 <ApiSourceScheduling />
