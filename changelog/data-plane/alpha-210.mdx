@@ -1,0 +1,81 @@
+---
+title: "v0.1.0-alpha.210 23/10/2026"
+---
+
+---
+
+**Description**: Design system - every connector type shows its own logo, Db2 included.
+
+### Changes
+
+- Design system - every connector type shows its own logo, Db2 included (#5138).
+- Snow_target - package named for its target, not for JDBC (#5152).
+- Env sync - renames reusing a held name no longer freeze the sync (#5147).
+- [DOCSLIM] Part 1 of #5194: compact change-history JSDoc in subscription/connector composables (#5195).
+- CP - show each deployment's region flag at a glance (#5156).
+- DP backend - a CDC whitelist sent as a list is a 422, not a 500 (#5155).
+- Backfill - tables named with $$ load instead of failing instantly (#5176).
+- Backfill - a refused load never empties the destination first (#5179).
+- Alembic - concurrent upgrades wait for each other instead of racing (#5204).
+- Target lag - read groups Kotatsu cannot answer from the broker (#5186).
+- Oracle source - a long transaction no longer burns the DB's CPU (#5175).
+- Backfill - large IBM i slices no longer fail after a slow upload (#5180).
+- Connectors - credentials resolve only secrets granted to the team (#5160).
+- Metrics - raw metric tables stop growing without bound (#5091).
+- Snowflake target - new columns no longer round or vanish (#5153).
+- [FRONT] Part 2 of #5188: subscription detail header logic into a composable (#5255).
+- Subscriptions - a Snowflake table rename keeps its history (#5231).
+- [TESTS] Part 3 of #5127: warehouse tables route errors and credentials (#5257).
+- [SEC] Part 3 of #5105: read a team request only through its own team (#5256).
+- [TESTCLEAN] Part 1 of #5191: loop tests pin one session and one service run per cycle (#5259).
+- Dependencies - close the 14/10 critical and high CVEs (#5229).
+- Target credentials - one banner naming the real cause when the test fails (#5226).
+- Agent context - every session re-reads 5 KB less per turn (#5268).
+- Idempotency - replay cache no longer keeps credentials in clear (#5228).
+- IBM i - a multi-journal selection shows its pods, accepted once #4157 lands (#5123).
+- BigQuery backfill - load a newly added table without waiting for its first change (#5097).
+- DP front - each page carries its own strapline, not another page's (#5216).
+- Backfill - wide tables load on the default options (#5182).
+- [#5177] IBM i backfill - load a keyless table on a column it finds itself (#5183).
+- IBM i source - one pod per journal, at most 299 tables each (#5251).
+- Metrics - a recreated connector no longer shows old history (#5250).
+- Backfill - a table queued during a run's last load is no longer lost (#5247).
+- Secret scope - fixable 422 on ungranted stored refs, one scope helper (#5162).
+- Metrics - a stuck raw metric prune shows up in the admin (#5185).
+- Alembic - a full Postgres no longer kills booting backend pods (#5220).
+- Config sync - a failed sync no longer stays half-applied (#5253).
+- Backfill - MySQL tables with binary columns load into BigQuery (#5184).
+- Snowflake target - accounts with an underscore commit offsets again (#5311).
+- Popsink_connect - a Secret value with $$ reaches Debezium unchanged (#5312).
+- Source credentials - one banner naming the real cause when the test fails (#5237).
+- DP - Dedup is the declared key, else the row hash; no user choice (#5224).
+- [DOCSLIM] Part 3 of #5194: drop echo comments in domain and application services (#5332).
+- JDBC targets - many small tables write 2-4x faster (#5300).
+- Backfill - tables orphaned before #5247 are closed, not lost (#5331).
+- JDBC targets - an update of a missing row is no longer lost (#5347).
+- IBM i - new sources keep year-1 timestamps instead of dropping rows (#5338).
+- Rust sinks - keep the sub-second part of timestamps and times (#5346).
+- Subscriptions - a Target lag edited from the edit page is stored, not answered 200 and dropped (#5383).
+- Worker - A source whose schema history is lost reports it instead of crash-looping (#5368).
+- Mapper - a hashed column is no longer saved in clear on Snowflake/PG/MSSQL/ES (#5354).
+- Mapper - exact decimal cast, part 1: engine and Rust workers (#5367).
+- DP front - small UI fixes on Workspace, Tasks, Warehouse and tables (#5355).
+- JDBC targets - hashed and encrypted columns can land protected (#5384).
+- Domain - reads no settings, HTTP errors or pydantic, and the guard holds it (#5400).
+- Backfill - say when the table a load created cannot be queried (#5387).
+- Mapper - exact decimal cast, part 2: the API and Python workers (#5406).
+- REST API source - its API credentials stop leaking (#5407).
+- Merge alembic heads after af541f90 (#5408).
+- Backfill - backfilled rows carry their Job's start time, not 1970 (#5386).
+- Tables - one 25-row default, no pagination footer when empty (#5398).
+- [FRONT] Part 1 of #5414: subscription target options leave configure-one for a composable (#5415).
+- [tooling] Tests - REST API source secret tests call before_save with topic_prefix (#5433).
+- [SEMANTIC] Part 3 of #5260: WarehouseScriptRunner poll_interval carries its unit (#5421).
+- [SQL] Part 1 of #5417: schema invariants ratchet over Base.metadata (#5418).
+- Webhook target - a refused delivery no longer vanishes as delivered (#5428).
+- [SQL] Follow-up of #5418: Base's naive created_at/updated_at are frozen once, not per table (#5435).
+- JDBC targets - a subscription can opt in to its mapper (#5446).
+- Schema tab and mappers stop reading the back end's pre-#4240 spelling (#5444).
+- Iceberg target - one-pick Databricks Unity Catalog setup (#5447).
+- Backfill - selected subscriptions reload only those pairs (#5448).
+- Release cut - data-plane 2026.10.22, chart 0.1.0-alpha.210 (#5463).
