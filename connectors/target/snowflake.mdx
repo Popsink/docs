@@ -125,12 +125,14 @@ Besides the source columns, every row of the changelog carries:
 | `__source_ts_ms` | `NUMBER` | When the change happened at the source, in epoch milliseconds. `0` for a backfill row. |
 | `__popsink_ts_ms` | `NUMBER` | When Popsink processed the event, in epoch milliseconds |
 | `__snowflake_ts_ms` | `NUMBER` | When the connector appended the row to Snowflake, in epoch milliseconds |
-| `__partition` / `__offset` | `NUMBER` | Position of the event in Kafka |
+| `__partition` / `__offset` | `NUMBER` | Position of the event in Kafka. For a backfill row, an ordering value set by the loader instead (see below). |
 | `__hash` | `NUMBER` | Hash of the row's source values |
 | `__member` | `VARCHAR` | IBM i file member, for IBM i sources |
 | `before_data` | `VARIANT` | Values before the change *(with **Include the before-image** on)* |
 
 These columns are carried into the dynamic table too, except `before_data`: each row of the dynamic table tells you which change produced it and when.
+
+`__partition` and `__offset` only order the changes of a row; do not use them as a row identifier. A backfill row reads the source table directly rather than through Kafka, so its `__offset` is a counter derived from the range the loader read. On an IBM i source it can look like the record's RRN, but it is not one: it drifts after deleted records, follows an index key on large files, and is replaced by a Kafka offset as soon as the row changes.
 
 ## Dynamic Tables
 
