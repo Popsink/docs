@@ -1,0 +1,17 @@
+---
+title: Popsink Source
+description: Stream Popsink's own platform events, such as connector and worker status changes, into a pipeline.
+---
+
+The Popsink Source publishes the platform's **own events** into a pipeline, such as a connector or a worker changing status. Route them to any target, for example to alert from your own tools or to keep a history of incidents.
+
+## How it works
+
+- **No configuration.** The connector asks for no host or credentials: Popsink itself produces the events.
+- **One per environment.** An environment holds at most one Popsink Source.
+- **One data model, created for you.** Creating the connector creates a single data model named `popsink-events`. Subscribe your targets to it as you would to any other data model.
+- **No worker runs.** The data plane writes the events itself, so the connector has no worker of its own to start, scale or monitor.
+
+## Events
+
+Each event records a status change on a connector or a worker of the environment. They are published as they happen.

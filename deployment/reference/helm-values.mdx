@@ -693,6 +693,76 @@ install that had not opted into S3 aborted with
 `kotatsu.enabled: false` is the correct workaround on those versions.
 </Note>
 
+## OpenTelemetry export
+
+OpenTelemetry (OTLP) export is **optional and disabled by default**. With it off,
+the backend and the broker run with no telemetry overhead. Turned on, the backend
+exports to an OTLP endpoint, and the connector workers it launches inherit the
+same settings.
+
+### Export to a collector you already run
+
+```yaml
+otel:
+  enabled: true
+  endpoint: "http://otel-collector.observability.svc:4318"
+  protocol: "http/protobuf"        # or "grpc"
+  existingHeadersSecret: "otel-otlp-headers"   # optional; holds e.g. "authorization=Bearer <token>"
+```
+
+`otel.endpoint` is required once `otel.enabled` is true, unless the chart deploys
+the collector itself (below). Leave it empty with no collector and the install
+aborts with `otel.enabled is true but no OTLP endpoint is configured`.
+
+Only traces are exported by default. Set `otel.metricsEnabled` or
+`otel.logsEnabled` only if your collector ingests those signals over OTLP;
+otherwise every export is rejected.
+
+### Let the chart deploy the collector
+
+No collector to point at? The chart can run one that forwards everything to your
+observability backend:
+
+```yaml
+otel:
+  enabled: true
+  # endpoint left empty: it resolves to the bundled collector's Service
+
+otelCollector:
+  enabled: true
+  exporter:
+    endpoint: "https://otlp.your-observability-backend.example"
+    protocol: "http/protobuf"        # or "grpc"
+    auth:
+      existingSecret: "otlp-downstream"
+      existingSecretKey: "token"
+```
+
+Two combinations stop the install at render time, because each one would deploy
+a collector that silently drops everything:
+
+- `otelCollector.enabled: true` with `otel.enabled: false` means nothing exports
+  to the collector. Set `otel.enabled: true`.
+- `otelCollector.enabled: true` with neither `otelCollector.exporter.endpoint` nor
+  `otelCollector.config` means the collector has nowhere to forward to.
+
+An `otel.endpoint` you set always wins over the bundled collector.
+
+### Broker metrics
+
+The broker exports its own metrics separately:
+
+```yaml
+kodansu:
+  otel:
+    enabled: true
+    endpoint: "http://otel-collector.observability.svc:4318"
+```
+
+`kodansu.otel.endpoint` is required when `kodansu.otel.enabled` is true. The
+broker exports metrics only, over HTTP/protobuf, and appends `/v1/metrics` to
+this base URL.
+
 ## Ingress
 
 `ingress.enabled` is **off by default** and we recommend leaving it that way:

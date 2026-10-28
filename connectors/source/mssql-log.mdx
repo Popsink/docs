@@ -1,0 +1,63 @@
+---
+title: SQL Server Source (transaction log, Beta)
+description: Capture SQL Server changes by reading the transaction log directly, with no CDC change tables.
+---
+
+import SshTunnel from '/snippets/ssh-tunnel.mdx';
+
+<Warning>This connector is in **Beta**. For production workloads on SQL Server CDC, use the [SQL Server Source](./mssql).</Warning>
+
+This connector streams inserts, updates and deletes from SQL Server by reading the **transaction log directly** (`sys.fn_dblog`, and log backups through `sys.fn_dump_dblog`). Unlike the [SQL Server Source](./mssql), it does **not** need SQL Server CDC or its change tables. Any base table can be captured.
+
+Its events and topics have the same shape as the CDC connector's: `<prefix>.<database>.<schema>.<table>`, with one data model per table.
+
+## Compatible versions
+
+| | |
+|---|---|
+| **SQL Server** | 2017 or later — tested on 2017, 2019, 2022 and 2025 |
+| **Recovery model** | `FULL` or `BULK_LOGGED` |
+| **Not supported** | Azure SQL Database, Azure Synapse |
+
+## Prerequisites
+
+- The database in the **`FULL` or `BULK_LOGGED` recovery model**. Under `SIMPLE`, the log is truncated at every checkpoint and nothing can be read from it:
+
+```sql
+ALTER DATABASE [MyDatabase] SET RECOVERY FULL;
+```
+
+- A login with **`sysadmin`**, or **`db_owner`** on the database plus **`VIEW SERVER STATE`**.
+- A **primary key** on each captured table, or a unique index over `NOT NULL` columns. Without one, a target has no key to apply updates and deletes by.
+
+The credential check lists every prerequisite that is not met in one message, each with the statement that fixes it.
+
+### Reading log backups (optional)
+
+By default the connector reads the active log only. If a log record is truncated before the connector reads it (for example, after a log backup during an outage), the connector stops with an error rather than skipping changes.
+
+To let it recover those records, set **Log backup path** to the directory or UNC share where the database's `.trn` log backups are written. Enter the path **as the SQL Server instance sees it**: the backups are read on the server, not by Popsink. The check then confirms that:
+
+- at least one log backup of the database is recorded in `msdb`;
+- the latest one was written under that path;
+- the path is a directory the instance can reach.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Hostname or IP address of the SQL Server instance |
+| **Port** | Yes | TCP port (default `1433`) |
+| **Database** | Yes | Database whose transaction log is read |
+| **Username / Password** | Yes | A login with the rights above |
+| **Encrypt connection** | No (default on) | Encrypt the JDBC connection |
+| **Trust server certificate** | No (default on) | Accept a self-signed TLS certificate |
+| **Log backup path** | No | Directory or UNC share holding the `.trn` log backups, as the server sees it |
+| **Backup share username / password** | No | Credentials for the backup share, when it needs its own login |
+| **Poll interval (ms)** | No (default `2000`) | Time between two log scans; each scan is one `fn_dblog` call on the source |
+| **Enable Initial Load** | No (default on) | Snapshot the selected tables before streaming |
+| **Table Whitelist** | Yes | Comma-separated tables as `schema.table` (`dbo` is assumed when the schema is omitted) |
+
+<Warning>Keep **Enable Initial Load** on. No backfill is available for this source, so with it off the existing rows are never replicated, only the changes made after the connector starts.</Warning>
+
+<SshTunnel />

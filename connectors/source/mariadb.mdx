@@ -1,0 +1,58 @@
+---
+title: MariaDB Source
+description: Capture inserts, updates and deletes from MariaDB through its row-based binary log.
+---
+
+import SshTunnel from '/snippets/ssh-tunnel.mdx';
+
+The MariaDB Source Connector streams every insert, update and delete from your MariaDB tables into Popsink in real time, by reading the server's binary log.
+
+MariaDB has its own connector, separate from the [MySQL Source](./mysql): the two products have drifted apart (MariaDB GTIDs, for example, use a different format), so each one is checked and read on its own terms. A MySQL server is refused by this connector, and a MariaDB server by the MySQL one.
+
+## Compatible versions
+
+| | |
+|---|---|
+| **MariaDB** | 10.11 or later — tested on the 10.11 and 11.4 LTS lines |
+| **Binary log** | Row-based — `binlog_format=ROW`, `binlog_row_image=FULL` |
+| **CDC engine** | Debezium (MariaDB connector) |
+
+## Prerequisites
+
+- Binary logging enabled with **row-based format** and full row images:
+
+```
+log_bin = ON
+binlog_format = ROW
+binlog_row_image = FULL
+```
+
+- A user with the following privileges:
+
+```sql
+SELECT
+RELOAD
+SHOW DATABASES
+REPLICATION SLAVE
+REPLICATION CLIENT  -- shown as BINLOG MONITOR on MariaDB 10.5 and later
+```
+
+The credential check refuses the connection, with the setting to change, when the server is older than 10.11, when it is a MySQL server, or when any of the three binary-log settings above is wrong.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Hostname or IP address of the MariaDB server |
+| **Port** | Yes | TCP port (default `3306`) |
+| **Database** | Yes | Database to connect to |
+| **Username / Password** | Yes | Credentials with the privileges above |
+| **Encrypt connection** | No (default on) | Use TLS when connecting |
+| **Trust server certificate** | No (default on) | Skip certificate verification, for a self-signed certificate |
+| **Table Whitelist** | Yes | Comma-separated tables, as `database.table` or `table` |
+
+<SshTunnel />
+
+## Table Selection
+
+After a successful credential check, pick the tables to replicate from the discovered list. Each selected table becomes its own data model.
