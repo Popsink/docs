@@ -110,11 +110,14 @@
                   "connectors/source/snowflake",
                   "connectors/source/postgres",
                   "connectors/source/mysql",
+                  "connectors/source/mariadb",
                   "connectors/source/firestore",
                   "connectors/source/oracle",
                   "connectors/source/ibmi",
                   "connectors/source/ibmz",
+                  "connectors/source/db2",
                   "connectors/source/mssql",
+                  "connectors/source/mssql-log",
                   "connectors/source/bigquery",
                   "connectors/source/mongodb"
                 ]
@@ -126,7 +129,8 @@
                   "connectors/source/kafka",
                   "connectors/source/eventhub",
                   "connectors/source/webhook",
-                  "connectors/source/datagen"
+                  "connectors/source/datagen",
+                  "connectors/source/popsink"
                 ]
               },
               {

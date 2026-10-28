@@ -1,0 +1,53 @@
+---
+title: Db2 LUW Source
+description: Capture changes from Db2 for Linux, UNIX and Windows through ASN Capture change tables.
+---
+
+import SshTunnel from '/snippets/ssh-tunnel.mdx';
+
+The Db2 LUW Source Connector streams inserts, updates and deletes from Db2 for Linux, UNIX and Windows into Popsink in real time.
+
+It does not read the Db2 log itself. IBM's **ASN Capture** process copies each change of a registered table into a change table, and the connector reads those change tables. So every prerequisite below lives on the Db2 server.
+
+<Note>For Db2 for i (AS/400, IBM i), use the [IBM i Source](./ibmi) instead.</Note>
+
+## Prerequisites
+
+- **Archive logging** on the database (`LOGARCHMETH1` set to anything but `OFF`). Capture reads changes from the log, so a circular log loses them.
+- The **`asncdc` UDF** installed and **ASN Capture running**. Start it with:
+
+```sql
+VALUES ASNCDC.ASNCDCSERVICES('start','asncdc');
+```
+
+- Each table to capture **registered in ASN and active**:
+
+```sql
+CALL ASNCDC.ADDTABLE('MYSCHEMA', 'MYTABLE');
+VALUES ASNCDC.ASNCDCSERVICES('reinit','asncdc');
+```
+
+`ADDTABLE` also turns `DATA CAPTURE CHANGES` on for the table. Capture's first start sets every registration to inactive, so start Capture before activating them.
+
+When you pick tables, the table list shows each one that is not ready and the statement that fixes it.
+
+## Limitations
+
+- **BOOLEAN columns are not supported.** ASN Capture cannot write a BOOLEAN into a change table, and it then stops for **every** registered table. Change the column to `SMALLINT`, or leave the table out.
+- **CLOB and BLOB values arrive as null.** ASN Capture does not copy LOB values into its change tables. Such a table can still be replicated, without those values.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Hostname or IP address of the Db2 server |
+| **Port** | Yes | TCP port (default `50000`) |
+| **Database** | Yes | Database name |
+| **Username / Password** | Yes | Credentials of a user that can read the captured tables and the ASN change tables |
+| **Table Whitelist** | Yes | Comma-separated tables as `SCHEMA.TABLE`, each one registered in ASN |
+
+<SshTunnel />
+
+## Topics
+
+Each table is published to its own topic, named `<prefix>.<SCHEMA>.<TABLE>`, and gets its own data model.

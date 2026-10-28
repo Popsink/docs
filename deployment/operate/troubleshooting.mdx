@@ -35,6 +35,11 @@ kubectl -n popsink logs -l app.kubernetes.io/component=data-plane --tail=200
 | `kora` pod: `password authentication failed for user "kora"`       | The `kora` role / database does not exist. Create them, or point Kora at the data-plane database  |
 | `Kora must be enabled, or schemaRegistry.url must be provided`     | `kora.enabled: false` with no external registry configured                                        |
 | `kotatsu.s3.bucket must be provided when kotatsu is enabled`       | Kotatsu enabled with a non-`s3://` storage engine — set `kotatsu.enabled: false`                  |
+| `helm install` aborts on `k8sRegistryHost is required.`            | `k8sRegistryHost` set to an empty value — restore the default, or your mirror's host (see [Air-gapped](/deployment/install/air-gapped)) |
+| `otel.enabled is true but no OTLP endpoint is configured`          | Set `otel.endpoint`, or `otelCollector.enabled: true` — see [OpenTelemetry export](/deployment/reference/helm-values#opentelemetry-export) |
+| `otelCollector.enabled is true but otel.enabled is false`          | The bundled collector would receive nothing — add `otel.enabled: true`                          |
+| `otelCollector.enabled is true but the collector has nowhere to forward to` | Set `otelCollector.exporter.endpoint`, or a full `otelCollector.config`                |
+| `kodansu.otel.endpoint is required when kodansu.otel.enabled is true` | Set `kodansu.otel.endpoint` to your OTLP endpoint, or `kodansu.otel.enabled: false`          |
 | `data-plane` pods crash-loop on an empty `DB_USER`                 | `externalDatabase.user` / `.database` left empty — the chart does not guard them                  |
 | `data-plane` pods crash-loop on `connector-config-encryption-key`  | The Fernet key is not a valid URL-safe base64-encoded 32-byte string                              |
 | `ImagePullBackOff` on every pod                                    | `imagePullSecret.token` not set, or not a valid GAR service-account JSON                          |
