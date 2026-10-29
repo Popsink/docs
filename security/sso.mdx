@@ -1,7 +1,7 @@
 ---
-title: "Single sign-on (SSO)"
-description: "Sign in to Popsink with your company identity provider over SAML 2.0 or OpenID Connect: how it works, what to configure on your side, and how users and roles are handled."
-sidebarTitle: "Single sign-on"
+title: "Single sign-on (SSO) and SCIM"
+description: "Sign in to Popsink with your company identity provider over SAML 2.0 or OpenID Connect, and provision users and roles automatically with SCIM: how it works, what to configure on your side, and how users and roles are handled."
+sidebarTitle: "Single sign-on & SCIM"
 ---
 
 With single sign-on, your users sign in to Popsink with their corporate
@@ -15,6 +15,10 @@ Popsink supports two protocols:
 | --- | --- |
 | **SAML 2.0** | Microsoft Entra ID (Azure AD), Okta, Google Workspace, JumpCloud, OneLogin, ADFS, Keycloak, and any SAML 2.0 compliant IdP |
 | **OpenID Connect (OIDC)** | Okta, Microsoft Entra ID, Keycloak, Auth0, and any OIDC-compliant provider |
+
+On top of an SSO connection, you can turn on **SCIM provisioning**. Your IdP
+then creates, updates and deactivates Popsink users for you, and your IdP
+groups set their organization role. See [SCIM provisioning](#scim-provisioning).
 
 <Note>
 SSO is set up **with the Popsink team**. It isn't self-serve yet (see the
@@ -211,17 +215,185 @@ Popsink.
   all pending invitations for that email are accepted, and the user gets the
   role set on each one. A user who signs in without an invitation belongs to no
   organization yet. They are offered to create one.
-- **Roles are managed in Popsink,** not in your IdP. Organizations have `admin`
-  and `user` roles, and environments have `admin`, `user` and `reader`. IdP
-  groups aren't mapped to Popsink roles, and SCIM provisioning isn't available
-  yet.
+- **Roles are managed in Popsink.** Organizations have `admin` and `user`
+  roles, and environments have `admin`, `user` and `reader`. With SSO alone,
+  IdP groups aren't mapped to Popsink roles. To drive membership and
+  organization roles from your IdP, turn on
+  [SCIM provisioning](#scim-provisioning).
 
 ### Removing access
 
 Unassigning a user from the application in your IdP, or disabling them there,
-blocks their next sign-in. A session that is already open stays valid until it
-expires. To cut access immediately, also **remove the member from the
-organization** in the Popsink console.
+blocks their next sign-in. Without SCIM, a session that is already open stays
+valid until it expires. To cut access immediately, also **remove the member
+from the organization** in the Popsink console. With SCIM, deactivation in your
+IdP revokes open sessions right away (see
+[Deactivating a user](#deactivating-a-user)).
+
+## SCIM provisioning
+
+With SSO alone, users are created at their first sign-in, and an organization
+admin still has to invite each of them. With **SCIM 2.0** provisioning, your IdP
+manages the Popsink users for you:
+
+- **Assigning** a user to the Popsink application in your IdP creates their
+  Popsink account and adds them to your organization. No invitation needed.
+- **Changing** their name or email in your IdP updates it in Popsink.
+- **Deactivating or unassigning** them in your IdP removes their access to
+  Popsink and **signs them out everywhere**, at once.
+- **IdP groups** set their organization role (`admin` or `user`).
+
+<Note>
+SCIM sits on top of an SSO connection: set up [SSO](#set-up-sso) first. Like
+SSO, SCIM is set up with the Popsink team. Each SCIM connection is linked to
+**one** Popsink organization.
+</Note>
+
+### Supported identity providers
+
+| Identity provider | How it connects |
+| --- | --- |
+| **Microsoft Entra ID** | SCIM 2.0, from the enterprise application's **Provisioning** page |
+| **Okta** | SCIM 2.0, from the app integration's **Provisioning** tab |
+| **Any SCIM 2.0 client** (JumpCloud, OneLogin, Keycloak with a SCIM plugin, etc.) | SCIM 2.0, with a base URL and a bearer token |
+| **Google Workspace** | Google doesn't push SCIM to custom apps. Popsink reads your directory through the Google Admin SDK with a service account instead. Contact us to set it up. |
+
+### Set up SCIM
+
+<Steps>
+  <Step title="Request SCIM for your SSO connection">
+    Email [support@popsink.com](mailto:support@popsink.com) with your Popsink
+    organization name and the IdP groups you want to map to the organization
+    `admin` role, if any.
+
+    We turn on SCIM for your connection and send you, over a secure channel:
+
+    - the **SCIM endpoint URL** (also called the base URL or tenant URL),
+    - a **bearer token**.
+
+    <Warning>
+    The bearer token lets anyone who holds it create and remove users in
+    your organization. Store it in your IdP only. If it leaks, ask us to
+    rotate it.
+    </Warning>
+  </Step>
+
+  <Step title="Configure provisioning in your IdP">
+    Enter the endpoint URL and the token in the application you created for
+    SSO. The steps for each IdP are below.
+  </Step>
+
+  <Step title="Assign users and groups">
+    Assign the users and groups who should have access to Popsink. Your IdP
+    pushes them on its next provisioning cycle. Most IdPs also let you
+    provision one user on demand to test.
+  </Step>
+
+  <Step title="Map groups to roles">
+    Once your groups have synced at least once, we map them to Popsink
+    organization roles with you. See [Group to role mapping](#group-to-role-mapping).
+  </Step>
+</Steps>
+
+<Tabs>
+  <Tab title="Microsoft Entra ID">
+    1. Open the enterprise application you created for SSO, then go to
+       **Provisioning**.
+    2. Set **Provisioning Mode** to **Automatic**.
+    3. Under **Admin Credentials**, paste the SCIM endpoint URL into **Tenant
+       URL** and the bearer token into **Secret Token**. Click **Test
+       Connection**, then **Save**.
+    4. Under **Mappings**, check that these attributes are mapped:
+       `userName`, `emails[type eq "work"].value`, `name.givenName`,
+       `name.familyName` and `active`.
+    5. Set **Provisioning Status** to **On** and save. Entra runs a cycle
+       about every 40 minutes. Use **Provision on demand** to test one user
+       right away.
+  </Tab>
+  <Tab title="Okta">
+    1. Open the app integration you created for SSO. On the **General** tab,
+       edit **App Settings** and select **SCIM** as the provisioning method.
+    2. On the **Provisioning** tab, open **Integration** and fill in:
+       - **SCIM connector base URL**: the SCIM endpoint URL,
+       - **Unique identifier field for users**: `userName`,
+       - **Supported provisioning actions**: *Push New Users*, *Push Profile
+         Updates* and *Push Groups*,
+       - **Authentication Mode**: *HTTP Header*, with the bearer token as
+         **Authorization**.
+    3. Click **Test Connector Configuration**, then **Save**.
+    4. Under **Provisioning → To App**, enable **Create Users**, **Update User
+       Attributes** and **Deactivate Users**.
+    5. In the attribute mappings, make sure `email` is mapped. `userName`
+       alone isn't enough.
+    6. To use groups for roles, add them on the **Push Groups** tab.
+  </Tab>
+</Tabs>
+
+### Attributes
+
+| SCIM attribute | Required | Used for |
+| --- | --- | --- |
+| `userName` | Yes | Unique identifier of the user in your directory |
+| `emails` (primary or first value) | Yes | Popsink sign-in email. A user without an email isn't provisioned, and `userName` isn't used as a fallback. |
+| `name.givenName` | No | First name |
+| `name.familyName` | No | Last name |
+| `active` | Yes | `false` deactivates the user in Popsink |
+
+Attributes that come from your directory are **read-only in Popsink**. Change
+them in your IdP.
+
+### Existing users
+
+If your IdP provisions a user whose email already belongs to a Popsink account
+(for example, someone who signed in with SSO before you turned on SCIM), the
+account is **linked**, not duplicated. It keeps its organizations, its
+environment access and its history.
+
+<Warning>
+Once SCIM is active, only users provisioned by your IdP can sign in through
+your SSO connection. A user who is assigned to the application but hasn't been
+pushed yet can't sign in. Wait for the next provisioning cycle, or provision
+them on demand.
+</Warning>
+
+### Group to role mapping
+
+Groups pushed by your IdP can be mapped to the **organization** roles of the
+organization linked to the connection:
+
+- Mappings are **ordered**. If a user belongs to several mapped groups, the
+  first mapping in the list wins. Put the `admin` mapping first.
+- A user in **no** mapped group gets the default `user` role.
+- Only **direct** membership counts. Nested groups aren't supported, and most
+  IdPs reject pushing a group inside another group.
+- An organization role set by a mapping **can't be changed in the Popsink
+  console**. Change the user's groups in your IdP.
+
+**Environment** roles (`admin`, `user`, `reader`) aren't driven by SCIM. An
+organization or environment admin still grants environment access in the
+console, as described in [Users, organizations and
+roles](#users-organizations-and-roles).
+
+### Deactivating a user
+
+When your IdP deactivates a user, unassigns them from the application, or
+deletes them:
+
+- **All their Popsink sessions are revoked immediately.** They are signed out
+  of the console and of every data plane.
+- Their **membership in the linked organization is removed**, with their
+  environment access in that organization.
+- Their Popsink account is kept but can't sign in, and the resources they
+  created (pipelines, connectors, environments) are left untouched.
+
+If you reactivate the user in your IdP, they get their organization role back
+through your group mapping. Environment access must be granted again.
+
+<Tip>
+Turning SCIM off doesn't remove anyone: users and roles stay as they are, and
+you manage them again from the Popsink console. To remove users in bulk,
+deactivate them in your IdP **before** turning SCIM off.
+</Tip>
 
 ## Self-hosted data planes
 
@@ -269,6 +441,22 @@ for the full flow and the break-glass local account.
     SSO signed you in, but nobody has invited your email address to the
     organization yet. Ask an organization admin to invite you with the exact
     address your IdP sends.
+  </Accordion>
+
+  <Accordion title="A user assigned in my IdP doesn't appear in Popsink (SCIM)">
+    Your IdP pushes changes on a cycle (about 40 minutes for Entra ID). Use
+    provision on demand to push one user now. If the push fails, check the
+    IdP's provisioning log: most often the user has no email in `emails`.
+  </Accordion>
+
+  <Accordion title="My IdP reports 401 Unauthorized on provisioning (SCIM)">
+    The bearer token is wrong or has been rotated. Paste the token again with
+    no surrounding spaces, or ask us for a new one.
+  </Accordion>
+
+  <Accordion title="I can't change a member's role in the console">
+    The role is set by your SCIM group mapping. Move the user to another group
+    in your IdP. The change applies on the next provisioning cycle.
   </Accordion>
 
   <Accordion title="Our IdP signing certificate is about to expire">
