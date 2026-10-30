@@ -58,9 +58,48 @@ them as pods at runtime, with the image
 `onprem/jobs/…`). If it still points at Popsink's registry, the install looks
 healthy and every connector you create sits in `ImagePullBackOff`.
 
-Mirror at least the images of the connectors you plan to use, and ask Popsink
-for the list matching your release.
+Mirror the whole list shipped with the chart (below), not only the connectors
+you plan to use today.
 </Warning>
+
+### Mirror the images
+
+Every chart release carries the list of images it runs — the chart's
+components with every optional component on, and every connector worker,
+backfill loader and job the data plane launches — as `images.txt` inside the
+packaged chart, one `registry/repository:tag` per line:
+
+```bash
+helm pull oci://ghcr.io/popsink/charts/data-plane --version <version> --untar
+cat data-plane/images.txt
+```
+
+Mirroring exactly this list into your registry is enough to install the chart
+and start every connector type. Copy each image under the same repository path,
+from a machine that reaches both registries:
+
+<Tabs>
+  <Tab title="crane">
+    ```bash
+    SRC=europe-west1-docker.pkg.dev/popsink-common-438615
+    DST=registry.internal.example.com
+
+    while read -r image; do
+      crane copy "$image" "$DST/${image#"$SRC"/}"
+    done < data-plane/images.txt
+    ```
+  </Tab>
+  <Tab title="skopeo">
+    ```bash
+    SRC=europe-west1-docker.pkg.dev/popsink-common-438615
+    DST=registry.internal.example.com
+
+    while read -r image; do
+      skopeo copy --all "docker://$image" "docker://$DST/${image#"$SRC"/}"
+    done < data-plane/images.txt
+    ```
+  </Tab>
+</Tabs>
 
 Keep the broker tag (`kodansu.image.tag`) exactly as pinned by the chart: the
 object-store layout it writes is tied to that tag, and `kotatsu` must match it.
@@ -111,7 +150,14 @@ kodansu:
 
 `kodansu.storage.aws.region` is required even when the store has no notion of
 region. `kotatsu.s3.*` inherits all of this from the broker, so there is
-nothing to repeat if you enable `kotatsu`. The bucket must exist before the
+nothing to repeat if you enable `kotatsu`.
+
+<Warning>
+If the object store's certificate is signed by a **private CA**, Kotatsu must be
+given that CA bundle to trust the endpoint. The chart cannot mount one into
+Kotatsu yet ([data-plane#5028](https://github.com/Popsink/data-plane/issues/5028)):
+keep `kotatsu.enabled: false` behind a private CA until it can.
+</Warning> The bucket must exist before the
 install, with versioning and object lock off — see
 [what every backend must provide](/deployment/reference/helm-values#what-every-backend-must-provide).
 
@@ -342,7 +388,7 @@ directly.
 
 | Symptom                                                        | Cause                                                                                  |
 | -------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Chart pods run, connector pods stay in `ImagePullBackOff`      | `k8sRegistryHost` still points at Popsink's registry, or the connector image is not mirrored |
+| Chart pods run, connector pods stay in `ImagePullBackOff`      | `k8sRegistryHost` still points at Popsink's registry, or `images.txt` was not mirrored in full |
 | `helm install` fails fetching `common` / `postgresql`          | Installing from a source checkout, not the packaged chart                              |
 | Render fails: `Kora … kora.database is not configured`         | The Kora role and database do not exist yet — run the SQL from the error message      |
 | Render fails: `kodansu.storage.aws.region must be provided`    | Region left empty for a non-AWS object store — any valid string works                  |
