@@ -1,0 +1,37 @@
+---
+title: "v0.1.0-alpha.215 29/10/2026"
+---
+
+---
+
+**Description**: Pipeline wizard ticks only visited steps and keeps the reused connector on reload (#5369).
+
+### Changes
+
+- Pipeline wizard ticks only visited steps and keeps the reused connector on reload (#5369) (#5576).
+- PostgreSQL source - array columns no longer crash-loop the worker (#5609).
+- Backfill - PostgreSQL tables can load their history into Snowflake (#5615).
+- Backend - connectors can no longer reach internal addresses (#5617).
+- Java targets - close high CVEs in Jackson, lz4 and Snowpipe (#5616).
+- Targets - backfill banner per source run feeding the target (#5619).
+- Snowflake target - IBM i file members no longer collapse (#5620).
+- [DP][frontend] Notifications drawer: error state on failed fetch, single tab (#5622).
+- Backend - a domain invitee can no longer accept as admin (#5629).
+- Backend - members can no longer approve their own domain request (#5632).
+- Dashboard - no tile carries a warning triangle (#5626).
+- [DP][frontend] Domain: the default domain says where its members come from (#5627).
+- [DP][frontend] Lists: tab counters follow a delete, no empty bulk menus (#5623).
+- SQL Server - share the log source's plumbing for Change Tracking (#5643).
+- Connectors - restart every pod in one call, never mid-start (#5593).
+- Backend - IBM i connection test keeps a readable error on DBCS systems (#5651).
+- MySQL backfill - large text cells are refused or throttled, not OOMKilled (#5652).
+- Backfill - a sharded IBM i reload waits for the pod streaming its table (#5441).
+- BigQuery target - report mistyped columns even when null or cast (#5660).
+- Deployment switcher - a cloud icon for a flagless cloud region (#5661).
+- Domain members - an owner changes a member's role (#5668).
+- STANDALONE - create environments on the plane's own broker (#5676).
+- Deployment switcher - a flagless cloud deployment shows a cloud (#5667).
+- STANDALONE - admin panel creates users with a non-UUID deployment id (#5678).
+- Permissions - only admins destroy warehouses, teams, subscriptions (#5683).
+- Data plane - anonymous callers no longer read tenant metadata (#5681).
+- Upgrade ibmi_source + data-plane with journal caching fix (#5690).

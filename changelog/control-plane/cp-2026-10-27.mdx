@@ -1,0 +1,38 @@
+---
+title: "v2026.10.27 27/10/2026"
+---
+
+---
+
+**Description**: Control plane - admin panel and API schema no longer public.
+
+### Changes
+
+- Control plane - admin panel and API schema no longer public (#5240).
+- CP front - sign-in and sign-up pages fit the window (#5157).
+- Control-plane - Hyperline lookup never returns another org's customer (#5203).
+- Control plane - inviter sees why an existing invitee has not joined (#5218).
+- CP frontend - A User role no longer sees Members and API in the menu (#5227).
+- Dependencies - close the 14/10 critical and high CVEs (#5229).
+- Control plane - JWT signing keys are no longer in the repo (#5243).
+- Metrics - a stuck raw metric prune shows up in the admin (#5185).
+- Alembic - a full Postgres no longer kills booting backend pods (#5220).
+- CP frontend - a failed account load offers a retry (#5236).
+- [FRONT] Part 3 of #5188: extract the deployments table logic into useDeploymentsTable (#5321).
+- [TESTCLEAN] CP tests - drop two looped delete tests that duplicate test_execute_success (#5328).
+- Domain - reads no settings, HTTP errors or pydantic, and the guard holds it (#5400).
+- [SEC] Part 2 of #5322: a SaaS create refuses a Helm release another tenant holds (#5416).
+- [TESTS] Part 2 of #5325: Hyperline billing client - customer lifecycle and invoice mapping (#5419).
+- [DOCSLIM] Part 1 of #5422: drop echo comments in the control-plane admin views (#5424).
+- CP Usages - Deployment tab breaks volume down per table (#5337).
+- Release cut - data-plane 2026.10.22, chart 0.1.0-alpha.210 (#5463).
+- Release cut - data-plane 2026.10.23, chart 0.1.0-alpha.211 (#5491).
+- CP - Deleting a deployment waits 7 days and can be cancelled (#5339).
+- IBM i - a caching journal loses nothing at the cache flush (#5518).
+- [SQL] Part 2 of #5417: control-plane schema and migration-safety ratchets (#5479).
+- Security - Our pods pass the restricted Pod Security level (#5521).
+- CI - figma-mirror description and #5339 ratchet entries back under budget (#5547).
+- CP/DP - Download a secret-free config snapshot before deleting (#5348).
+- [SEC] Part 2 of #5475: refuse cross-organization environment member and API key grants (#5494).
+- [SEMANTIC] OAuth clients: _timeout carries its unit (_timeout_seconds) (#5498).
+- DP - One deletion modal that can also drop the target tables (#5345).
