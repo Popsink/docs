@@ -1,0 +1,54 @@
+---
+title: "v0.1.0-alpha.213 27/10/2026"
+---
+
+---
+
+**Description**: IBM i - the merge key no longer flips with registry availability.
+
+### Changes
+
+- IBM i - the merge key no longer flips with registry availability (#5514).
+- Subscriptions - backfill banner on the subscription page (#5487).
+- Security - Our pods pass the restricted Pod Security level (#5521).
+- Datamodel - Schema tab shows each primary key once (#5529).
+- Connector creation - the stepper shows only the steps the wizard has (#5532).
+- Backfill - the banner shows right after a trigger on source and table pages (#5535).
+- Catalog - tables read error or nothing, Backfill per row (#5537).
+- Mapper - stop asking to start a source worker that already runs (#5538).
+- Detail pages - Back returns to where the user came from (#5536).
+- Front - labels say what they show, owner warning on every tab (#5533).
+- Oracle source - the image can hold a transaction on disk (#5502).
+- Oracle source - transaction_buffer=disk spills an open transaction to a volume (#5503).
+- Oracle source - the form offers the disk transaction buffer (#5505).
+- Iceberg & BigQuery - a keyless table backfills, deduped on its content (#5344).
+- DP - An unreadable IBM i table no longer stops its batch source (#5341).
+- CP/DP - Download a secret-free config snapshot before deleting (#5348).
+- Backfill status - stop polling an idle source after a failed load (#5539).
+- Salesforce source - a network blip no longer restarts the connector (#5540).
+- Snowflake target - keep identical source rows in a keyless table (#5541).
+- IBM i - per-shard pod budgets, and a cap on bastion sessions (#5430).
+- Backend - a region's shared Postgres no longer fills by itself (#5545).
+- Backfill - a NOT NULL key no longer fails a complete run (#5542).
+- [FRONT] Part 3 of #5414: datamodel page stream display into useDatamodelStream (#5493).
+- Datamodel - schema tab shows its columns only, no LOGS tab (#5543).
+- DP - One deletion modal that can also drop the target tables (#5345).
+- Subscriptions - keep identical rows in a keyless Snowflake table (#5549).
+- Mapper - exact decimal cast, part 3: the UI offers it (#5581).
+- Backend - pool vars leave the DB_ prefix so an older image still boots (#5579).
+- Claude traps - written where each one bites, not in one memory (#5527).
+- Backend - a new duplicate class name fails the unit tests (#5472).
+- DP - Every backend layer break is caught import by import, in CI (#5481).
+- Backfill - a retried slice no longer duplicates its landed rows (#5516).
+- Subscriptions - keep identical rows from the edit page (#5572).
+- DP - Leaner Map table; a failed Recast is an error, not a NULL (#5571).
+- Backfill - a JVM out-of-memory exit names its cause (#5584).
+- AI - A PR's why stays in the PR, not a decision file (1/2) (#5570).
+- AI - A PR's why stays in the PR, not a decision file (2/2) (#5574).
+- Front - Remove the unreachable, empty Environment Admin page (#5582).
+- Target page - backfill history and Last Backfill move without a reload (#5586).
+- Iceberg target - tables can land in a client-chosen directory (#5589).
+- Iceberg target - restore the landing-zone load columns (#5591).
+- Backend - one definition per class name (#5474).
+- Python workers - images build and publish again (#5605).
+- Release - data-plane 2026.10.27, chart 0.1.0-alpha.213 (#5607).
