@@ -27,7 +27,6 @@ The IBMi (AS/400) Source Connector integrates with IBM i, formerly known as IBM 
 | **Database** | Db2 for i, as shipped with the OS release |
 | **Connectivity** | JTOpen (JT400) 21.0.4 over the IBM i host servers — nothing installed on the partition |
 | **Journals** | Journaled physical files with `*BOTH` images |
-| **CDC engine** | Debezium 3.5, Popsink build of the Db2 for i connector |
 
 <Note>IBM i 7.2 and earlier are out of IBM support and are not covered. Date and time columns are decoded from `QSYS2.SYSCOLUMNS2`, whose DDS format columns were added in IBM i 7.3 TR11 / 7.4 TR5; below those Technology Refresh levels the decoder assumes the `*ISO` format, so files using `*MDY`, `*EUR` or another DDS format need a TR at or above those levels.</Note>
 
