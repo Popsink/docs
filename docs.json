@@ -118,6 +118,7 @@
                   "connectors/source/db2",
                   "connectors/source/mssql",
                   "connectors/source/mssql-log",
+                  "connectors/source/mssql-ct",
                   "connectors/source/bigquery",
                   "connectors/source/mongodb"
                 ]
