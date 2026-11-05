@@ -376,6 +376,29 @@ egress: DNS, time sync, and OS and Tailscale package updates
 (`pkgs.tailscale.com`). Full list in Tailscale's
 [firewall ports reference](https://tailscale.com/docs/reference/faq/firewall-ports).
 
+### When wildcard destinations are not allowed
+
+Some security policies refuse any `*` destination. The Tailscale rules can be
+narrowed:
+
+- **TCP 443, filtered by name (layer 7).** Allow `*.tailscale.com`, or at
+  minimum `controlplane.tailscale.com` and `login.tailscale.com` (coordination)
+  plus `derp*.tailscale.com` (relays). Every relay in Tailscale's published map
+  is currently named under `tailscale.com`.
+- **TCP 443, filtered by address (layer 4).** The coordination server uses
+  fixed ranges, `192.200.0.0/24` and `2606:B740:49::/48`. Relay addresses are
+  published with their hostnames in Tailscale's
+  [relay map](https://login.tailscale.com/derpmap/default); the set changes
+  over time, so an address-based rule has to be kept up to date.
+- **UDP.** On a Popsink-managed deployment, direct connections from the subnet
+  router (source port 41641 by default) go to Popsink's egress address for the
+  data plane's region, listed in
+  [Egress IP addresses](/deployment/connectivity/egress-ips): allow that address
+  instead of `*:*`. STUN (UDP 3478) only targets the relay servers.
+- **No UDP at all.** The tunnel still works: without a direct connection,
+  traffic goes through the relays over TCP 443, with lower throughput — which
+  matters most during an initial load.
+
 Note that the Tailscale pattern needs **no inbound rule at all** on either side —
 that is the whole reason to reach for it.
 
