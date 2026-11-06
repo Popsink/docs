@@ -2,7 +2,23 @@
 title: MongoDB Source
 ---
 
-The MongoDB Source Connector is a powerful and efficient solution designed to facilitate seamless data integration between your MongoDB databases and Popsink. This connector helps you synchronize with MongoDB in real-time, ensuring that your target systems remain updated with the latest information in real-time, driving business intelligence, analytics, and operational efficiency.
+The MongoDB Source Connector streams the changes made to your MongoDB collections into Popsink in real time, using MongoDB's native **change streams**. Each collection you select becomes a data model with its own columns, ready to be delivered to any target.
+
+MongoDB is a document store, so it differs from the relational sources in one way that shapes the whole setup: **there is no catalog to read the columns from**. Popsink reads the columns of each collection from a **sample of its documents** when you select it. A field the sample never saw is not lost — it arrives in an extra `__undeclared` column.
+
+## Table of Contents
+
+1. [Compatible versions](#compatible-versions)
+2. [Key Features](#key-features)
+3. [How It Works](#how-it-works)
+4. [Prerequisites](#prerequisites)
+5. [Configuration](#configuration)
+6. [Collection Selection](#collection-selection)
+7. [Columns and Types](#columns-and-types)
+8. [What Is Captured](#what-is-captured)
+9. [Existing Documents](#existing-documents)
+10. [Housekeeping](#housekeeping)
+11. [Troubleshooting](#troubleshooting)
 
 ## Compatible versions
 
@@ -10,34 +26,166 @@ The MongoDB Source Connector is a powerful and efficient solution designed to fa
 |---|---|
 | **MongoDB** | 6.0, 7.0, 8.0 |
 | **Topology** | Replica set or sharded cluster — change streams are unavailable on standalone servers |
-| **Managed services** | MongoDB Atlas |
+| **Managed services** | MongoDB Atlas, every tier including shared clusters |
 
-<Note>MongoDB 5.0 and earlier are outside the tested matrix. Splitting change events larger than the 16 MB BSON limit requires MongoDB 6.0.9 or later.</Note>
-
-## Prerequisites
-
-- A `Replica Set` name: a replication set is a group of MongoDB instances sharing the same data and is defined in `replication.replSetName` for each instance in their respective configuration files ([see here](https://www.mongodb.com/docs/manual/replication/#replication-in-mongodb)).
-
-- A user with:
-
-  - `read` privileges on the `oplog` database.
-
-  - `read` privileges on the `config` database.
-
-  - `listDatabases` privileges.
-
-  - Cluster-wide `find` and `changeStream` privileges.
+<Note>MongoDB 5.0 and earlier are outside the tested matrix.</Note>
 
 ## Key Features
 
-- Real-time Change Data Capture (CDC): The MongoDB Source Connector employs a CDC mechanism using the native MongoDB logical decoding feature, capturing and streaming changes (inserts, updates, and deletes) as they occur in your database.
+- **Real-time Change Data Capture (CDC):** inserts, updates, replaces and deletes are streamed as they happen, through MongoDB change streams.
+- **Read-only:** the connector never writes to your database and installs nothing on it.
+- **Schema from a sample:** each collection's columns are worked out from a sample of its documents, so your targets receive typed columns rather than one JSON blob.
+- **Nothing dropped:** a field the declared columns do not cover — a new field, or a value of an unexpected type — is kept in the `__undeclared` column instead of being discarded.
+- **Fault-tolerant:** the connector records its position in the change stream and resumes from it after a restart.
 
-- Fault-tolerant and Scalable: The MongoDB Source Connector is built with fault tolerance and scalability in mind. It is capable of resuming data replication from the last known offset in case of failures, ensuring data consistency and minimal downtime.
+## How It Works
 
-- Initial Load: The connector automatically performs an initial full table load.
+1. **When you select a collection**, Popsink reads a random sample of its documents and declares one column per field, with a type. This declaration is stored on the connector.
+2. **While running**, the connector opens a change stream on the selected collections and projects every changed document onto the declared columns. Each collection is published to its own topic: `<topic prefix>.<database>.<collection>`, keyed by `_id`.
 
-- Advanced Filtering: The MongoDB Source Connector provides a range of filtering options, including table and schema filters, allowing you to selectively replicate specific tables and schemas based on your needs.
+## Prerequisites
 
-## Security
+- A **replica set** or a **sharded cluster**. A standalone `mongod` keeps no oplog and cannot serve change streams. A single-node replica set is enough:
 
-The connector supports SSL/TLS encryption for secure communication between the connector and your MongoDB database.
+  ```bash
+  mongod --replSet rs0
+  ```
+  ```javascript
+  rs.initiate()
+  ```
+
+- A user that can read the database and the oplog. [See Creating the User](#creating-the-user)
+- Network access from Popsink to every member of the replica set. [See Network Access](#network-access)
+- An oplog large enough to cover your longest outage. [See Oplog Retention](#oplog-retention)
+
+### Creating the User
+
+On a self-managed deployment, the built-in `readAnyDatabase` role plus `read` on `local` (the oplog) covers everything the connector does:
+
+```javascript
+db.getSiblingDB("admin").createUser({
+  user: "popsink",
+  pwd: "<password>",
+  roles: [
+    { role: "readAnyDatabase", db: "admin" },
+    { role: "read", db: "local" }
+  ]
+})
+```
+
+On MongoDB Atlas, create a database user under **Database Access** with the built-in **Only read any database** role.
+
+No write privilege is required anywhere.
+
+### Network Access
+
+The MongoDB driver connects to each member of a replica set directly, at the address the member announces. Allow inbound traffic from [Popsink's egress IPs](/deployment/connectivity/egress-ips) to **every** member (port `27017` by default), or to the `mongos` routers of a sharded cluster.
+
+On MongoDB Atlas, add those addresses to the project's **Network Access → IP Access List**.
+
+<Note>
+  This connector offers **no SSH tunnel**. A tunnel forwards one host, while the driver needs to reach every member of the replica set at its own address: the other members would stay unreachable. Expose the members to Popsink's egress IPs instead.
+</Note>
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Connection string** | Yes | The MongoDB URI, **without credentials** — e.g. `mongodb://host1:27017,host2:27017/?replicaSet=rs0`, or `mongodb+srv://cluster.example.mongodb.net/` for Atlas |
+| **Database** | Yes | The database holding the collections to capture. One connector captures one database |
+| **Username / Password** | Yes | The user created above. The password is encrypted at rest and never returned |
+
+The connection string carries the topology and its options: a replica set's seed list, a sharded cluster's routers, TLS (`tls=true`). It must start with `mongodb://` or `mongodb+srv://`.
+
+<Warning>A connection string containing a username or a password is refused. Put the credentials in the dedicated fields, where they are stored encrypted.</Warning>
+
+### Advanced Options
+
+| Field | Default | Description |
+|---|---|---|
+| **Authentication database** | `admin` | The database the user authenticates against (MongoDB's `authSource`). Change it only if the user was created in another database |
+
+## Collection Selection
+
+After a successful credential check, pick the collections to capture. Each selected collection becomes a data model.
+
+- **Views** are listed but cannot be selected: a view has no change stream of its own. Select the collection it reads instead.
+- A name is taken as it is, dots included: `logs.2024` is the collection `logs.2024`.
+- A collection whose name contains `,`, `;` or `=` cannot be selected.
+- The document count shown is MongoDB's estimate, not an exact count.
+
+## Columns and Types
+
+Selecting a collection reads a random sample of **100 documents** and gives each field one type:
+
+| Type | Holds |
+|---|---|
+| `objectid` | `ObjectId`, delivered as its hexadecimal string |
+| `string` | Strings |
+| `int32` / `int64` | 32-bit / 64-bit integers |
+| `double` | Floating-point numbers |
+| `bool` | Booleans |
+| `timestamp` | BSON dates and timestamps |
+| `binary` | Binary data |
+| `json` | Everything else, as relaxed extended JSON: sub-documents, arrays, `Decimal128` |
+
+The form warns you about two cases:
+
+- **A field that holds more than one type** across the sample — a number in some documents, a string in others — has no single type and is captured as `json`. Integers and doubles together are not a conflict: they are widened to `int64` or `double`.
+- **An empty collection** has nothing to sample. Its columns default to `_id` alone, and everything its documents later carry arrives in `__undeclared`.
+
+`_id` is always captured: it is the row's key, and the column every target merges on.
+
+### The `__undeclared` column
+
+Every row carries an `__undeclared` column: a JSON document of the fields the declared columns did not account for, or empty when there were none. Two things land there:
+
+- **A field that appears after the collection was selected.** A document store has no schema to change, so a new field is not an error.
+- **A value that contradicts its column's type** — a string in a field declared `int64`. The column is empty for that row, and the value is kept in `__undeclared`.
+
+The columns are fixed when the collection is selected. Watch `__undeclared` in your target to see what the declaration does not cover.
+
+## What Is Captured
+
+| Event | Delivered as |
+|---|---|
+| Insert | The new document |
+| Update | The **complete** new document, not only the changed fields |
+| Replace | The new document |
+| Delete | The `_id` of the deleted document |
+
+The previous version of a document (the *before image*) is never delivered, even if `changeStreamPreAndPostImages` is enabled on the collection. Every target applies updates and deletes from the new document and the `_id`.
+
+Collection-level events — `drop`, `rename`, index changes — are not captured.
+
+## Existing Documents
+
+<Warning>
+  The connector does **not** load the documents that already exist when it starts. It streams changes from that moment on: a document that is never modified afterwards never reaches the target.
+</Warning>
+
+If you need your existing documents in the target, contact Popsink support before creating the connector.
+
+## Housekeeping
+
+### Oplog Retention
+
+The connector resumes from its last position in the oplog. If it stays stopped longer than the oplog window, that position has been overwritten: the changes made in between cannot be read back, and are lost.
+
+There is a tradeoff between the oplog size and how long an outage you can recover from. Check the current window on the primary:
+
+```javascript
+rs.printReplicationInfo()
+```
+
+Size it to cover the longest outage you want to recover from. Resize the oplog with `replSetResizeOplog`, or on Atlas with the cluster's **Minimum Oplog Window** setting.
+
+## Troubleshooting
+
+| Error | Cause |
+|---|---|
+| `Authentication failed` | Wrong username or password, or the user was created in another database than the **Authentication database** |
+| `not authorized` | The user lacks `read` on the captured database or on `local` |
+| The credential check times out | Popsink cannot reach a member of the replica set: check the firewall or the Atlas IP Access List, and that the members' announced hostnames resolve from outside your network |
+| `The $changeStream stage is only supported on replica sets` | The server is a standalone `mongod`: convert it to a replica set |
+| A column is always empty | Its values contradict the declared type: they are in `__undeclared` |
