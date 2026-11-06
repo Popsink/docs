@@ -1,0 +1,262 @@
+---
+title: SQL Server Source (Change Tracking, Beta)
+description: Capture SQL Server changes through Change Tracking, with no SQL Agent, no sysadmin and no log access.
+---
+
+import SshTunnel from '/snippets/ssh-tunnel.mdx';
+
+<Warning>This connector is in **Beta**. Where SQL Server CDC is available, prefer the [SQL Server Source (CDC)](./mssql) for production workloads until this one leaves beta.</Warning>
+
+This connector captures inserts, updates and deletes from Microsoft SQL Server by polling **Change Tracking**. Change Tracking is available in every edition, Azure SQL Database included, and needs **no SQL Server Agent, no `sysadmin` and no access to the transaction log**. That makes it the method to use when CDC cannot be enabled, for example on Express edition, on Azure SQL Database tiers without CDC, or when the DBA will not grant elevated rights.
+
+Its events use the same Debezium envelope and the same topic layout (`<prefix>.<database>.<schema>.<table>`) as the other SQL Server sources, so existing data models and targets work unchanged.
+
+In the Popsink UI, pick the **SQL Server** tile, then **Change Tracking** as the capture method.
+
+## Choosing a capture method
+
+| | [CDC](./mssql) | [Transaction log](./mssql-log) (Beta) | Change Tracking (Beta) |
+|---|---|---|---|
+| **Source setup** | CDC on the database and tables, SQL Server Agent running | `FULL` or `BULK_LOGGED` recovery model | Change Tracking on the database and tables, snapshot isolation |
+| **Login rights** | `db_owner` / `sysadmin` to enable CDC | `sysadmin`, or `db_owner` + `VIEW SERVER STATE` | `SELECT` + `VIEW CHANGE TRACKING` on each table |
+| **Azure SQL Database** | Tiers that support CDC | No | Yes, every tier |
+| **Every intermediate change** | Yes | Yes | No: net change per row between two polls |
+| **Before-image on updates** | Yes | Yes | No |
+
+## What it captures
+
+Change Tracking records *which primary key changed, how, and at which version*, never the row's values. The connector reads each changed row back from the table. As a result:
+
+- **Net changes only.** A row updated several times between two polls arrives once, with its latest values. Intermediate states are not captured.
+- **No before-image.** An update carries `before = null`. A delete carries the primary key columns only.
+- **The after-image is the row as the connector reads it**, not as it was at commit time.
+
+| Operation | `op` | `before` | `after` |
+|---|---|---|---|
+| Insert | `c` | `null` | the row as read |
+| Update | `u` | `null` | the row as read |
+| Delete | `d` | primary key columns only | `null` |
+| Snapshot row | `r` | `null` | the row as read |
+
+What two polls can see:
+
+| Between two polls | The connector emits |
+|---|---|
+| Insert, then update | one `c` with the final values |
+| Insert, then delete | one `d`, for a key the target may never have received |
+| Update, then delete | one `d` |
+| Delete, then insert with the same key | one `u` with the new row |
+| Update of the primary key | one `d` (old key) + one `c` (new key) |
+
+A target must therefore accept a `d` for a key it does not hold. Every Popsink target does.
+
+`source.ts_ms` is the commit time of the change when the login holds the optional commit-time right (see [Permissions](#permissions)). Without it, recent changes carry the time they were read instead.
+
+### What is not captured
+
+| Event on the source | What happens |
+|---|---|
+| `TRUNCATE TABLE` | Not sent as deletes. Change Tracking resets the table, so the connector treats it as a [retention gap](#retention-gap). |
+| `ALTER TABLE … ADD COLUMN` and other DDL | No event. Schema changes are picked up by polling the catalog; rows changed afterwards carry the new column. |
+| Non-persisted computed columns | Not emitted. Persisted computed columns are. |
+| Tables without a primary key, views | Cannot be tracked by SQL Server. They are greyed out in the table picker. |
+| Restore of the database to an earlier point, failover with data loss | The connector stops with an error instead of streaming from a position the database no longer has. |
+
+### Column types
+
+Types are published as the [CDC source](./mssql) publishes them. Worth knowing:
+
+| Type | Published as |
+|---|---|
+| `decimal`, `numeric`, `money`, `smallmoney` | `double`: values beyond 15–17 significant digits are rounded |
+| `datetimeoffset` | ISO-8601 string at its stored offset |
+| `binary`, `varbinary`, `image`, `rowversion` | base64 string |
+| `hierarchyid`, `geometry`, `geography` | their storage bytes, base64-encoded |
+| `sql_variant` | the base value as text |
+
+## Compatible versions
+
+| | |
+|---|---|
+| **SQL Server** | 2017, 2019, 2022, 2025 |
+| **Editions** | Enterprise, Standard, Web, Express, Developer |
+| **Managed services** | Azure SQL Database (every tier), Azure SQL Managed Instance, Amazon RDS for SQL Server |
+| **Not supported** | SQL Server 2016 and older |
+
+## Prerequisites
+
+### 1. Enable Change Tracking on the database
+
+```sql
+ALTER DATABASE CURRENT
+  SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 3 DAYS, AUTO_CLEANUP = ON);
+```
+
+- **Retention: at least 3 days**, and always longer than the longest connector downtime you expect. A connector stopped longer than the retention cannot read what changed in between (see [Retention gap](#retention-gap)).
+- **Keep `AUTO_CLEANUP = ON`**, otherwise the internal change tables grow without bound.
+
+<Warning>Turning `AUTO_CLEANUP` back on **alone** resets the retention to the 2-day default. Always restate `CHANGE_RETENTION` in the same statement.</Warning>
+
+### 2. Allow snapshot isolation
+
+The connector reads each batch inside one `SNAPSHOT` transaction. Without it, every read fails (error 3952).
+
+```sql
+ALTER DATABASE CURRENT SET ALLOW_SNAPSHOT_ISOLATION ON;
+```
+
+This setting applies to the whole database:
+
+- the statement waits for every open transaction in the database to finish: run it in a quiet window;
+- from then on, `UPDATE` and `DELETE` keep row versions in `tempdb` while a snapshot transaction may need them, and add 14 bytes to each updated row. Size `tempdb` accordingly.
+
+### 3. Enable Change Tracking on each table
+
+Every captured table needs a **primary key**.
+
+```sql
+ALTER TABLE dbo.Orders ENABLE CHANGE_TRACKING;
+```
+
+`TRACK_COLUMNS_UPDATED` is not needed: the connector reads the whole row.
+
+### Permissions
+
+| Right | Scope | Required | Why |
+|---|---|---|---|
+| `SELECT` | each captured table | Yes | Read the changed rows |
+| `VIEW CHANGE TRACKING` | each captured table | Yes | Read `CHANGETABLE` |
+| `VIEW SERVER PERFORMANCE STATE` (2022+) or `VIEW SERVER STATE` (2017, 2019) | server | No | Commit time of each event |
+| `VIEW DATABASE STATE` | database, Azure SQL Database only | No | Commit time of each event |
+
+Nothing else: no `db_owner`, no `sysadmin`, no write access. The connector never writes to the source.
+
+<Tabs>
+  <Tab title="SQL Server, Managed Instance, RDS">
+```sql
+USE master;
+CREATE LOGIN popsink_ct WITH PASSWORD = '<a strong password>';
+-- Optional, for commit times. Use VIEW SERVER STATE on 2017 and 2019.
+GRANT VIEW SERVER PERFORMANCE STATE TO popsink_ct;
+
+USE [{{your_database}}];
+CREATE USER popsink_ct FOR LOGIN popsink_ct;
+GRANT SELECT, VIEW CHANGE TRACKING ON dbo.Orders TO popsink_ct;
+-- Repeat for each captured table, or grant on a whole schema:
+-- GRANT SELECT, VIEW CHANGE TRACKING ON SCHEMA::dbo TO popsink_ct;
+```
+  </Tab>
+  <Tab title="Azure SQL Database">
+Run connected to the source database:
+
+```sql
+CREATE USER popsink_ct WITH PASSWORD = '<a strong password>';
+GRANT SELECT, VIEW CHANGE TRACKING ON dbo.Orders TO popsink_ct;
+-- Optional, for commit times:
+GRANT VIEW DATABASE STATE TO popsink_ct;
+```
+  </Tab>
+</Tabs>
+
+<Note>On Amazon RDS, the master user may be refused `VIEW SERVER PERFORMANCE STATE` on 2022+. Grant `VIEW SERVER STATE` instead. The commit-time right is optional: without it the connector still runs.</Note>
+
+### Checking the prerequisites
+
+**Test Credentials** checks the database prerequisites and lists each one that is not met, with the statement that fixes it. The table picker then greys out each table missing a prerequisite of its own (primary key, Change Tracking, `SELECT`, `VIEW CHANGE TRACKING`).
+
+| Check | Scope | Blocks the connector |
+|---|---|---|
+| Change Tracking enabled | database | Yes |
+| Retention of at least 3 days | database | No, warning |
+| `AUTO_CLEANUP` on | database | No, warning |
+| Snapshot isolation allowed | database | Yes |
+| Table visible, primary key, Change Tracking, `SELECT`, `VIEW CHANGE TRACKING` | table | Yes |
+| Commit-time right | server | No, warning |
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Hostname or IP address of the SQL Server instance |
+| **Port** | Yes | TCP port (default `1433`) |
+| **Database** | Yes | Database to capture |
+| **Username / Password** | Yes | SQL Server login with the [permissions](#permissions) above |
+| **Encrypt connection** | No (default on) | Encrypt the JDBC connection |
+| **Trust server certificate** | No (default on) | Accept a self-signed TLS certificate. Prefer proper certificate trust in production |
+| **Poll interval (ms)** | No (default `2000`) | Time between two Change Tracking polls. Each poll reads `CHANGETABLE` once per captured table: lower values cut latency at the cost of source load |
+| **Enable Initial Load** | No (default on) | Snapshot the selected tables before streaming |
+| **Table Whitelist** | Yes | Tables to capture, as `schema.table` (for example `dbo.Orders`) |
+
+<Warning>Keep **Enable Initial Load** on. No backfill job covers this source: with it off, streaming starts from the current Change Tracking version and existing rows reach the topics only through an [incremental load](#reloading-tables) triggered from the API.</Warning>
+
+<SshTunnel />
+
+### Initial load
+
+The initial load runs in chunks of 10,000 rows, read in primary-key order, while the table already streams. Each chunk is its own short snapshot transaction, so `tempdb` and Change Tracking cleanup are held for one chunk, not for the whole table, and the other tables keep streaming meanwhile. The same chunked read runs for a table added to the whitelist later. Snapshot rows carry `op = r`.
+
+A table whose primary key contains a `datetimeoffset`, `sql_variant` or `hierarchyid` column cannot be read in chunks. It is read in one snapshot transaction before streaming starts: size `tempdb` for it or start the connector in a quiet window.
+
+## Load on the source
+
+- **Every write to a captured table** adds one row to that table's internal change table, a cost Microsoft compares to maintaining one more index.
+- **Snapshot isolation** adds the `tempdb` version store and 14 bytes per updated row, database-wide.
+- **Each poll** runs one `CHANGETABLE` query per captured table, then reads the changed rows by primary key. Its cost follows the number of rows changed since the last poll, not the size of the table. A backlog is read in pages, so catching up after a pause does not slow down as it drains.
+
+## Retention gap
+
+A connector stopped longer than the Change Tracking retention can no longer read what changed. It **stops with an error** naming the affected tables, without a restart loop: nothing is lost silently. A `TRUNCATE TABLE` on a captured table has the same effect.
+
+To recover, reload the affected tables with an [incremental load](#reloading-tables) through the API.
+
+<Warning>A reload sends rows as they are now. A row deleted during the gap, or emptied by a `TRUNCATE`, is not sent as a delete, and a target that held it keeps it. Empty the target table first when it must match the source exactly.</Warning>
+
+## Reloading tables
+
+The UI offers no reload for this source. Trigger an incremental load through the [API](/api/tutorial): the selected tables are read again in chunks while the change stream keeps flowing, and every subscriber of the connector's topics receives the rows.
+
+```bash
+curl -X POST "$POPSINK_API/connectors/{connector_id}/trigger-incremental-load" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"data_collections": ["dbo.Orders", "dbo.Customers"]}'
+```
+
+Omit the body to reload every table of the connector. A call made while a load is already running is rejected with `409`; follow the running load with `GET /connectors/{connector_id}/incremental-load-status`.
+
+## Housekeeping
+
+### Check Change Tracking
+
+```sql
+-- Database: retention and cleanup
+SELECT DB_NAME(database_id) AS database_name, is_auto_cleanup_on,
+       retention_period, retention_period_units_desc
+FROM sys.change_tracking_databases;
+
+-- Tables tracked in the current database
+SELECT SCHEMA_NAME(t.schema_id) AS schema_name, t.name AS table_name
+FROM sys.change_tracking_tables ct
+JOIN sys.tables t ON t.object_id = ct.object_id;
+
+-- Snapshot isolation (1 = allowed)
+SELECT name, snapshot_isolation_state FROM sys.databases WHERE name = DB_NAME();
+```
+
+### Raise the retention
+
+Raising the retention takes effect without restarting the connector:
+
+```sql
+ALTER DATABASE CURRENT
+  SET CHANGE_TRACKING (CHANGE_RETENTION = 7 DAYS, AUTO_CLEANUP = ON);
+```
+
+### Disable Change Tracking
+
+Stop or delete the connector first. Disable it on every table before the database:
+
+```sql
+ALTER TABLE dbo.Orders DISABLE CHANGE_TRACKING;
+ALTER DATABASE CURRENT SET CHANGE_TRACKING = OFF;
+```
