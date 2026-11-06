@@ -7,7 +7,7 @@ import SshTunnel from '/snippets/ssh-tunnel.mdx';
 
 <Warning>This connector is in **Beta**. For production workloads on SQL Server CDC, use the [SQL Server Source](./mssql).</Warning>
 
-This connector streams inserts, updates and deletes from SQL Server by reading the **transaction log directly** (`sys.fn_dblog`, and log backups through `sys.fn_dump_dblog`). Unlike the [SQL Server Source](./mssql), it does **not** need SQL Server CDC or its change tables. Any base table can be captured.
+This connector streams inserts, updates and deletes from SQL Server by reading the **transaction log directly** (`sys.fn_dblog`, and log backups through `sys.fn_dump_dblog`). Unlike the [SQL Server Source](./mssql), it does **not** need SQL Server CDC or its change tables. Any base table can be captured. Without log access or elevated rights, see the [Change Tracking](./mssql-ct) method.
 
 Its events and topics have the same shape as the CDC connector's: `<prefix>.<database>.<schema>.<table>`, with one data model per table.
 

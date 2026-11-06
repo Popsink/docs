@@ -1141,7 +1141,7 @@ The main endpoints, relative to `/api`. See `/api/docs` on your instance for the
 | `POST` | `/connectors/{id}/start` | Start the worker (202) |
 | `POST` | `/connectors/{id}/stop` | Stop the worker (202) |
 | `GET` | `/connectors/{id}/logs` | Snapshot of the worker logs |
-| `POST` | `/connectors/{id}/trigger-incremental-load` | Trigger an incremental load (IBM i) |
+| `POST` | `/connectors/{id}/trigger-incremental-load` | Trigger an incremental load (IBM i, SQL Server transaction log and Change Tracking) |
 | `POST` | `/<type>/check-credentials` | Test a configuration before saving it |
 | `POST` | `/<type>/list-tables` | List the tables a source can capture |
 | `POST` | `/<type>/fetch-schema` | Fetch the schema of a source table |
