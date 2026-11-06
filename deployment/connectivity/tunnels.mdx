@@ -288,7 +288,8 @@ routes.
 
 <Steps>
   <Step title="Advertise the source subnet">
-    On a small Linux host inside the source network:
+    On a small Linux host inside the source network (see
+    [Sizing the subnet router](#sizing-the-subnet-router)):
 
     ```bash
     tailscale up \
@@ -334,6 +335,25 @@ connector through it stalls. Use tagged nodes (whose keys do not expire by
 default) or put the renewal in your calendar.
 </Note>
 
+### Sizing the subnet router
+
+The subnet router only forwards encrypted traffic to the database; it stores
+nothing. Tailscale publishes no numeric sizing, so start from:
+
+| Resource | Recommendation |
+| --- | --- |
+| OS | Any recent Linux LTS (for example Debian or a RHEL-family release); kernel 6.2 or later improves throughput |
+| CPU | 2 vCPU, dedicated rather than shared-core; clock speed matters more than core count |
+| Memory | 2 GB |
+| Disk | 20 GB |
+
+Bandwidth is the real constraint, above all during the initial load, and it
+tends to scale with the instance's CPU class: WireGuard encryption is
+CPU-bound, while memory matters little. The host must have IP forwarding
+enabled to act as a subnet router. See Tailscale's
+[performance best practices](https://tailscale.com/docs/reference/best-practices/performance)
+and [subnet router guide](https://tailscale.com/kb/1019/subnets).
+
 ---
 
 ## Firewall rules, by pattern
@@ -344,9 +364,46 @@ default) or put the renewal in your calendar.
 | IPsec | Pod → source | Database port only, over the tunnel |
 | SSH tunnel | Cluster egress → bastion | TCP 22 (or your SSH port), from the cluster's egress IP |
 | SSH tunnel | Bastion → database | Database port |
-| Tailscale | Both ends → internet | TCP 443 to `controlplane.tailscale.com`, UDP 41641 outbound for direct connections |
+| Tailscale | Both ends → internet | TCP 443 to `*` — coordination server (`controlplane.tailscale.com`, `login.tailscale.com`) and DERP relays |
+| Tailscale | Both ends → internet | UDP from source port 41641 to `*:*` — direct connections |
+| Tailscale | Both ends → internet | UDP 3478 to `*` — STUN, used to establish direct connections |
+| Tailscale | Both ends → internet | TCP 80 to `*` — optional; without it, connections still work with a short delay at startup |
+| Tailscale | Subnet router → source | Database port only |
 
-Note that the last pattern needs **no inbound rule at all** on either side —
+Tailscale recommends allowing `*:443` rather than a list of destinations,
+because the set of DERP relays changes. The router also needs its usual system
+egress: DNS, time sync, and OS and Tailscale package updates
+(`pkgs.tailscale.com`). Full list in Tailscale's
+[firewall ports reference](https://tailscale.com/docs/reference/faq/firewall-ports).
+
+### When wildcard destinations are not allowed
+
+Some security policies refuse any `*` destination. The Tailscale rules can be
+narrowed:
+
+- **TCP 443, filtered by name (layer 7).** Allow `*.tailscale.com`, or at
+  minimum `controlplane.tailscale.com` and `login.tailscale.com` (coordination)
+  plus `derp*.tailscale.com` (relays). Every relay in Tailscale's published map
+  is currently named under `tailscale.com`.
+- **TCP 443, filtered by address (layer 4).** The coordination server uses
+  fixed ranges, `192.200.0.0/24` and `2606:B740:49::/48`. Relay addresses are
+  published with their hostnames in Tailscale's
+  [relay map](https://login.tailscale.com/derpmap/default); the set changes
+  over time, so an address-based rule has to be kept up to date.
+- **UDP.** On a Popsink-managed deployment, direct connections from the subnet
+  router (source port 41641 by default) go to Popsink's egress addresses,
+  listed in [Egress IP addresses](/deployment/connectivity/egress-ips) and
+  published as JSON: allow your region's address, or the whole list, instead
+  of `*:*`. STUN (UDP 3478) only targets the relay servers.
+  This is the preferred setup: higher throughput, and data flows directly
+  between the two ends instead of through third-party relays.
+- **No UDP at all.** The tunnel still works: without a direct connection,
+  traffic goes through the relays over TCP 443, with lower throughput — which
+  matters most during an initial load. Relayed traffic stays end-to-end
+  encrypted with WireGuard; the relays cannot decrypt it (see Tailscale's
+  [DERP servers](https://tailscale.com/kb/1232/derp-servers)).
+
+Note that the Tailscale pattern needs **no inbound rule at all** on either side —
 that is the whole reason to reach for it.
 
 In every row, the data plane still needs its own outbound HTTPS to the control
