@@ -1,0 +1,123 @@
+---
+title: SQL Server Source (Change Tracking, Beta)
+description: Capture SQL Server changes through Change Tracking, with no SQL Agent, no sysadmin and no log access, on Azure SQL Database too.
+---
+
+import SshTunnel from '/snippets/ssh-tunnel.mdx';
+
+<Warning>This connector is in **Beta**.</Warning>
+
+This connector streams inserts, updates and deletes from SQL Server through **Change Tracking** (CT). CT records *which primary key changed, how, and at which version*, never the row's values: the connector reads each changed row back from its table. That is why it needs no SQL Agent, no `sysadmin` and no access to the transaction log, and why it also runs on **Azure SQL Database**.
+
+Its events and topics have the same shape as the other SQL Server sources': `<prefix>.<database>.<schema>.<table>`, with one data model per table, so every target works unchanged. What is in an event differs: read [What the connector emits](#what-the-connector-emits) before choosing it.
+
+## Which SQL Server source to choose
+
+| | Change Tracking (this page) | [CDC](./mssql) | [Transaction log](./mssql-log) |
+|---|---|---|---|
+| **Before-image of an update** | No: `before` is `null` | Yes | Yes when the row is still in the connector's cache, otherwise partial |
+| **Before-image of a delete** | Primary key only | Full row | Yes when the row is still in the connector's cache, otherwise partial |
+| **Intermediate states** | No: the net change of each row between two polls | Every change | Every change |
+| **Commit time** | Yes, with the commit-time right (below) | Yes | Yes |
+| **SQL Agent** | Not needed | Required | Not needed |
+| **Rights** | `SELECT` + `VIEW CHANGE TRACKING` on the tables | `sysadmin` to enable CDC on the database, `db_owner` per table | `sysadmin`, or `db_owner` + `VIEW SERVER STATE` |
+| **Azure SQL Database** | Supported | Supported | Not supported |
+
+Choose Change Tracking when the latest state of each row is what the target needs, and CDC or the transaction log cannot be set up: no SQL Agent, no elevated rights, or Azure SQL Database.
+
+## Compatible versions
+
+| | |
+|---|---|
+| **SQL Server** | 2017 or later: tested on 2017, 2019, 2022 and 2025, Developer, Standard and Express |
+| **Managed** | Azure SQL Database, Azure SQL Managed Instance, AWS RDS for SQL Server |
+| **Not supported** | SQL Server 2016 and older |
+
+## Prerequisites
+
+Three scripts, run in order while connected to the source database, set up and check everything below. Each one is safe to re-run. Run them with `sqlcmd -b`, and read the check's `verdict` row rather than the exit code.
+
+| Script | Run as | Does |
+|---|---|---|
+| `setup.sql` | `db_owner` or the admin user | Change Tracking on the database and the tables, SNAPSHOT isolation |
+| `least_privilege_login.sql` | `sysadmin` or the admin user | The connector's login and its grants |
+| `check_prerequisites.sql` | an admin, checking the connector's login | Every check below, `PASS` / `WARN` / `FAIL`, and a verdict |
+
+Ask [support@popsink.com](mailto:support@popsink.com) for the scripts, or run the statements below by hand.
+
+### Database and tables
+
+```sql
+ALTER DATABASE CURRENT SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 3 DAYS, AUTO_CLEANUP = ON);
+ALTER DATABASE CURRENT SET ALLOW_SNAPSHOT_ISOLATION ON;
+ALTER TABLE dbo.customers ENABLE CHANGE_TRACKING;   -- once per captured table
+```
+
+- **`ALLOW_SNAPSHOT_ISOLATION ON` is mandatory.** The connector reads the current version, the changes and the rows inside one snapshot transaction. The `ALTER` waits until every transaction open in the database has finished: on a busy database, run it in a quiet window. From then on, every `UPDATE` and `DELETE` in the database keeps the previous row version in tempdb and adds 14 bytes to the rows it updates: size tempdb for it.
+- **A primary key on each captured table.** SQL Server refuses Change Tracking on a table without one.
+- **`AUTO_CLEANUP = ON`.** Turned off, the internal change tables grow without bound.
+- **Turning `AUTO_CLEANUP` back on alone resets the retention to the 2-day default.** Always restate `CHANGE_RETENTION` in the same statement.
+
+### The connector's login
+
+| Right | Where | Required | Why |
+|---|---|---|---|
+| `SELECT` | each captured table | Yes | The connector reads every column of a changed row |
+| `VIEW CHANGE TRACKING` | each captured table | Yes | Reading `CHANGETABLE` |
+| `VIEW SERVER PERFORMANCE STATE` (2022+) / `VIEW SERVER STATE` (2017, 2019) | server | No | Each change's commit time, and the retention headroom |
+| `VIEW DATABASE STATE` | database, Azure SQL Database only | No | Same |
+
+Nothing else: no `db_owner`, no `sysadmin`, no SQL Agent, no write access. Grants on a schema (`GRANT SELECT, VIEW CHANGE TRACKING ON SCHEMA::dbo`) work too.
+
+<Note>Without the commit-time right, SQL Server does not refuse: it answers without the recent commits. The connector then stamps those changes with the time it read them, and cannot tell how close the retention is (see [Retention](#retention)). Grant it.</Note>
+
+The credential check runs the same list as `check_prerequisites.sql`: a failed blocking check stops the connector from being saved, a warning is reported and the connector still runs.
+
+## Retention
+
+Change Tracking keeps changes for `CHANGE_RETENTION`, then purges them. **Set it above the longest connector downtime you expect, and at least 3 days.**
+
+A connector stopped longer than the retention can no longer read what changed. It stops and stays stopped, naming the tables, their versions and the retention: nothing is lost silently. To recover, the tables concerned are read again in full, while the others go on from where they were. Rows deleted during the gap are not sent as deletes and stay in the target.
+
+While it runs, the connector measures every minute how long is left before the cleanup purges the oldest change it has not read yet, and Popsink is alerted well before that happens. Raising the retention takes effect within a minute, without a restart. This measure needs the commit-time right above.
+
+## What the connector emits
+
+| Operation | `op` | `before` | `after` |
+|---|---|---|---|
+| Insert | `c` | `null` | the row as read |
+| Update | `u` | `null` | the row as read |
+| Delete | `d` | the primary key columns only | `null` |
+| Initial read | `r` | `null` | the row as read |
+
+- **No before-image.** Change Tracking does not keep old values: an update says *that* a row changed, never what it was.
+- **The after-image is the row when the connector reads it**, not at commit time. A row updated twice between two polls is read once, with its latest values.
+- **Net changes.** Between two polls, an insert then a delete of the same row arrives as one delete, for a key the target may never have received. A target must accept a `d` for a key it does not hold.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Stopped: "Change Tracking no longer holds the changes of …" | The connector was down longer than the retention, **or** a table was truncated (CT reports a `TRUNCATE TABLE` the same way) | Raise `CHANGE_RETENTION`, then contact support to read the tables again. After a truncate, empty the target table first: the re-read does not remove the truncated rows |
+| Every poll fails: "The database does not allow SNAPSHOT isolation" | `ALLOW_SNAPSHOT_ISOLATION` was turned off | `ALTER DATABASE CURRENT SET ALLOW_SNAPSHOT_ISOLATION ON`. Nothing is lost while within the retention |
+| Fails at start-up: "Change Tracking gives no minimum valid version for table …" | Change Tracking was disabled on the table, or the login lost `VIEW CHANGE TRACKING` | `ALTER TABLE … ENABLE CHANGE_TRACKING` (the table is then read again in full), or grant the right, or remove the table from the list |
+| Events carry the read time, not the commit time | The commit-time right is missing | Grant it (see [The connector's login](#the-connectors-login)) |
+| A column added to a table | Nothing to do | Found automatically; rows changed afterwards carry it |
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Hostname or IP address of the SQL Server instance |
+| **Port** | Yes | TCP port (default `1433`) |
+| **Database** | Yes | Database with Change Tracking and `ALLOW_SNAPSHOT_ISOLATION` on |
+| **Username / Password** | Yes | A login with the rights above |
+| **Encrypt connection** | No (default on) | Encrypt the JDBC connection |
+| **Trust server certificate** | No (default on) | Accept a self-signed TLS certificate |
+| **Poll interval (ms)** | No (default `2000`) | Time between two polls; each reads `CHANGETABLE` once per captured table |
+| **Enable Initial Load** | No (default on) | Read the selected tables before streaming them, in chunks, while changes keep streaming |
+| **Table Whitelist** | Yes | Comma-separated tables as `schema.table` (`dbo` is assumed when the schema is omitted); each needs a primary key and Change Tracking on |
+
+<Warning>Keep **Enable Initial Load** on. No backfill is available for this source, so with it off the existing rows are never replicated, only the changes made after the connector starts.</Warning>
+
+<SshTunnel />
