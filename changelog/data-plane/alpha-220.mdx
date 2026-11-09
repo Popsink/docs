@@ -1,0 +1,39 @@
+---
+title: "v0.1.0-alpha.220 06/11/2026"
+---
+
+---
+
+**Description**: Worker status - a failing connector says why, as a reason code.
+
+### Changes
+
+- Worker status - a failing connector says why, as a reason code (#5637).
+- Workers - a Java worker or source that dies at boot says why on its page (#5639).
+- Connector page - a failing connector says why and what to do (#5642).
+- Workers - count a row delivered only once the target wrote it (#5769).
+- DP front - Logout in one tab locks the other open tabs out (#5853).
+- DP - Overlapping restarts no longer leave a connector with no pod (#5857).
+- Dependencies - clear every CVE osv-scanner finds (#5863).
+- IBM i source - decode untagged text in a CCSID the user forces (#5845).
+- Java sources - a boot that fails says why on the connector page (#5749).
+- Map table - a cast error's suggested fix removes that column's cast (#5892).
+- Config snapshot - a large deployment's restore point is accepted gzipped (#5889).
+- BigQuery target - dates land in native DATE / DATETIME / TIMESTAMP columns (#5861).
+- IBM i → Snowflake backfill - the forced untagged CCSID reaches the loader again (#5901).
+- List tables - columns fit their content, Name takes the rest (#5918).
+- Connect sources - keep their Avro subjects past Confluent 8.3 (#5938).
+- Drop the empty Type column from the ingest-data sidebar (#5925).
+- DP - Data models read as their table, not connector_topic (#5929).
+- Lists - loading shows skeletons, empty says what is missing (#5606).
+- Fronts - every count, size and duration reads the same, in en-US (#5893).
+- SQL Server sources - one tile, three methods; Change Tracking (#5957).
+- Revert "[5510] DP front - PopBtn and pop-alert follow the Figma library typography (#5711)" (#5914).
+- Design system - one JSON uploader; a refused file now says why (#5927).
+- Switch snow_target to oracle-native for better CPU and mem usage (#5976).
+- IBM i source - a nightly table lock no longer restarts the source (#5975).
+- DP - SQL Server tables backfill into Snowflake (#5969).
+- Snow_target - oracle-native build no longer refused for its serial heap flag (#5978).
+- Snow_target - oracle-native build copies hash_contract (#5981).
+- Data-plane tables - the main column takes the free width (#5930).
+- Release cut - data-plane 2026.11.06, chart 0.1.0-alpha.220 (#5974).
