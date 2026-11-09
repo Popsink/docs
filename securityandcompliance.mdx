@@ -65,6 +65,25 @@ Popsink applies industry-standard encryption and data handling practices to prot
 * **SaaS:** Regional deployment options available; data residency can be contractually restricted depending on configuration
 * **Self-Hosted / Air-Gapped:** All data remains within customer-controlled infrastructure
 
+## Data Stored in SaaS
+
+On a SaaS deployment, replicated records pass through Popsink-managed infrastructure on their way to your target. Popsink stores the following:
+
+| Data | Where it is kept |
+| --- | --- |
+| **Replicated records** (the change events read from your sources) | The deployment's broker, between capture and delivery to the target |
+| **Table schemas** (table and column names, column types) | The schema registry |
+| **Connector configuration**, including source and target credentials | The deployment's database; credentials are encrypted at the application level |
+| **Operational data** (worker state, volume metrics, logs) | The deployment |
+
+### Retention of Replicated Records
+
+Replicated records are kept in the broker for **7 days** by default. The retention window depends on your license tier.
+
+The broker is a transit buffer, not a copy of your data: your target remains the system of record. A replay or a backfill from the broker can only reload records still within the retention window.
+
+The control plane never receives your records, see [Control plane and data plane](/deployment/architecture/control-data-plane).
+
 ---
 
 # Monitoring, Logging & Security Operations
