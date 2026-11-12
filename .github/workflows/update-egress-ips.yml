@@ -48,8 +48,8 @@ jobs:
           title: "chore(egress-ips): sync published egress IP list"
           body: |
             Automated sync of `deployment/connectivity/egress-ips.mdx` and
-            `public/egress-ips.json` against the live AWS NAT Gateway / GCP
-            reserved egress IPs.
+            `public/egress-ips.json` against the live AWS NAT Gateway / GCP Cloud NAT
+            egress IPs.
 
             This page is customer-facing and used for firewall allowlisting —
             please review the diff before merging.
