@@ -1,7 +1,34 @@
 {
-  "updated_at": "2026-11-06T06:44:38Z",
+  "updated_at": "2026-11-12T06:45:35Z",
   "chart": "oci://ghcr.io/popsink/charts/data-plane",
   "releases": [
+    {
+      "version": "0.1.0-alpha.222",
+      "digest": "sha256:fb6e553638efe97fa687f5adbe17bebf377dd0ca145018887548508a6c8ac928",
+      "published_at": "2026-11-10T15:01:01Z",
+      "data_plane": "2026.11.10",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.12.1",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.221",
+      "digest": "sha256:20be05d4bf112b05404fbb1d76da2eb9d775def1fe82dc5083ea4c5f71cd511a",
+      "published_at": "2026-11-09T13:12:29Z",
+      "data_plane": "2026.11.09",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.12.1",
+      "kora": "0.5.0"
+    },
+    {
+      "version": "0.1.0-alpha.220",
+      "digest": "sha256:86503ea8fe42cc80b4072b633d87770540c7878e2dd6374435c4d6e8b4cb6238",
+      "published_at": "2026-11-06T11:51:35Z",
+      "data_plane": "2026.11.06",
+      "broker": "1.0.0-alpha.20",
+      "kotatsu": "0.12.1",
+      "kora": "0.5.0"
+    },
     {
       "version": "0.1.0-alpha.219",
       "digest": "sha256:846de1a5fc1ce6a94b7717c345c753c7670e94e7b3b42e32abc68d1296fa8ac9",
