@@ -1,11 +1,11 @@
 ---
-title: Db2 LUW Source (recovery log, Preview)
+title: Db2 LUW Source (recovery log, Beta)
 description: Capture Db2 for Linux, UNIX and Windows changes by reading the recovery log directly, with no ASN Capture and nothing installed on the server.
 ---
 
 import SshTunnel from '/snippets/ssh-tunnel.mdx';
 
-<Warning>This connector is in **Preview** and not yet available in the connector catalog. This page is preliminary: field names and defaults may still change. For production workloads today, use the [Db2 LUW Source](./db2), which reads ASN Capture change tables.</Warning>
+<Warning>This connector is in **Beta** and not yet available in the connector catalog. This page is preliminary: field names and defaults may still change. For production workloads today, use the [Db2 LUW Source](./db2), which reads ASN Capture change tables.</Warning>
 
 This connector streams inserts, updates and deletes from Db2 for Linux, UNIX and Windows by reading the database's **recovery log directly**, through Db2's public `db2ReadLog` API over an ordinary client connection. Unlike the [Db2 LUW Source](./db2), it does **not** need IBM's ASN Capture (SQL Replication), its control tables or the `asncdc` UDF. **Nothing is installed on the Db2 server.**
 
@@ -22,7 +22,7 @@ Its events and topics have the same shape as the ASN connector's: `<prefix>.<SCH
 | **Per table** | `ASNCDC.ADDTABLE`, an active registration | `DATA CAPTURE CHANGES` |
 | **Connector user** | Read access to the tables and change tables | **DBADM** (or SYSADM) |
 | **Latency** | Bound by Capture's commit interval (30 s by default) | About 0.25 s commit-to-event over a 28 ms WAN |
-| **BOOLEAN columns** | Stop Capture for every table | Supported || **CLOB / BLOB columns** | Arrive as null | Not supported yet: the table is refused |
+| **CLOB / BLOB columns** | Arrive as null | Not supported yet: the table is refused |
 
 ## Compatible versions
 
