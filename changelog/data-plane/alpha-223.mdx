@@ -1,0 +1,30 @@
+---
+title: "v0.1.0-alpha.223 16/11/2026"
+---
+
+---
+
+**Description**: Data-plane back - a wizard backfill waits for its new target to start.
+
+### Changes
+
+- Data-plane back - a wizard backfill waits for its new target to start (#5983).
+- Subscription JSON tab - a bad upload no longer passes silently (#5955).
+- Statuses - lists and filters show draft, paused, live, error or building only (#6049).
+- Pipeline - Kotatsu outage no longer slows every Monitoring poll (#6013).
+- Subscriptions - every selected table gets its row, a collision flagged (#6015).
+- BigQuery target - partition tables on a chosen date column (#6019).
+- Dashboard - Average message size no longer reads as a latency (#6058).
+- Connector form - egress IP banner, sections unlock in order (#6056).
+- Subscriptions - Keep identical rows: keyless only, creation too (#6014).
+- DP - Workspace script results leave the database after 24 h (#5900).
+- Schema introspection - read primary keys for sources with a secret-referenced password (#6078).
+- Target lag - ask Kotatsu for the target topic only (#6097).
+- Kafka source - opt-in decimal JSON numbers, so a whole number no longer fixes a field (#6085).
+- Subscriptions - New ones get the default mapper, old ones list columns (#6117).
+- DP - CDC sources publish every table's schema at startup, so empty tables can be provisioned (#6087).
+- Subscriptions - Mapping tab shows the key in the grid, not in banners (#6119).
+- Mapper - An excluded column stays out of a schema-following target (#6122).
+- Backfill - a connector can no longer ship without declaring its history path (#6098).
+- Mapper TEST - a filter that keeps no row shows 0 rows, not a closed panel (#6092).
+- Release cut - data-plane 2026.11.15, chart 0.1.0-alpha.223 (#6175).
