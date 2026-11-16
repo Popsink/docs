@@ -1,0 +1,26 @@
+---
+title: "v0.1.0-alpha.222 10/11/2026"
+---
+
+---
+
+**Description**: Source table list - the schema shows once, as the group header.
+
+### Changes
+
+- Source table list - the schema shows once, as the group header (#6018).
+- SQL Server sources - a table named with a dot or a bracket keeps its primary key (#6023).
+- Subscription page - Sync queue lists only this subscription's rows (#5959).
+- Dlt_to_kafka - the batch worker can read Db2 LUW (#6020).
+- DP - A restarting IBM i source no longer holds the request on the source (#5773).
+- Subscriptions - a setting the target never reads is refused, not stored (#6047).
+- [e2e] Subscriptions - 29 test cases written from a live plane, 6 FAIL (#6057).
+- Mapper - the missing-column warning explains itself on hover (#6017).
+- SQL Server log source - a sql_variant varchar streams its own collation's text (#6038).
+- Java targets - every table a datamodel feeds receives its rows (#6039).
+- DP - Offer the Kafka source on registry-backed deployments too (#6073).
+- Db2 LUW batch source - read Db2 LUW on a schedule, TLS included (#6044).
+- Db2 LUW (Batch) source in the wizard; batch SQL tests stay passed (#6060).
+- App bar - long names ellipsise instead of breaking the breadcrumb (#6043).
+- Oracle source - Test credentials refuses NOARCHIVELOG and missing minimal supplemental logging (#6081).
+- Workers - new topics keep the broker's retention, not 7 days (#6082).
