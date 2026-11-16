@@ -116,6 +116,7 @@
                   "connectors/source/ibmi",
                   "connectors/source/ibmz",
                   "connectors/source/db2",
+                  "connectors/source/db2-log",
                   "connectors/source/mssql",
                   "connectors/source/mssql-log",
                   "connectors/source/mssql-ct",

@@ -1,0 +1,154 @@
+---
+title: Db2 LUW Source (recovery log, Beta)
+description: Capture Db2 for Linux, UNIX and Windows changes by reading the recovery log directly, with no ASN Capture and nothing installed on the server.
+---
+
+import SshTunnel from '/snippets/ssh-tunnel.mdx';
+
+<Warning>This connector is in **Beta** and not yet available in the connector catalog. This page is preliminary: field names and defaults may still change. For production workloads today, use the [Db2 LUW Source](./db2), which reads ASN Capture change tables.</Warning>
+
+This connector streams inserts, updates and deletes from Db2 for Linux, UNIX and Windows by reading the database's **recovery log directly**, through Db2's public `db2ReadLog` API over an ordinary client connection. Unlike the [Db2 LUW Source](./db2), it does **not** need IBM's ASN Capture (SQL Replication), its control tables or the `asncdc` UDF. **Nothing is installed on the Db2 server.**
+
+Its events and topics have the same shape as the ASN connector's: `<prefix>.<SCHEMA>.<TABLE>`, with one data model per table.
+
+<Note>For Db2 for i (AS/400, IBM i), use the [IBM i Source](./ibmi) instead.</Note>
+
+## Compared with the ASN Capture connector
+
+| | **Db2 LUW Source** (ASN Capture) | **Db2 LUW Source** (recovery log) |
+|---|---|---|
+| **Reads** | Change tables filled by ASN Capture | The recovery log, through `db2ReadLog` |
+| **Installed on the server** | `asncdc` UDF, ASN control tables, a running Capture process | Nothing |
+| **Per table** | `ASNCDC.ADDTABLE`, an active registration | `DATA CAPTURE CHANGES` |
+| **Connector user** | Read access to the tables and change tables | **DBADM** (or SYSADM) |
+| **Latency** | Bound by Capture's commit interval (30 s by default) | About 0.25 s commit-to-event over a 28 ms WAN |
+| **CLOB / BLOB columns** | Arrive as null | Not supported yet: the table is refused |
+
+## Compatible versions
+
+| | |
+|---|---|
+| **Db2 LUW** | 11.5 and 12.1 — tested on 11.5 (Linux, x86-64) and 12.1.5 (AIX 7.3) |
+| **Server platform** | Linux and AIX tested; the server's byte order is detected automatically |
+| **Logging** | Archive logging (`LOGARCHMETH1`) |
+| **Not supported** | DPF (partitioned instances), pureScale, reading from an HADR standby |
+
+## How it works
+
+1. **Startup checks.** Before reading anything, the connector checks every prerequisite below and reports **all** the problems at once, each with the statement that fixes it.
+2. **Initial load.** The selected tables are snapshotted over JDBC. The log position is recorded before the snapshot, once the transactions in flight at that point have ended, so no change is lost between the snapshot and the stream.
+3. **Streaming.** The connector reads the log, rebuilds each transaction and emits it **only once it commits**, in commit order. Rolled-back transactions, savepoint rollbacks and failed statements are never emitted.
+4. **Resume.** The connector records where to resume and what it has already emitted. After a restart, a crash or a lost connection, it resumes from there with **no loss and no duplicates**.
+
+Snapshot and streamed events of the same row are identical, field by field.
+
+## Prerequisites
+
+All prerequisites are SQL or database configuration. The connector's startup checks verify each one.
+
+- **Archive logging** on the database. With circular logging, the log is overwritten and changes are lost:
+
+```sql
+UPDATE DB CFG FOR <db> USING LOGARCHMETH1 DISK:<path>
+-- then take an offline backup to leave the backup-pending state
+```
+
+- **`DATA CAPTURE CHANGES`** on each captured table. Without it, Db2 logs too little for the row to be rebuilt, and the log reader skips the table's changes:
+
+```sql
+ALTER TABLE <SCHEMA>.<TABLE> DATA CAPTURE CHANGES;
+```
+
+- A connector user with **DBADM** (or SYSADM). `db2ReadLog` requires it:
+
+```sql
+GRANT DBADM ON DATABASE TO USER <user>;
+```
+
+- **Archived log files kept and retrievable** for at least the connector's longest expected downtime. After an outage, the connector reads back from the archived logs.
+- A **primary key** on each captured table is recommended. Without one, a target has no key to apply updates and deletes by.
+
+### Recommended: larger TCP buffers
+
+Db2 uses its own 64 KB TCP buffers by default, which limits throughput and latency whenever the connector is not next to the database. Raise them on the Db2 server, then restart the instance:
+
+```sh
+db2set DB2SOSNDBUF=1048576
+db2set DB2SORCVBUF=1048576
+```
+
+### `AUTHENTICATION=SERVER_ENCRYPT`
+
+If the instance uses `SERVER_ENCRYPT`, set **`ALTERNATE_AUTH_ENC`** to `AES_CMP` (or `AES_ONLY`) on the server. Otherwise the server negotiates DES with a 256-bit Diffie-Hellman key, which current Java clients refuse. This applies to every Java Db2 client, not only Popsink.
+
+## Supported data types
+
+| Supported | Not supported yet |
+|---|---|
+| `SMALLINT`, `INTEGER`, `BIGINT`, `REAL`, `DOUBLE`, `DECIMAL` (up to 31 digits), `DECFLOAT(16)`, `DECFLOAT(34)`, `CHAR`, `VARCHAR` (including `CODEUNITS32`), `GRAPHIC`, `VARGRAPHIC`, `BINARY`, `VARBINARY`, `FOR BIT DATA`, `DATE`, `TIME`, `TIMESTAMP(0–12)`, `BOOLEAN` | `CLOB`, `BLOB`, `DBCLOB`, `LONG VARGRAPHIC`, `XML` |
+
+`GRAPHIC` and `VARGRAPHIC` are supported in a **Unicode database** (code page 1208), the default since Db2 9.5. In a non-Unicode database, a table with such a column is refused.
+
+`DECFLOAT` special values (`NaN`, `sNaN`, `Infinity`, `-Infinity`) are kept only when decimals are emitted as strings or doubles. When decimals are emitted as exact decimals, a special value arrives as null with a warning, and stops the connector in a `NOT NULL` column. The startup checks warn once per table with `DECFLOAT` columns in that case.
+
+A table with an unsupported column is refused at startup, with the reason. Leave the table out, or exclude the column. Row-compressed tables (static and adaptive) and range-partitioned tables are supported; **value compression** is not:
+
+```sql
+ALTER TABLE <SCHEMA>.<TABLE> DEACTIVATE VALUE COMPRESSION;
+-- followed by a REORG of the table
+```
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Hostname or IP address of the Db2 server (the primary, under HADR) |
+| **Port** | Yes | TCP port (default `50000`) |
+| **Database** | Yes | Database name |
+| **Username / Password** | Yes | A user with DBADM, as above |
+| **Enable Initial Load** | No (default on) | Snapshot the selected tables before streaming |
+| **Table Whitelist** | Yes | Comma-separated tables as `SCHEMA.TABLE`, each with `DATA CAPTURE CHANGES` |
+
+### Advanced Options
+
+| Field | Default | Description |
+|---|---|---|
+| **Max transaction size** | `0` (no limit) | Stop with a clear error, rather than run out of memory, when one open transaction buffers more than this many bytes of row images |
+| **Snapshot in-flight wait (ms)** | `60000` | How long the initial load waits for the transactions in flight to end before recording its log position |
+
+<Warning>Keep **Enable Initial Load** on. With it off, the existing rows are never replicated, only the changes made after the connector starts.</Warning>
+
+<SshTunnel />
+
+## Table operations and schema changes
+
+| On a captured table | Behaviour |
+|---|---|
+| `TRUNCATE` | Emitted as a truncate event, skipped by default |
+| `LOAD`, `ACTIVATE NOT LOGGED INITIALLY`, `DATA CAPTURE NONE` | The rows they change never reach the log. The connector **stops** and says why: re-snapshot the table, then restart it |
+| `ALTER TABLE … ADD COLUMN`, `RENAME` | Detected but not applied yet: the connector **stops** and says why |
+| `DROP TABLE` | The table stops producing events |
+
+A table whose rows are rewritten outside the log can only be caught up by re-snapshotting it.
+
+## Limitations
+
+- **LOB and XML columns** (and `LONG VARGRAPHIC`) are not decoded yet, nor `GRAPHIC` in a non-Unicode database. See [Supported data types](#supported-data-types).
+- **Recreating a table under the same name before the connector has caught up** can make its older changes decode with the new definition. Let the connector catch up before dropping and recreating a captured table, or changing a column's `CODEUNITS32` length unit.
+- **Online schema changes** stop the connector instead of updating the data model.
+- **One log stream only.** DPF and pureScale are refused at startup. Under HADR, connect to the primary: a takeover is retried and the connector resumes on the new primary through client reroute.
+- **At-least-once at the snapshot boundary.** A row changed while the initial load runs can arrive both in the snapshot and in the stream. Targets that apply by primary key end up with the right row.
+- **Catching up from archived logs** costs about 3 seconds per archived log file. Keep the database `ACTIVATE`d: a database deactivated when its last connection closes archives its active log each time, which multiplies these files.
+- **Large transactions are held in memory** until they commit. Use **Max transaction size** to turn an out-of-memory into a clear error.
+
+## Performance
+
+Measured against Db2 12.1.5 on AIX (0.25 core LPAR) from a client 28 ms away, with the TCP buffers above:
+
+| | |
+|---|---|
+| **Commit-to-event latency** | p50 0.24 s, p99 0.35 s |
+| **Catch-up throughput** | ~7,800 changes/s (2.5 MB of log per second), bound by network latency |
+| **Load on the Db2 server** | ≈ 1 s of CPU to serve 100 MB of log |
+
+Throughput grows as round-trip time shrinks: for large backlogs, run the connector close to the database.
