@@ -107,32 +107,32 @@
                 "group": "Databases",
                 "pages": [
                   "connectors/source/databases",
-                  "connectors/source/snowflake",
-                  "connectors/source/postgres",
-                  "connectors/source/mysql",
-                  "connectors/source/mariadb",
-                  "connectors/source/firestore",
-                  "connectors/source/oracle",
-                  "connectors/source/ibmi",
-                  "connectors/source/ibmz",
+                  "connectors/source/bigquery",
                   "connectors/source/db2",
                   "connectors/source/db2-log",
+                  "connectors/source/firestore",
+                  "connectors/source/ibmi",
+                  "connectors/source/ibmz",
+                  "connectors/source/mariadb",
+                  "connectors/source/mongodb",
+                  "connectors/source/mysql",
+                  "connectors/source/oracle",
+                  "connectors/source/postgres",
+                  "connectors/source/snowflake",
                   "connectors/source/mssql",
-                  "connectors/source/mssql-log",
                   "connectors/source/mssql-ct",
-                  "connectors/source/bigquery",
-                  "connectors/source/mongodb"
+                  "connectors/source/mssql-log"
                 ]
               },
               {
                 "group": "Streaming",
                 "pages": [
                   "connectors/source/streaming",
-                  "connectors/source/kafka",
-                  "connectors/source/eventhub",
-                  "connectors/source/webhook",
                   "connectors/source/datagen",
-                  "connectors/source/popsink"
+                  "connectors/source/eventhub",
+                  "connectors/source/kafka",
+                  "connectors/source/popsink",
+                  "connectors/source/webhook"
                 ]
               },
               {
@@ -140,17 +140,17 @@
                 "pages": [
                   "connectors/source/saas-applications",
                   "connectors/source/application",
-                  "connectors/source/rest-api",
                   "connectors/source/attio",
+                  "connectors/source/facebook-ads",
+                  "connectors/source/google-ads",
                   "connectors/source/hubspot",
+                  "connectors/source/pipedrive",
+                  "connectors/source/rest-api",
                   "connectors/source/salesforce",
                   "connectors/source/sap",
-                  "connectors/source/zendesk",
+                  "connectors/source/sharepoint",
                   "connectors/source/shopify",
-                  "connectors/source/pipedrive",
-                  "connectors/source/google-ads",
-                  "connectors/source/facebook-ads",
-                  "connectors/source/sharepoint"
+                  "connectors/source/zendesk"
                 ]
               }
             ]
@@ -164,30 +164,30 @@
                 "group": "Databases",
                 "pages": [
                   "connectors/target/databases",
-                  "connectors/target/snowflake",
-                  "connectors/target/postgres",
+                  "connectors/target/bigquery",
+                  "connectors/target/clickhouse",
+                  "connectors/target/cosmosdb",
+                  "connectors/target/elasticsearch",
+                  "connectors/target/ibmi",
+                  "connectors/target/mongodb",
                   "connectors/target/mysql",
                   "connectors/target/oracle",
-                  "connectors/target/teradata",
-                  "connectors/target/ibmi",
-                  "connectors/target/mssql",
-                  "connectors/target/clickhouse",
                   "connectors/target/pinecone",
-                  "connectors/target/bigquery",
-                  "connectors/target/mongodb",
-                  "connectors/target/cosmosdb",
-                  "connectors/target/elasticsearch"
+                  "connectors/target/postgres",
+                  "connectors/target/snowflake",
+                  "connectors/target/mssql",
+                  "connectors/target/teradata"
                 ]
               },
               {
                 "group": "Data Lakes & Streaming",
                 "pages": [
                   "connectors/target/data-lakes-streaming",
-                  "connectors/target/iceberg",
                   "connectors/target/hudi",
-                  "connectors/target/deltalake",
+                  "connectors/target/iceberg",
                   "connectors/target/kafka",
                   "connectors/target/pubsub",
+                  "connectors/target/deltalake",
                   "connectors/target/webhook"
                 ]
               },
@@ -196,9 +196,9 @@
                 "pages": [
                   "connectors/target/saas-applications",
                   "connectors/target/application",
-                  "connectors/target/slack",
+                  "connectors/target/airtable",
                   "connectors/target/hubspot",
-                  "connectors/target/airtable"
+                  "connectors/target/slack"
                 ]
               }
             ]
