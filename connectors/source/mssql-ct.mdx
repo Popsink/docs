@@ -1,11 +1,9 @@
 ---
-title: SQL Server Source (Change Tracking, Beta)
+title: SQL Server Source (Change Tracking)
 description: Capture SQL Server changes through Change Tracking, with no SQL Agent, no sysadmin and no log access.
 ---
 
 import SshTunnel from '/snippets/ssh-tunnel.mdx';
-
-<Warning>This connector is in **Beta**. Where SQL Server CDC is available, prefer the [SQL Server Source (CDC)](./mssql) for production workloads until this one leaves beta.</Warning>
 
 This connector captures inserts, updates and deletes from Microsoft SQL Server by polling **Change Tracking**. Change Tracking is available in every edition, Azure SQL Database included, and needs **no SQL Server Agent, no `sysadmin` and no access to the transaction log**. That makes it the method to use when CDC cannot be enabled, for example on Express edition, on Azure SQL Database tiers without CDC, or when the DBA will not grant elevated rights.
 
@@ -15,7 +13,7 @@ In the Popsink UI, pick the **SQL Server** tile, then **Change Tracking** as the
 
 ## Choosing a capture method
 
-| | [CDC](./mssql) | [Transaction log](./mssql-log) (Beta) | Change Tracking (Beta) |
+| | [CDC](./mssql) | [Transaction log](./mssql-log) | Change Tracking |
 |---|---|---|---|
 | **Source setup** | CDC on the database and tables, SQL Server Agent running | `FULL` or `BULK_LOGGED` recovery model | Change Tracking on the database and tables, snapshot isolation |
 | **Login rights** | `db_owner` / `sysadmin` to enable CDC | `sysadmin`, or `db_owner` + `VIEW SERVER STATE` | `SELECT` + `VIEW CHANGE TRACKING` on each table |

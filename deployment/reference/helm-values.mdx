@@ -342,7 +342,7 @@ the bucket also needs:
 | [Oracle Cloud Object Storage](#oracle-cloud-object-storage) | `s3://<bucket>/` | **Supported**, S3 Compatibility API                            | yes     |
 | [IBM Cloud Object Storage](#ibm-cloud-object-storage)       | `s3://<bucket>/` | **Supported**                                                  | yes     |
 | [Google Cloud Storage](#google-cloud-storage)               | `gs://<bucket>/` | **Supported**, native client                                   | no      |
-| [Azure ADLS Gen2](#azure-adls-gen2)                         | `abfss://…`      | **Experimental**, native client                                | no      |
+| [Azure ADLS Gen2](#azure-adls-gen2)                         | `abfss://…`      | **Supported**, native client                                   | no      |
 
 The path in the URL is ignored on every backend: the bucket is the URL host and
 the broker lays out its own prefixes. Use a dedicated bucket per deployment.
@@ -528,7 +528,7 @@ kotatsu:
 
 ### Azure (ADLS Gen2)
 
-Supported from Kodansu `1.0.0-alpha.17`, **experimental**:
+Supported from Kodansu `1.0.0-alpha.17`:
 
 ```yaml
 kodansu:

@@ -1,11 +1,9 @@
 ---
-title: Db2 LUW Source (recovery log, Beta)
+title: Db2 LUW Source (recovery log)
 description: Capture Db2 for Linux, UNIX and Windows changes by reading the recovery log directly, with no ASN Capture and nothing installed on the server.
 ---
 
 import SshTunnel from '/snippets/ssh-tunnel.mdx';
-
-<Warning>This connector is in **Beta** and not yet available in the connector catalog. This page is preliminary: field names and defaults may still change. For production workloads today, use the [Db2 LUW Source](./db2), which reads ASN Capture change tables.</Warning>
 
 This connector streams inserts, updates and deletes from Db2 for Linux, UNIX and Windows by reading the database's **recovery log directly**, through Db2's public `db2ReadLog` API over an ordinary client connection. Unlike the [Db2 LUW Source](./db2), it does **not** need IBM's ASN Capture (SQL Replication), its control tables or the `asncdc` UDF. **Nothing is installed on the Db2 server.**
 
