@@ -102,18 +102,16 @@ This step creates a dedicated replication ROLE, assigns it to your USER and gran
    GRANT EXECUTE ON SCHEMA::cdc TO cdc_role;
    GO
    ```
-4. **Grant Permissions to Check Version, Encryption, and Track Schema:**
+4. **Grant Permissions to Read CDC State and Track Schema:**
    ```sql
-   USE master;
+   USE [{{your_database}}];
    GO
-   GRANT VIEW SERVER STATE TO cdc_role;
-   GO
-
-   USE {{your_database}};
+   GRANT VIEW DATABASE STATE TO cdc_role;
    GO
    GRANT SELECT ON OBJECT::INFORMATION_SCHEMA.TABLES TO cdc_role;
    GO
    ```
+   <Note>Popsink checks `VIEW DATABASE STATE` on the database when you create the source, not `VIEW SERVER STATE`. A contained database user on Azure SQL Database, which cannot be granted server-level permissions, can therefore be used.</Note>
 
 ## Enabling CDC
 
