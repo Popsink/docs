@@ -292,7 +292,7 @@ selects the matching image automatically.
 Kodansu is a stateless Kafka broker that stores log segments in an object store.
 `kodansu.storage.engine` decides where records live; its URL scheme picks the
 backend. Both it and `kodansu.storage.aws.region` are required by the chart —
-the region on every path, including the ones that never read it.
+the region on every path but `gs://`, including the ones that never read it.
 
 <Warning>
 **There is no PostgreSQL retention.** The broker has been object-store only
@@ -341,14 +341,14 @@ the bucket also needs:
 | [RustFS](#minio-and-rustfs)                | `s3://<bucket>/`            | **Supported**                                                  | yes     |
 | [Oracle Cloud Object Storage](#oracle-cloud-object-storage) | `s3://<bucket>/` | **Supported**, S3 Compatibility API                            | yes     |
 | [IBM Cloud Object Storage](#ibm-cloud-object-storage)       | `s3://<bucket>/` | **Supported**                                                  | yes     |
-| [Google Cloud Storage](#google-cloud-storage)               | `gs://<bucket>/` | **Supported**, native client                                   | no      |
+| [Google Cloud Storage](#google-cloud-storage)               | `gs://<bucket>/` | **Supported**, native client                                   | yes     |
 | [Azure ADLS Gen2](#azure-adls-gen2)                         | `abfss://…`      | **Supported**, native client                                   | no      |
 
 The path in the URL is ignored on every backend: the bucket is the URL host and
 the broker lays out its own prefixes. Use a dedicated bucket per deployment.
 
-Kotatsu reads S3 objects directly and has no GCS or Azure client: keep
-`kotatsu.enabled: false` on those two.
+Kotatsu reads the bucket directly, over S3 or GCS. It has no Azure client:
+keep `kotatsu.enabled: false` on ADLS Gen2.
 
 ### Check an S3-compatible store
 
@@ -480,7 +480,8 @@ kodansu:
 
 ### Google Cloud Storage
 
-Native client, not GCS's S3 interoperability endpoint:
+Native client, not GCS's S3 interoperability endpoint. `kodansu.storage.gcp`
+carries the identity; `kodansu.storage.aws.region` is not required on `gs://`.
 
 <CodeGroup>
 
@@ -488,43 +489,131 @@ Native client, not GCS's S3 interoperability endpoint:
 kodansu:
   storage:
     engine: "gs://my-popsink-bucket/"
-    aws:
-      region: us-east-1          # required by the chart, unread on this path
-  serviceAccount:
-    annotations:
-      iam.gke.io/gcp-service-account: popsink-kodansu@my-project.iam.gserviceaccount.com
+    gcp:
+      workloadIdentityServiceAccount: popsink-kodansu@my-project.iam.gserviceaccount.com
 
 kotatsu:
-  enabled: false
+  enabled: true   # optional; reads the same bucket with the same identity
 ```
 
 ```yaml Service-account key
+# kubectl create secret generic kodansu-gcs \
+#   --from-file=google-service-account-key=key.json
 kodansu:
   storage:
     engine: "gs://my-popsink-bucket/"
-    aws:
-      region: us-east-1
-  # GOOGLE_SERVICE_ACCOUNT_KEY = the key's JSON
-  extraEnvVarsSecret: kodansu-gcs
-
-kotatsu:
-  enabled: false
+    gcp:
+      existingSecret: kodansu-gcs   # key: google-service-account-key
 ```
 
 </CodeGroup>
 
-- The identity needs **`roles/storage.objectAdmin`** on the bucket.
-  `objectCreator` and `objectViewer` are not enough: retention deletes and reads
-  list.
-- **Set the bucket's soft-delete retention to `0`.** Google enables soft delete
-  on every bucket at 7 days and bills it; on a layout that deletes what
-  compaction has just merged, that pays for the churn twice for a week. Also
-  keep versioning, retention policies, Autoclass and lifecycle class
-  transitions off, and prefer uniform bucket-level access.
-- Requester-pays buckets do not work.
+What the chart renders from it, for the broker and for Kotatsu alike:
+
+- **Workload Identity**: the `iam.gke.io/gcp-service-account` annotation on the
+  broker's ServiceAccount and on Kotatsu's. To give Kotatsu a separate,
+  read-only identity, set `kotatsu.serviceAccount.annotations` — it wins.
+- **Key**: `GOOGLE_SERVICE_ACCOUNT_KEY` from the Secret. There is no inline
+  value: a JSON key written into values ends up in clear in the Helm release.
+- **NetworkPolicy**: egress to the GKE metadata server (`169.254.169.254:80`,
+  and `169.254.169.252:988` on clusters without Dataplane V2), which is where
+  Workload Identity gets its token. Without it the failure is a token timeout,
+  not a `403`. This does not open `storage.googleapis.com`: with
+  `networkPolicy.allowExternalEgress: false` that still needs an `extraEgress`
+  rule.
+
+<Note>
+On charts that predate `kodansu.storage.gcp`, set
+`kodansu.serviceAccount.annotations` (or `extraEnvVarsSecret` with
+`GOOGLE_SERVICE_ACCOUNT_KEY`) by hand, keep `kodansu.storage.aws.region` set to
+any value, and keep `kotatsu.enabled: false`.
+</Note>
+
+#### The Google side, which the chart cannot create
+
+```bash
+PROJECT=my-project
+BUCKET=my-popsink-bucket
+GSA=popsink-kodansu@$PROJECT.iam.gserviceaccount.com
+NAMESPACE=popsink          # the release namespace
+RELEASE=popsink            # the Helm release name
+
+# The identity may read, write, list and delete objects in this bucket only.
+gcloud storage buckets add-iam-policy-binding gs://$BUCKET \
+  --member "serviceAccount:$GSA" --role roles/storage.objectAdmin
+
+# Workload Identity: let each Kubernetes ServiceAccount act as the GSA.
+for KSA in $RELEASE-data-plane-tansu $RELEASE-data-plane-kotatsu; do
+  gcloud iam service-accounts add-iam-policy-binding $GSA \
+    --role roles/iam.workloadIdentityUser \
+    --member "serviceAccount:$PROJECT.svc.id.goog[$NAMESPACE/$KSA]"
+done
+```
+
+The ServiceAccount names above are the chart's defaults; check yours with
+`kubectl get sa -n $NAMESPACE`. `objectCreator` and `objectViewer` are not
+enough: retention and compaction delete, and the read path lists.
+
+#### Bucket settings
+
+The general table [above](#what-every-backend-must-provide) applies, and a
+**fresh GCS bucket does not satisfy it**: soft delete is on by default. None of
+these is visible from the broker, so it cannot warn at startup.
+
+| Setting                         | Required                 | Why                                                                                                   |
+| ------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| **Soft delete**                 | **retention `0`**        | On by default at 7 days, and billed: every segment compaction retires is paid for again for a week   |
+| Object versioning               | **off**                  | Every deleted segment would be kept as a noncurrent version                                          |
+| Retention policy / bucket lock  | **none**                 | Refuses the deletes retention and compaction depend on                                               |
+| Autoclass                       | **off**                  | Moves objects to classes with early-delete minimums; segments live minutes                           |
+| Lifecycle rules                 | **none**                 | A deletion rule races the broker's retention and deletes live data; a class transition adds fees     |
+| Requester pays                  | **off**                  | The client never sends `userProject`, so every request is refused                                    |
+| Uniform bucket-level access     | on (recommended)         | Nothing sets an object ACL                                                                           |
+| Location                        | one region, the cluster's | Every request is on the produce and fetch path                                                        |
+
+Create a bucket that meets it:
+
+```bash
+gcloud storage buckets create gs://$BUCKET --project $PROJECT \
+  --location europe-west1 --default-storage-class STANDARD \
+  --uniform-bucket-level-access --soft-delete-duration 0 \
+  --no-enable-autoclass
+```
+
+Check an existing one before the install:
+
+```bash
+gcloud storage buckets describe gs://$BUCKET --format=json | jq '{
+  soft_delete_seconds: (.soft_delete_policy.retentionDurationSeconds // "0" | tonumber),
+  versioning:          .versioning_enabled,
+  retention_policy:    .retention_policy,
+  autoclass:           .autoclass.enabled,
+  lifecycle:           .lifecycle_config,
+  requester_pays:      .requester_pays,
+  uniform_access:      .uniform_bucket_level_access
+}'
+```
+
+Expected: `soft_delete_seconds` `0`, `versioning`, `autoclass` and
+`requester_pays` false or null, `retention_policy` and `lifecycle` null,
+`uniform_access` true. To fix one in place:
+
+```bash
+gcloud storage buckets update gs://$BUCKET \
+  --soft-delete-duration 0 --no-versioning --no-enable-autoclass \
+  --clear-lifecycle --no-requester-pays
+```
+
+A locked retention policy cannot be removed; that bucket cannot be used.
+
+#### Behaviour specific to GCS
+
 - GCS caps writes to one object name at about one per second. The data path
-  never rewrites an object; only consumer-group formation does, and it is
-  batched — a large group still takes a few seconds to form.
+  never rewrites an object. Consumer-group formation and offset commits do, and
+  both are batched per group: a large group takes a few seconds to form, and
+  its members' commits are written together rather than one per second.
+- A new bucket starts at about 1,000 object writes/s and scales over minutes.
+  Ramp a large fleet onto a fresh bucket gradually rather than all at once.
 
 ### Azure (ADLS Gen2)
 
