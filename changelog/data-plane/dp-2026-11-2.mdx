@@ -1,0 +1,41 @@
+---
+title: "v2026.11.2 20/11/2026"
+---
+
+---
+
+**Description**: Dnspython 2.9.2 in the three uv.lock files.
+
+### Changes
+
+- Dnspython 2.9.2 in the three uv.lock files (#6321).
+- Filters - a typed key matches instead of emptying the target (#6315).
+- Backfill - Snowflake parts upload ~16% smaller as zstd (#6307).
+- Mapper Encrypt - the private key no longer reads back in clear (#6316).
+- Backfill - SQL Server CDC tables load despite uncaptured columns (#6317).
+- Test_domain runs with plain pytest in a worktree, no database (#6334).
+- Tooling - dev accounts show up in inv prof.ls (#6270).
+- Connectors - a long name no longer answers 500 (#5956).
+- Oracle source - Test credentials points at Host when it does not resolve (#6296).
+- Backfill - a gzip part failing on a full disk closes its file (#6331).
+- Oracle - Test credentials works behind an SSH bastion (#6338).
+- Backend - map secret reader errors once for every credential route (#6354).
+- Subscriptions - refuse an Encrypt column with no key on every target (#6361).
+- Data tables - one column grows by default, no width allowed (#6349).
+- Kafka_to_jdbc - deliver subscriptions recast to Decimal (#6340).
+- IBM i backfill - slow down on SQL0904 instead of failing the item (#6355).
+- Backfill - choose a reader count between 16 and sequential (#6362).
+- IBM i - a file with no member can no longer be picked or saved (#6365).
+- Subscriptions - a mapper with no key ticked delivers keyless (#6368).
+- Front errors - a server failure shows one Popsink sentence, never its status (#6373).
+- Sources - a source's last table can no longer be deleted (#6375).
+- Admin audit trail - page it, filter by actor, action and dates (#6376).
+- Workers - refuse an Encrypt column with no key, never write it in clear (#6382).
+- Scenario-rs - op checks see every record of every partition (#6385).
+- Skip error-table env reads until the active env is set (#6359) (#6386).
+- IBM i source - a library sent as text is a 422, not a dead worker (#6441).
+- [ARCH] User sync service no longer imports the ORM's error type (#6199).
+- Backfill - 82% fewer allocations per row, same staged rows (#6442).
+- JDBC targets - hiding a column keeps the subscription live (#6380).
+- Snow_target - a relaunched Snowflake target starts again on G1 (#6456).
+- Release cut - data-plane 2026.11.20, chart 2026.11.2 (#6467).
