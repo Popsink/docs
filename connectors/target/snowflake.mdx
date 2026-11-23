@@ -50,30 +50,19 @@ The Snowflake Target Connector streams Change Data Capture (CDC) events into Sno
 
 ### User and role
 
-If the user and the role don't exist yet, create them and grant the role to the
-user. Without that grant, the user cannot take the role and the connection test
-fails:
+Grant the role to the user, or the connection test fails:
 
 ```sql
 CREATE ROLE <role>;
 CREATE USER <your_user> DEFAULT_ROLE = <role>;
 GRANT ROLE <role> TO USER <your_user>;
-GRANT ROLE <role> TO ROLE SYSADMIN;
+GRANT ROLE <role> TO ROLE SYSADMIN;  -- optional: lets admins see the objects the role owns
 ```
-
-Then register the public key on the user, as shown above. Granting the role to
-`SYSADMIN` is optional but recommended: the role will own the schema and the
-objects the connector creates in it, and this keeps your administrators able to
-see and manage them.
 
 ### Role privileges
 
-The role must **own the target schema**. Table management and schema evolution
-need ownership-level privileges, so **Test credentials** checks it and fails
-without it. Use a schema dedicated to Popsink.
-
-Run these as a role that can grant on the target database — `ACCOUNTADMIN`, or the
-owner of the database and schema:
+The role must **own the target schema**. Use a schema dedicated to Popsink. Run as
+`ACCOUNTADMIN` or the owner of the database and schema:
 
 ```sql
 GRANT USAGE ON DATABASE <database> TO ROLE <role>;
@@ -81,22 +70,8 @@ GRANT USAGE ON WAREHOUSE <warehouse> TO ROLE <role>;
 GRANT OWNERSHIP ON SCHEMA <database>.<schema> TO ROLE <role> COPY CURRENT GRANTS;
 ```
 
-`USAGE` on the database makes it visible to the role. `USAGE` on the warehouse is
-what lets it create the dynamic table and run that table's refreshes — the only
-part of provisioning that needs a running warehouse; the rest is cloud-services
-DDL. `COPY CURRENT GRANTS` keeps the grants other roles already hold on the schema.
-
-Ownership of the schema covers every privilege the connector needs inside it:
-
-| Object the connector creates | Privilege |
-|---|---|
-| The append-only changelog table, one per subscription | `CREATE TABLE` |
-| The Snowpipe Streaming pipe beside each changelog table (`<table>_STREAMING`), which streamed rows actually arrive through | `CREATE PIPE` |
-| The current-state dynamic table built over the changelog | `CREATE DYNAMIC TABLE` |
-| The stage the backfill loader writes through | `CREATE STAGE` |
-
-The connection test also runs `DESC SCHEMA`, which needs `MONITOR` on the schema;
-ownership covers it too.
+Ownership covers everything the connector creates in the schema: changelog tables,
+streaming pipes, dynamic tables and the backfill stage.
 
 No `INSERT`, `UPDATE` or `DELETE` grant is needed: the connector creates the tables
 it writes to and therefore owns them, and rows reach them through the pipe rather
