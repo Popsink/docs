@@ -1,0 +1,19 @@
+---
+title: "v2026.11.0 16/11/2026"
+---
+
+---
+
+**Description**: Snowflake target - a lost JDBC session heals without a restart.
+
+### Changes
+
+- Snowflake target - a lost JDBC session heals without a restart (#6151).
+- Snowflake target - before_data present on backfilled tables (#6176).
+- Let each subscription choose whether its Postgres or MSSQL table follows the source (#6127).
+- Oracle source - a stalled source can be thread-dumped (#5915).
+- [SQL] Data-plane migration-safety ratchet frozen per revision (#6203).
+- [DOCSLIM] Drop banner separators from the data-plane dev scripts (#6207).
+- [SEC] A pipeline save authorizes the stored connector its configuration rewrites (#6202).
+- [TESTCLEAN] Three backend tests that asserted nothing now fail when their behaviour breaks (#6205).
+- Chart - a CalVer version that dates every data-plane (#6153).
