@@ -39,6 +39,7 @@ The example above maps three fields from the source message and injects a hardco
 | `cast_format` | string | No | Format string for `date`, `datetime`, or `time` casts (e.g. `%Y-%m-%d`) |
 | `primary_key` | boolean | No | Marks this column as part of the primary key (required for JDBC targets) |
 | `nullable` | boolean | No | Whether `null` is accepted. Defaults to `true`. If `false`, a missing value produces an error row |
+| `partition` | boolean | No | BigQuery target only: partitions the table on this column, which must be a date or timestamp. One column at most. See [BigQuery partitioning](/connectors/target/bigquery#partitioning) |
 | `concatenate_fields` | array | No | Combine multiple paths and static strings into a single value |
 | `hash_method` | string | No | Hash the value before writing: `md5`, `sha256`, `sha512` |
 | `encrypt_method` | string | No | Encrypt the value: `aes-256-gcm` |
