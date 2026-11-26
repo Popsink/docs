@@ -70,3 +70,9 @@ POST /_security/api_key
 ```
 
 Use the `encoded` value returned by the API as the connector's API Key.
+
+## Field types
+
+Popsink does not create index mappings: each record is indexed as a JSON document, with the primary key as document id (composite keys joined with `_`), and Elasticsearch types new fields through its **dynamic mapping**. Strings become `text` with a `keyword` sub-field, numbers `long` or `float`, booleans `boolean`. Source arrays arrive as a single JSON string.
+
+To control field types (dates, `keyword` fields, `scaled_float` for decimals), create an [index template](https://www.elastic.co/guide/en/elasticsearch/reference/current/index-templates.html) matching the target index **before** the first record is written: a field's type cannot change once it is mapped. A document whose value conflicts with an existing mapping is rejected, logged and counted as rejected; it is not retried.

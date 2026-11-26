@@ -160,6 +160,7 @@
             "icon": "plug",
             "pages": [
               "connectors/target/overview",
+              "connectors/target/data-types",
               {
                 "group": "Databases",
                 "pages": [

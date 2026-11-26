@@ -70,6 +70,41 @@ When setting up the target in Popsink, you'll need to provide the following:
 
 - Popsink supports **automatic table creation**.
 - Source data models must have primary keys if **upserts** are enabled.
+- Column types: see [Data types](#data-types).
+
+***
+
+## Data types
+
+Popsink creates each table on its first record. Columns are typed from the Avro schema of the source record, read from the Schema Registry, never from the values. When a subscription applies its column mapping, an explicit **cast** in the mapping takes precedence. An existing table keeps the types it already has.
+
+| Source type (Avro / Debezium) | SQL Server type |
+|---|---|
+| `boolean` | `bit` |
+| `int` | `int` |
+| `long` | `bigint` |
+| `float` | `real` |
+| `double` | `float` |
+| `string`, `io.debezium.data.Json`, `io.debezium.data.Enum`, UUID | `nvarchar(max)` (`nvarchar(450)` in a primary key) |
+| `bytes`, `io.debezium.data.Bits` | `varbinary(max)` |
+| `decimal(p, s)` | `decimal(p,s)` (precision up to 38) |
+| `decimal` without precision, or precision > 38 | `decimal(38,10)` |
+| `date`, `io.debezium.time.Date` | `date` |
+| `time-millis`, `time-micros`, `io.debezium.time.Time`, `MicroTime`, `NanoTime` | `time` |
+| `timestamp-*`, `local-timestamp-*`, `io.debezium.time.Timestamp`, `MicroTimestamp`, `NanoTimestamp` | `datetime2` (UTC) |
+| `io.debezium.time.ZonedTimestamp` | `datetimeoffset` |
+| `array` | `nvarchar(max)` (JSON text) |
+
+A cast in the column mapping produces: `int` / `long` → `bigint`, `float` / `double` → `float`, `bool` → `bit`, `date` → `date`, `datetime` → `datetime2`, `time` → `time`, `decimal` → `decimal(p,s)` from its format (`decimal(38,9)` when none is given), any other cast → `nvarchar(max)`.
+
+<Warning>Timestamps without a time zone are written as **UTC** in `datetime2` columns; only a Debezium `ZonedTimestamp` keeps its offset, in `datetimeoffset`. `datetime2` and `time` keep 7 fractional digits (100 ns). A source decimal with more than 38 digits lands in `decimal(38,10)`. UUIDs are written as `nvarchar` unless the table already has a `uniqueidentifier` column. Nested records and maps are not supported as columns: flatten them in the column mapping.</Warning>
+
+### Schema evolution
+
+- **New source columns** are added with `ALTER TABLE … ADD`.
+- **Type changes** are applied with `ALTER COLUMN` when the new type is wider. Decimals are widened, never narrowed. If SQL Server refuses the change, the subscription stops on that table instead of skipping data.
+- **Dropped source columns** are kept in the table, and stay `NULL` for new rows.
+- With **schema evolution** off on the subscription, any change that needs an `ALTER` stops the subscription.
 
 ***
 

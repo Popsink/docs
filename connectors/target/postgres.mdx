@@ -53,6 +53,38 @@ The Popsink Postgres target connector consolidates transactional and analytical 
   </Tab>
 </Tabs>
 
+## Data types
+
+Popsink creates each table on its first record. Columns are typed from the Avro schema of the source record, read from the Schema Registry, never from the values. When a subscription applies its column mapping, an explicit **cast** in the mapping takes precedence. An existing table keeps the types it already has.
+
+| Source type (Avro / Debezium) | PostgreSQL type |
+|---|---|
+| `boolean` | `boolean` |
+| `int` | `integer` |
+| `long` | `bigint` |
+| `float` | `real` |
+| `double` | `double precision` |
+| `string`, `io.debezium.data.Json`, `io.debezium.data.Enum`, UUID | `text` |
+| `bytes`, `io.debezium.data.Bits` | `bytea` |
+| `decimal(p, s)` | `numeric(p,s)` (precision up to 1000) |
+| `decimal` without precision | `numeric` |
+| `date`, `io.debezium.time.Date` | `date` |
+| `time-millis`, `time-micros`, `io.debezium.time.Time`, `MicroTime`, `NanoTime` | `time` |
+| `timestamp-*`, `local-timestamp-*`, `io.debezium.time.Timestamp`, `MicroTimestamp`, `NanoTimestamp` | `timestamp` (UTC) |
+| `io.debezium.time.ZonedTimestamp` | `timestamptz` |
+| `array` | `text` (JSON text) |
+
+A cast in the column mapping produces: `int` / `long` → `bigint`, `float` / `double` → `double precision`, `bool` → `boolean`, `date` → `date`, `datetime` → `timestamp`, `time` → `time`, `decimal` → `numeric(p,s)` from its format (`numeric(38,9)` when none is given), any other cast → `text`.
+
+<Warning>Timestamps without a time zone are written as **UTC** in `timestamp` columns; only a Debezium `ZonedTimestamp` keeps its offset, in `timestamptz`. PostgreSQL stores microseconds, so nanosecond values are truncated. JSON is written as `text`, not `jsonb`, and UUIDs as `text` unless the table already has a `uuid` column. Nested records and maps are not supported as columns: flatten them in the column mapping.</Warning>
+
+### Schema evolution
+
+- **New source columns** are added with `ALTER TABLE … ADD`.
+- **Type changes** are applied with `ALTER COLUMN … TYPE` when the new type is wider. Decimals are widened, never narrowed. If PostgreSQL refuses the change, the subscription stops on that table instead of skipping data.
+- **Dropped source columns** are kept in the table, and stay `NULL` for new rows.
+- With **schema evolution** off on the subscription, any change that needs an `ALTER` stops the subscription.
+
 ## Monitoring
 
 - Instrument a dashboard built on `pg_stat_activity`, lock durations (`pg_locks`), and Popsink metrics (throughput, latency, errors).
