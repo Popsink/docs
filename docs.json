@@ -188,6 +188,7 @@
                   "connectors/target/kafka",
                   "connectors/target/pubsub",
                   "connectors/target/deltalake",
+                  "connectors/target/fabric",
                   "connectors/target/webhook"
                 ]
               },
