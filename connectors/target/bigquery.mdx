@@ -17,6 +17,8 @@ The BigQuery Target Connector enables seamless integration with Google BigQuery,
 - **Automatic table management:** tables are created automatically inside your dataset; schema evolution is handled as the source schema changes.
 - **History + latest state:** every change event is preserved in a history table, with an upsert view exposing the current state per primary key.
 - **CDC replication:** primary keys configured in the subscription mapping are used to apply updates and deletes correctly.
+- **Native date and time types:** dates and timestamps land in `DATE`, `DATETIME`, `TIMESTAMP` and `TIME` columns, not as text or epoch numbers.
+- **Partitioning on a business date:** each subscription can partition its table on one of its own date columns, with a choice of granularity, partition expiration and required partition filter.
 
 ## Prerequisites
 
@@ -41,6 +43,8 @@ For each subscription, Popsink creates:
 2. An **upsert view** (`{table}`) exposing the latest state per primary key.
 
 Schema evolution is handled automatically — new columns are added to the BigQuery table as the source schema evolves. See [Data types](#data-types).
+
+By default the history table is partitioned by **ingestion day** (the day Popsink wrote the rows) and clustered on the primary key. To partition it on a date of your own data instead, see [Partitioning](#partitioning).
 
 ## Data types
 
@@ -72,7 +76,56 @@ Every history table also carries the metadata columns `popsink_timestamp`, `pops
 
 <Warning>BigQuery stores microseconds: nanosecond timestamps are truncated. `DATETIME` and `TIME` have no time zone and refuse a value that carries a UTC offset. A date or timestamp column that no schema or cast declares is created as `STRING` (ISO text), and is not retyped later.</Warning>
 
+<Note>
+**Tables created before November 2026.** Before then, the connector created date and time columns as `STRING` (ISO text) or `INT64` (days or an epoch since 1970). Those columns keep their type and keep receiving the same values: native types apply only to columns the connector creates from now on. BigQuery cannot change a column's type in place. To move an existing table to native types, drop its `{table}_history` table and run a backfill. The table is then recreated with native types.
+</Note>
+
 ### Schema evolution
 
 - **New source columns** are added as `NULLABLE` columns. A column whose values are all `null` so far is added when its first typed value arrives.
 - **Columns are never retyped or dropped**: BigQuery cannot narrow a column's type. When a source type no longer matches the column, the connector logs the mismatch and converts the value when it can; otherwise the batch is refused. To take a new type, recreate the column or the table.
+
+## Partitioning
+
+By default, every `{table}_history` table is partitioned by **ingestion day** and clustered on the primary key. A subscription can instead partition its table on a **date column of its own**, such as an order date, an invoice date or a last-update time. A query that filters on that date then reads only the partitions it needs, even after a backfill has loaded years of history in a single day.
+
+| Setting | Values | Default |
+|---|---|---|
+| **Partition column** | A column the subscription maps whose BigQuery type is `DATE`, `DATETIME` or `TIMESTAMP` | None: ingestion-day partitions |
+| **Granularity** | `HOUR`, `DAY`, `MONTH`, `YEAR` (`HOUR` is not allowed on a `DATE` column) | `DAY` |
+| **Partition expiration** | Number of days after which BigQuery deletes a partition | None |
+| **Require a partition filter** | Every query on the table must filter on the partition column | Off |
+
+### Choosing the column
+
+In the subscription's mapper, open the column and tick **Partition the table on this column**. Only one column can be ticked. In the API, set `"partition": true` on that column of `mapper_config` (see [Transform](/transform)).
+
+The column must be a date or timestamp: either typed as such by the source schema, or cast to `date` or `datetime` in the mapper. Saving the subscription is refused when the ticked column can never be a date: a hashed, encrypted or concatenated column, a cast other than `date` / `datetime`, a static value without a date cast, or `HOUR` granularity on a `date` cast.
+
+### Granularity, expiration and partition filter
+
+These three settings are set through the API, in the subscription's `bigquery` object, when you create it (`POST /subscriptions/`) or update it (`PATCH /subscriptions/{id}`):
+
+```json
+{
+  "bigquery": {
+    "granularity": "MONTH",
+    "expiration_days": 400,
+    "require_partition_filter": true
+  }
+}
+```
+
+They apply only once a partition column is ticked. The `bigquery` object is refused on subscriptions whose target is not BigQuery.
+
+### Good to know
+
+<Warning>
+**Partitioning is applied when the table is created, never afterwards.** BigQuery cannot re-partition a table in place. Setting or changing the partitioning on a subscription whose `{table}_history` table already exists leaves the table unchanged, and the connector logs a warning. To apply it, drop the `{table}_history` table and run a backfill: the table is recreated with the new partitioning.
+</Warning>
+
+- **A column that is not a date stops the connector.** If, when the table is created, the partition column is missing, is not a `DATE` / `DATETIME` / `TIMESTAMP`, or is a `DATE` partitioned by `HOUR`, the table is not created and the connector stops in error with a message naming the column. No row is written. Fix the partition column in the subscription, then restart the connector. The same happens when the column's type is declared nowhere (no schema, no cast) and its first value is `null`: add a cast to `date` or `datetime` in the mapper.
+- **Rows with a `null` partition date** are written to BigQuery's `__NULL__` partition. A query that filters on the date leaves them out.
+- **Require a partition filter** applies to every query on `{table}_history`. A filter that keeps every row, `WHERE <column> IS NOT NULL OR <column> IS NULL`, is accepted. The upsert view `{table}` carries that filter itself, so queries on the view are accepted without one, but the view always reads the whole history table.
+- **Backfills** from MySQL and SQL Server sources create the table with the same partitioning.
+- **Tables you created yourself** in BigQuery, partitioned by column or by integer range, are written to as they are.
