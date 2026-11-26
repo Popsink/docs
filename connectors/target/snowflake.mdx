@@ -136,6 +136,36 @@ These columns are carried into the dynamic table too, except `before_data`: each
 
 `__partition` and `__offset` only order the changes of a row; do not use them as a row identifier. A backfill row reads the source table directly rather than through Kafka, so its `__offset` is a counter derived from the range the loader read. On an IBM i source it can look like the record's RRN, but it is not one: it drifts after deleted records, follows an index key on large files, and is replaced by a Kafka offset as soon as the row changes.
 
+## Data types
+
+Columns are typed from the Avro schema of the source record, read from the Schema Registry. When the subscription [applies its column mapping](#configuration), an explicit **cast** in the mapping takes precedence over the source type. Popsink creates each column with the type below and never retypes it afterwards.
+
+| Source type (Avro / Debezium) | Snowflake type |
+|---|---|
+| `boolean` | `BOOLEAN` |
+| `int` | `NUMBER(10,0)` |
+| `long` | `NUMBER(19,0)` |
+| `float`, `double` | `FLOAT` |
+| `string`, `io.debezium.data.Json`, `io.debezium.data.Enum`, Debezium UUID | `VARCHAR` |
+| `bytes`, `io.debezium.data.Bits` | `BINARY` |
+| `decimal(p, s)`, precision ≤ 38 | `NUMBER(p,s)` |
+| `decimal` with precision > 38, or without precision | `NUMBER(38,9)` |
+| `date`, `io.debezium.time.Date` | `DATE` |
+| `time-millis`, `time-micros`, `io.debezium.time.Time`, `MicroTime`, `NanoTime` | `TIME(9)` |
+| `timestamp-millis`, `timestamp-micros`, `local-timestamp-*`, `io.debezium.time.Timestamp`, `MicroTimestamp`, `NanoTimestamp` | `TIMESTAMP_NTZ` (UTC) |
+| `io.debezium.time.ZonedTimestamp` | `TIMESTAMP_TZ` |
+| `array` | `VARCHAR` (JSON text) |
+| `record`, `map`, Avro `enum`, `fixed`, `io.debezium.data.VariableScaleDecimal`, string with logical type `uuid` | `VARIANT` |
+
+A cast in the column mapping produces: `int` / `long` → `NUMBER(19,0)`, `float` / `double` → `FLOAT`, `bool` → `BOOLEAN`, `date` → `DATE`, `datetime` → `TIMESTAMP_NTZ`, `time` → `TIME(9)`, `decimal` → `NUMBER(p,s)` from its format (`NUMBER(38,9)` when none is given), any other cast → `VARCHAR`.
+
+<Warning>Timestamps without a time zone are stored as **UTC** wall-clock time in `TIMESTAMP_NTZ`. Only a Debezium `ZonedTimestamp` keeps its offset, in `TIMESTAMP_TZ`. A decimal with no declared precision, or a precision above 38, lands in `NUMBER(38,9)`: fractional digits beyond 9 are rounded.</Warning>
+
+### Schema evolution
+
+- **New source columns** are added with `ALTER TABLE … ADD COLUMN`, typed from the schema as above, before any row of the new schema is written.
+- **Columns are never retyped or dropped.** If a source decimal gains scale, or turns into a float, over an existing `NUMBER` column, the connector logs a warning: Snowflake cannot change a `NUMBER`'s scale, so the table must be rebuilt to take the new type.
+
 ## Dynamic Tables
 
 A [dynamic table](https://docs.snowflake.com/en/user-guide/dynamic-tables-about) is a Snowflake table whose content is defined by a query and kept up to date by Snowflake itself, on a schedule set by its **target lag**. Popsink uses one per subscription to turn the changelog into the current state of the source table.

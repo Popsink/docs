@@ -16,7 +16,7 @@ The Oracle Target Connector enables seamless data transfer from Popsink into an 
 ## Key Features
 
 - **CDC replication:** applies inserts, updates, and deletes from your pipelines to Oracle tables, keeping them in sync with the source.
-- **Automatic type mapping:** Popsink handles data type mapping to Oracle formats including `VARCHAR2`, `NUMBER`, `DATE`, and `CLOB`.
+- **Automatic table creation:** tables and new columns are created for you, typed as `NUMBER` or `VARCHAR2`. See [Data types](#data-types).
 
 ## Prerequisites
 
@@ -35,3 +35,23 @@ The Oracle Target Connector enables seamless data transfer from Popsink into an 
 | **Server ID** | Yes | Oracle system identifier (SID) |
 | **User** | Yes | Username with write permissions on the target tables |
 | **Password** | Yes | Password for the Oracle user |
+
+## Data types
+
+Popsink creates each table on its first record, every column nullable, with the primary key from the subscription's mapping. Column types are inferred from the **values** of the records, not from a schema:
+
+| Value | Oracle type |
+|---|---|
+| Integer or decimal number | `NUMBER` |
+| Decimal with a `decimal` cast and a precision in the column mapping | `NUMBER(p,s)` |
+| Boolean | `NUMBER(1)` (`1` / `0`) |
+| String, date, time, timestamp, UUID | `VARCHAR2(2000)` |
+| Nested object or array | `VARCHAR2(2000)` (JSON text) |
+| Popsink metadata columns `LDTS` and `KAFKA_TS` | `TIMESTAMP(9)` |
+
+<Warning>Dates and timestamps from the source are written as **ISO-8601 text** in `VARCHAR2(2000)` columns, not as `DATE` or `TIMESTAMP`. Convert them in a view, e.g. `TO_TIMESTAMP(col, 'YYYY-MM-DD"T"HH24:MI:SS.FF')`. To keep a decimal's precision, add a `decimal` cast with its format in the column mapping. Column names are upper-cased.</Warning>
+
+### Schema evolution
+
+- **New source columns** are added with `ALTER TABLE … ADD`.
+- **Columns are never retyped or dropped.**

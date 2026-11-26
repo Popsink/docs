@@ -40,4 +40,39 @@ For each subscription, Popsink creates:
 1. A **history table** (`{table}_history`) containing all CDC events with metadata columns.
 2. An **upsert view** (`{table}`) exposing the latest state per primary key.
 
-Schema evolution is handled automatically — new columns are added to the BigQuery table as the source schema evolves.
+Schema evolution is handled automatically — new columns are added to the BigQuery table as the source schema evolves. See [Data types](#data-types).
+
+## Data types
+
+Columns are typed, by order of precedence, from:
+
+1. an explicit **cast** in the subscription's column mapping;
+2. the **Avro schema** of the source record (the datamodel's schema);
+3. otherwise, the **values** of the first row written, for columns neither declares (computed, static or wildcard columns).
+
+| Source type (Avro / Debezium) | BigQuery type |
+|---|---|
+| `boolean` | `BOOL` |
+| `int`, `long` | `INT64` |
+| `float`, `double` | `FLOAT64` |
+| `string`, Avro `enum`, `io.debezium.data.Json`, `io.debezium.data.Enum`, UUID | `STRING` |
+| `bytes`, `fixed`, `io.debezium.data.Bits` | `BYTES` |
+| `decimal(p, s)` | `NUMERIC` when it fits `NUMERIC` (scale ≤ 9, at most 29 integer digits), otherwise `BIGNUMERIC` |
+| `io.debezium.data.VariableScaleDecimal` | `STRING` |
+| `date`, `io.debezium.time.Date` | `DATE` |
+| `time-millis`, `time-micros` | `TIME` |
+| `io.debezium.time.Time`, `MicroTime`, `NanoTime` | `INT64` (the raw value: MySQL `TIME` can exceed 24 hours) |
+| `timestamp-millis`, `timestamp-micros`, `timestamp-nanos`, `io.debezium.time.ZonedTimestamp` | `TIMESTAMP` |
+| `local-timestamp-*`, `io.debezium.time.Timestamp`, `MicroTimestamp`, `NanoTimestamp` | `DATETIME` |
+| `record`, `array`, `map` | `STRING` (JSON text) |
+
+A cast in the column mapping produces: `string` → `STRING`, `int` / `long` → `INT64`, `float` / `double` → `FLOAT64`, `bool` → `BOOL`, `date` → `DATE`, `datetime` → `DATETIME`, `time` → `TIME`, `decimal` → `NUMERIC` or `BIGNUMERIC` by its precision and scale.
+
+Every history table also carries the metadata columns `popsink_timestamp`, `popsink_uuid` and `popsink_operation`, as `STRING`.
+
+<Warning>BigQuery stores microseconds: nanosecond timestamps are truncated. `DATETIME` and `TIME` have no time zone and refuse a value that carries a UTC offset. A date or timestamp column that no schema or cast declares is created as `STRING` (ISO text), and is not retyped later.</Warning>
+
+### Schema evolution
+
+- **New source columns** are added as `NULLABLE` columns. A column whose values are all `null` so far is added when its first typed value arrives.
+- **Columns are never retyped or dropped**: BigQuery cannot narrow a column's type. When a source type no longer matches the column, the connector logs the mismatch and converts the value when it can; otherwise the batch is refused. To take a new type, recreate the column or the table.
