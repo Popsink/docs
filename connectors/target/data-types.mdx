@@ -1,14 +1,14 @@
 ---
 title: Target Data Types
 sidebarTitle: Data types
-description: How each target connector types its columns — a source string, number, decimal or timestamp, and the column type it becomes on Snowflake, BigQuery, PostgreSQL, SQL Server, Oracle, Iceberg and Delta Lake.
+description: How each target connector types its columns — a source string, number, decimal or timestamp, and the column type it becomes on Snowflake, BigQuery, PostgreSQL, SQL Server, Oracle, MariaDB, Iceberg and Delta Lake.
 ---
 
 When a target connector creates a table, it picks each column's type from the source record's type. This page puts the common types side by side; each connector's page has its full table, the effect of a **cast** in the column mapping, and how it handles schema changes.
 
 ## Where the type comes from
 
-- **From the Avro schema** of the source record (Schema Registry): Snowflake, BigQuery, PostgreSQL, SQL Server, Iceberg, Delta Lake. An explicit cast in the subscription's column mapping takes precedence.
+- **From the Avro schema** of the source record (Schema Registry): Snowflake, BigQuery, PostgreSQL, SQL Server, MariaDB, Iceberg, Delta Lake. An explicit cast in the subscription's column mapping takes precedence.
 - **From the values** of the records: Oracle, and BigQuery for columns no schema declares.
 - **From the target itself**: Elasticsearch, through its dynamic mapping. See [Field types](./elasticsearch#field-types).
 
@@ -16,22 +16,22 @@ A table that already exists keeps its column types: the connector writes into th
 
 ## Side by side
 
-| Source type | Snowflake | BigQuery | PostgreSQL | SQL Server | Oracle |
-|---|---|---|---|---|---|
-| `boolean` | `BOOLEAN` | `BOOL` | `boolean` | `bit` | `NUMBER(1)` |
-| `int` | `NUMBER(10,0)` | `INT64` | `integer` | `int` | `NUMBER` |
-| `long` | `NUMBER(19,0)` | `INT64` | `bigint` | `bigint` | `NUMBER` |
-| `float` / `double` | `FLOAT` | `FLOAT64` | `real` / `double precision` | `real` / `float` | `NUMBER` |
-| `string` | `VARCHAR` | `STRING` | `text` | `nvarchar(max)` | `VARCHAR2(2000)` |
-| `bytes` | `BINARY` | `BYTES` | `bytea` | `varbinary(max)` | `VARCHAR2(2000)` |
-| `decimal(p, s)` | `NUMBER(p,s)` | `NUMERIC` / `BIGNUMERIC` | `numeric(p,s)` | `decimal(p,s)` | `NUMBER` |
-| `date` | `DATE` | `DATE` | `date` | `date` | `VARCHAR2(2000)` |
-| `time` | `TIME(9)` | `TIME` | `time` | `time` | `VARCHAR2(2000)` |
-| timestamp | `TIMESTAMP_NTZ` | `TIMESTAMP` / `DATETIME` | `timestamp` | `datetime2` | `VARCHAR2(2000)` |
-| timestamp with time zone | `TIMESTAMP_TZ` | `TIMESTAMP` | `timestamptz` | `datetimeoffset` | `VARCHAR2(2000)` |
-| JSON (`io.debezium.data.Json`) | `VARCHAR` | `STRING` | `text` | `nvarchar(max)` | `VARCHAR2(2000)` |
-| `record` / `map` | `VARIANT` | `STRING` (JSON) | not supported | not supported | `VARCHAR2(2000)` |
-| `array` | `VARCHAR` (JSON) | `STRING` (JSON) | `text` (JSON) | `nvarchar(max)` (JSON) | `VARCHAR2(2000)` |
+| Source type | Snowflake | BigQuery | PostgreSQL | SQL Server | Oracle | MariaDB |
+|---|---|---|---|---|---|---|
+| `boolean` | `BOOLEAN` | `BOOL` | `boolean` | `bit` | `NUMBER(1)` | `BOOLEAN` |
+| `int` | `NUMBER(10,0)` | `INT64` | `integer` | `int` | `NUMBER` | `INT` |
+| `long` | `NUMBER(19,0)` | `INT64` | `bigint` | `bigint` | `NUMBER` | `BIGINT` |
+| `float` / `double` | `FLOAT` | `FLOAT64` | `real` / `double precision` | `real` / `float` | `NUMBER` | `FLOAT` / `DOUBLE` |
+| `string` | `VARCHAR` | `STRING` | `text` | `nvarchar(max)` | `VARCHAR2(2000)` | `TEXT` |
+| `bytes` | `BINARY` | `BYTES` | `bytea` | `varbinary(max)` | `VARCHAR2(2000)` | `BLOB` |
+| `decimal(p, s)` | `NUMBER(p,s)` | `NUMERIC` / `BIGNUMERIC` | `numeric(p,s)` | `decimal(p,s)` | `NUMBER` | `DECIMAL(p,s)` |
+| `date` | `DATE` | `DATE` | `date` | `date` | `VARCHAR2(2000)` | `DATE` |
+| `time` | `TIME(9)` | `TIME` | `time` | `time` | `VARCHAR2(2000)` | `TIME(6)` |
+| timestamp | `TIMESTAMP_NTZ` | `TIMESTAMP` / `DATETIME` | `timestamp` | `datetime2` | `VARCHAR2(2000)` | `DATETIME(6)` |
+| timestamp with time zone | `TIMESTAMP_TZ` | `TIMESTAMP` | `timestamptz` | `datetimeoffset` | `VARCHAR2(2000)` | `DATETIME(6)` (UTC) |
+| JSON (`io.debezium.data.Json`) | `VARCHAR` | `STRING` | `text` | `nvarchar(max)` | `VARCHAR2(2000)` | `TEXT` |
+| `record` / `map` | `VARIANT` | `STRING` (JSON) | not supported | not supported | `VARCHAR2(2000)` | not supported |
+| `array` | `VARCHAR` (JSON) | `STRING` (JSON) | `text` (JSON) | `nvarchar(max)` (JSON) | `VARCHAR2(2000)` | `TEXT` (JSON) |
 
 Timestamps without a time zone are written in **UTC**. The lakehouse targets keep the same logical types: see [Iceberg column types](./iceberg#column-types) and [Unity Catalog (Delta Lake) column types](./deltalake#column-types).
 
@@ -43,6 +43,7 @@ Timestamps without a time zone are written in **UTC**. The lakehouse targets kee
   <Card title="PostgreSQL" href="./postgres#data-types" />
   <Card title="SQL Server" href="./mssql#data-types" />
   <Card title="Oracle" href="./oracle#data-types" />
+  <Card title="MariaDB" href="./mariadb#data-types" />
   <Card title="Iceberg" href="./iceberg#column-types" />
   <Card title="Unity Catalog (Delta Lake)" href="./deltalake#column-types" />
   <Card title="Elasticsearch" href="./elasticsearch#field-types" />

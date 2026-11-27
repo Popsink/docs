@@ -170,6 +170,7 @@
                   "connectors/target/cosmosdb",
                   "connectors/target/elasticsearch",
                   "connectors/target/ibmi",
+                  "connectors/target/mariadb",
                   "connectors/target/mongodb",
                   "connectors/target/mysql",
                   "connectors/target/oracle",
