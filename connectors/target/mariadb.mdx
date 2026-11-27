@@ -1,0 +1,119 @@
+---
+title: MariaDB Target
+description: Write Popsink subscriptions into MariaDB tables, with inserts, updates and deletes applied in real time.
+---
+
+The MariaDB Target Connector writes the records of your Popsink subscriptions into MariaDB tables, applying every insert, update and delete as it arrives.
+
+MariaDB has its own target, separate from the [MySQL Target](./mysql), just as it has its own [source](/connectors/source/mariadb): the two servers have drifted apart (driver, `TIMESTAMP` range, native `UUID` type), so each one is written on its own terms. A MySQL server is refused by this connector.
+
+## Compatible versions
+
+| | |
+|---|---|
+| **MariaDB** | 10.11 or later — tested on the 10.11 and 11.4 LTS lines |
+| **Storage engine** | InnoDB |
+| **Managed services** | Amazon RDS for MariaDB |
+| **Driver** | MariaDB Connector/J 3.5 |
+
+<Note>MariaDB 10.6 and older are refused by the credential check. A MySQL server is refused too: use the [MySQL Target](./mysql).</Note>
+
+## Prerequisites
+
+- Network access from Popsink to the MariaDB server (port `3306` by default).
+- A database that will receive the tables. In MariaDB a schema *is* a database: Popsink writes into the database you configure.
+- A user with the following privileges on that database:
+
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE,
+      CREATE, ALTER, DROP, INDEX,
+      CREATE TEMPORARY TABLES
+  ON <database>.* TO '<user>'@'%';
+```
+
+`CREATE TEMPORARY TABLES` is needed for the staging table each flush loads into before it is applied to the target table.
+
+- **Recommended:** `local_infile = ON` on the server. Popsink then loads each batch with `LOAD DATA LOCAL INFILE`, its fastest path. With `local_infile = OFF` the connector still works, through batched statements, at a lower throughput.
+
+The credential check refuses the connection, with the setting to change, when the server is a MySQL server, when it is older than 10.11, or when a privilege above is missing.
+
+## Configuration
+
+| Field | Required | Description |
+|---|---|---|
+| **Host** | Yes | Hostname or IP address of the MariaDB server |
+| **Port** | Yes | TCP port (default `3306`) |
+| **Database** | Yes | Database the tables are written into |
+| **Username / Password** | Yes | Credentials with the privileges above |
+| **Encrypt connection** | No (default on) | Use TLS when connecting |
+| **Trust server certificate** | No (default on) | Skip certificate verification, for a self-signed certificate |
+
+With encryption on and the server certificate not trusted, the certificate and the host name are both verified.
+
+## How rows are written
+
+- Records are applied in batches. Each batch is loaded into a temporary staging table, then applied to the target table in one transaction: existing keys are updated, new keys inserted, deleted keys removed.
+- The connector never uses `INSERT … ON DUPLICATE KEY UPDATE`: that statement fires on *any* unique index and could overwrite an unrelated row. Rows are matched on the subscription's key only.
+- A row whose value has not changed is not rewritten.
+- Records without a key are identified by a hash of their content, as on the other SQL targets.
+- Sessions run in `READ COMMITTED` with the time zone set to UTC.
+
+## Data types
+
+Popsink creates each table on its first record. Columns are typed from the Avro schema of the source record, read from the Schema Registry, never from the values. When a subscription applies its column mapping, an explicit **cast** in the mapping takes precedence. An existing table keeps the types it already has.
+
+| Source type (Avro / Debezium) | MariaDB type |
+|---|---|
+| `boolean` | `BOOLEAN` (`TINYINT(1)`) |
+| `int` | `INT` |
+| `long` | `BIGINT` |
+| `float` | `FLOAT` |
+| `double` | `DOUBLE` |
+| `string`, `io.debezium.data.Json`, `io.debezium.data.Enum` | `TEXT` |
+| `string` in a key column | `VARCHAR(255)` |
+| UUID | `UUID` |
+| `bytes`, `io.debezium.data.Bits` | `BLOB` |
+| `decimal(p, s)` | `DECIMAL(p,s)` (precision up to 65, scale up to 30) |
+| `decimal` without precision | `DECIMAL(65,30)` |
+| `date`, `io.debezium.time.Date` | `DATE` |
+| `time-millis`, `time-micros`, `io.debezium.time.Time`, `MicroTime`, `NanoTime` | `TIME(6)` |
+| `timestamp-*`, `local-timestamp-*`, `io.debezium.time.Timestamp`, `MicroTimestamp`, `NanoTimestamp` | `DATETIME(6)` (UTC) |
+| `io.debezium.time.ZonedTimestamp` | `DATETIME(6)` (converted to UTC) |
+| `array` | `TEXT` (JSON text) |
+
+<Warning>MariaDB has no column type that keeps a time zone: a `ZonedTimestamp` is converted to UTC and its offset is dropped. Timestamps go into `DATETIME(6)` rather than `TIMESTAMP`, whose range stops in 2038 before MariaDB 11.5. MariaDB stores microseconds, so nanosecond values are truncated. JSON is written as text (MariaDB's `JSON` type is an alias for `LONGTEXT`). Nested records and maps are not supported as columns: flatten them in the column mapping.</Warning>
+
+On a table that already exists, a `BOOLEAN` value goes into an `INT` or `TINYINT` column as `1` / `0`, and a `float` into a `DOUBLE` column.
+
+### Schema evolution
+
+- **New source columns** are added with `ALTER TABLE … ADD`.
+- **Type changes** are applied with `ALTER TABLE … MODIFY` when the new type is wider. Decimals are widened, never narrowed. If MariaDB refuses the change, the subscription stops on that table instead of skipping data.
+- **Dropped source columns** are kept in the table, and stay `NULL` for new rows.
+- With **schema evolution** off on the subscription, any change that needs an `ALTER` stops the subscription.
+
+## FAQ
+
+<AccordionGroup>
+  <Accordion title="Can I use the MySQL target for MariaDB?">
+    No. The MySQL target refuses a MariaDB server, and this one refuses a MySQL server. Create a MariaDB target instead.
+  </Accordion>
+  <Accordion title="Do I need to enable local_infile?">
+    No, but it is recommended. Without it, rows are written through batched statements, which is slower on large volumes.
+  </Accordion>
+  <Accordion title="Where do the tables go?">
+    Into the database set on the target. There is no separate schema field: in MariaDB, schema and database are the same thing.
+  </Accordion>
+</AccordionGroup>
+
+<CardGroup>
+  <Card title="Target data types" href="./data-types">
+    Compare column types across every target.
+  </Card>
+  <Card title="MariaDB Source" href="/connectors/source/mariadb">
+    Capture changes from MariaDB through its binary log.
+  </Card>
+  <Card title="Start a pipeline" href="/quickstart">
+    End-to-end example to validate your configuration.
+  </Card>
+</CardGroup>
